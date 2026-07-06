@@ -1,0 +1,20 @@
+---
+description: Provenance, capture-and-archive, and human verification requirements
+globs: engine/**
+---
+
+# Provenance & verification (non-negotiable)
+
+Narevo's only real asset is credibility. Protect it in code.
+
+- **Capture-and-archive before parsing (P1).** On every fetch, write raw bytes + sha256 to the WORM
+  archive and create a `fetch_records` row BEFORE any extraction runs.
+- **Provenance on every datum (P2).** Any value that reaches the canonical store must carry a
+  `provenance_edge` to its `document_id`, `extraction_id`, and `page`/`region` where applicable.
+- **Human gate before publication (P3).** Nothing is surfaced publicly as fact without a
+  `review_decisions.approve_publish`. Anomaly `flags` are hypotheses with evidence, not verdicts.
+- **Deterministic-first extraction.** Try PeaDF text layer / structured parsers before OCR;
+  OCR before vision-LLM (cost-gated). Record which extractor + version produced each value.
+- **Idempotent pipelines.** Re-running a stage must not duplicate or corrupt data.
+- **No unverified claims in narratives.** The Verification agent must map every claim to evidence
+  before a story enters the human-review queue.

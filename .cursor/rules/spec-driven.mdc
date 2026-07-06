@@ -1,0 +1,22 @@
+---
+description: How to write and use specs (spec-driven development) on Narevo
+globs: specs/**
+---
+
+# Spec-driven development
+
+Non-trivial work is specified before it is built. Specs are the contract between the design docs
+and the implementation.
+
+- Location: `specs/`, named `NNNN-short-slug.md`, copied from `specs/TEMPLATE.md`.
+- A spec MUST contain: Problem, Scope & Non-scope, Design, Data contracts/schemas, Acceptance
+  criteria (testable), Risks, Open questions, and the Epic/Issue it serves.
+- Flow:
+  1. Write the spec on a `spec/<issue#>-<slug>` branch.
+  2. Open a `spec/*` PR. If low-risk and unambiguous, self-merge per `loop-workflow.mdc`.
+     If it involves an open question or `needs-human` decision, label `needs-human` and wait.
+  3. Implementation PRs reference the spec they satisfy.
+  4. If the build reveals the spec is wrong, update the spec in the same PR (keep them in sync).
+- A spec is "done enough" when its acceptance criteria are concrete enough to write tests from.
+
+Keep specs short and decision-dense. Link to `docs/architecture/` rather than repeating it.

@@ -1,0 +1,13 @@
+---
+description: Functional code style for Narevo
+alwaysApply: true
+---
+
+# Functional code only
+
+- Prefer pure functions and explicit data flow. No classes unless a framework requires them
+  (e.g. FastAPI/Pydantic models, Scrapling `Spider`, React error boundaries).
+- No hidden global mutable state; pass dependencies explicitly.
+- Small, composable, testable units. Side effects (I/O, network, DB) isolated at the edges.
+- Type everything: Python type hints (checked), TS strict mode.
+- Comments explain *why* / non-obvious intent — never narrate *what* the code does.

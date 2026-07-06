@@ -1,0 +1,19 @@
+---
+description: Security and privacy guardrails for Narevo
+alwaysApply: true
+---
+
+# Security & privacy
+
+- **Never commit secrets.** Use `.env` (git-ignored) locally and a secret manager in prod.
+  `.env.example` documents keys with placeholder values only.
+- **Minimize PII.** Especially for election observers / tipsters: collect the minimum, hash
+  identifiers, encrypt at rest, restrict access. Do not repeat the government portal's data-leak
+  failure.
+- **SSRF guards** on any endpoint that fetches a user-supplied URL (block localhost/link-local/
+  file:; validate scheme+host). See PeaDF `extract-content` blocked-host pattern.
+- **Respect law/ToS** when fetching. Closed/paywalled sources go through the FOI/legal workstream,
+  not brute-force scraping.
+- **Least privilege** for DB/storage credentials; separate read vs write roles for the public API.
+- **Lawful & nonpartisan.** No evasion/anonymity tooling; no partisan targeting. Openness is the
+  security model.

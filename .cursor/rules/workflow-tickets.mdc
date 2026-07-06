@@ -1,0 +1,15 @@
+---
+description: How to create issues and use the project board on Narevo
+---
+
+# Tickets & project board
+
+- Every change starts as a GitHub issue. Skip only for a pure clarifying question.
+- Epics: label `epic`. Stories/tasks: label `story` or `task`, and reference their epic
+  (`Part of #<epic>`).
+- Labels: `epic`, `story`, `task`, `needs-spec`, `needs-human`, `blocked`, plus area labels
+  (`area:ingestion`, `area:extraction`, `area:graph`, `area:web`, `area:election`, `area:security`).
+- New issues from the loop's reflection step must state: what gap, which epic, and rough size.
+- Branch names: `<type>/<issue#>-<slug>`. PRs must `Closes #N` (or `Part of #N` for partial work).
+- Move tickets across board columns: Backlog → In progress → In review → Done.
+- If you discover a pre-existing bug mid-task: fix in-PR if low-risk, else open a tracked issue.

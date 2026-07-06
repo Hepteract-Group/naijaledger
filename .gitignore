@@ -1,0 +1,43 @@
+# Secrets & env
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+
+# Node / web
+node_modules/
+.next/
+web/dist/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Data & artifacts (never commit ingested data or archives)
+data/
+archive/
+*.sqlite
+*.duckdb
+
+# Private brainstorm / working notes (keep local; do not publish)
+chat_with_gemin.md
+notes/
+private/
+
+# OS / editor
+.DS_Store
+.idea/
+*.swp
