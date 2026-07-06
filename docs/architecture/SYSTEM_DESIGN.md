@@ -1,4 +1,4 @@
-# Narevo — System Design
+# NaijaLedger — System Design
 
 > Status: **Draft v0.1** · Owner: Architecture · Audience: contributors & AI agents
 > This is the canonical design document. Specs and issues derive from it. If code and this
@@ -8,7 +8,7 @@
 
 ## 1. Purpose & scope
 
-**Narevo** is an open, civic-accountability data platform for Nigeria. It exists to make public
+**NaijaLedger** is an open, civic-accountability data platform for Nigeria. It exists to make public
 information **undeniable, durable, and legible** to ordinary citizens, journalists, and courts.
 
 It has two initial product surfaces that share one engine:
@@ -23,18 +23,18 @@ It has two initial product surfaces that share one engine:
 ### Guiding truth (the "Open Treasury lesson")
 
 Government transparency sources **rot**. Nigeria's Open Treasury Portal ran with an expired TLS
-certificate for ~9 months and is intermittently unreachable. Therefore Narevo's first job is not
+certificate for ~9 months and is intermittently unreachable. Therefore NaijaLedger's first job is not
 analysis — it is **preservation**: capture-and-archive every source the moment we can reach it, so
 the record survives neglect, takedown, or revision.
 
 ### Non-goals (explicitly out of scope)
 
-- Narevo is **not** an anonymous/clandestine or evasion tool. It is a lawful, public,
+- NaijaLedger is **not** an anonymous/clandestine or evasion tool. It is a lawful, public,
   nonpartisan accountability platform. Openness is the security model, not secrecy.
-- Narevo does **not** publish unverified accusations. Every published claim links to source
+- NaijaLedger does **not** publish unverified accusations. Every published claim links to source
   evidence and passes human review.
-- Narevo does **not** store personal data it does not need, and never leaks user data.
-- Narevo is not affiliated with any political party or candidate.
+- NaijaLedger does **not** store personal data it does not need, and never leaks user data.
+- NaijaLedger is not affiliated with any political party or candidate.
 
 ---
 
@@ -57,7 +57,7 @@ the record survives neglect, takedown, or revision.
 
 ```
                           ┌───────────────────────────────────────────────────────────┐
-                          │                      NAREVO ENGINE                          │
+                          │                      NAIJALEDGER ENGINE                          │
                           │                                                             │
   Sources                 │   ┌────────────┐   ┌──────────────┐   ┌────────────────┐   │
   (gov portals,           │   │  Source    │   │   Fetch /    │   │  Raw Archive   │   │
@@ -312,7 +312,7 @@ Detailed epic/issue breakdown lives in `ROADMAP.md`. Summary:
 ## 11. Open questions (need human decision — flag with `needs-human`)
 1. Graph engine final choice (Neo4j vs Memgraph vs Postgres+AGE)?
 2. Orchestrator choice (Prefect vs Dagster vs minimal)?
-3. Repo/product name: keep **Narevo**?
+3. Repo/product name: keep **NaijaLedger**?
 4. Hosting/infra budget & provider for prod?
 5. Which state's procurement portal is the first end-to-end vertical slice?
 6. Data-licensing for published datasets (e.g. ODbL / CC-BY)?

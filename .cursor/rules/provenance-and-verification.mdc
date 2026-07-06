@@ -5,7 +5,7 @@ globs: engine/**
 
 # Provenance & verification (non-negotiable)
 
-Narevo's only real asset is credibility. Protect it in code.
+NaijaLedger's only real asset is credibility. Protect it in code.
 
 - **Capture-and-archive before parsing (P1).** On every fetch, write raw bytes + sha256 to the WORM
   archive and create a `fetch_records` row BEFORE any extraction runs.

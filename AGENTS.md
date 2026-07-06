@@ -1,4 +1,4 @@
-# AGENTS.md — Working agreement for AI agents on Narevo
+# AGENTS.md — Working agreement for AI agents on NaijaLedger
 
 > Read this **first** in every session. It is intentionally small.
 > Detailed reference lives in `.cursor/rules/` and the design docs in `docs/architecture/`.
@@ -9,9 +9,9 @@
 
 | Thing | Value |
 |---|---|
-| Product | **Narevo** — open civic-accountability data platform for Nigeria (public-finance transparency + election-results verification) |
+| Product | **NaijaLedger** — open civic-accountability data platform for Nigeria (public-finance transparency + election-results verification) |
 | Org | `Hepteract-Group` (UK umbrella) |
-| Repo | `Hepteract-Group/narevo` (default branch `main`) |
+| Repo | `Hepteract-Group/naijaledger` (default branch `main`) |
 | Design (source of truth) | `docs/architecture/SYSTEM_DESIGN.md`, `data-model.md`, `ROADMAP.md` |
 | Specs | `specs/` (spec-driven development — see below) |
 | Stack | Python 3.11+ engine (`/engine`), TypeScript + React/Vite web (`/web`) |
@@ -36,7 +36,7 @@
 
 ## The loop (memorise this)
 
-Narevo is built by agents running a **self-directed loop**. One iteration:
+NaijaLedger is built by agents running a **self-directed loop**. One iteration:
 
 1. **Pick** the highest-priority open issue on the project board that is unblocked and unassigned
    (respect dependency order in `ROADMAP.md`). Assign yourself; move to **In progress**.

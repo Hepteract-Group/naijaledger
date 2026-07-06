@@ -1,6 +1,6 @@
 # Specs
 
-Spec-driven development for Narevo. Specs are the contract between the design docs
+Spec-driven development for NaijaLedger. Specs are the contract between the design docs
 (`../docs/architecture/`) and the code.
 
 - Copy `TEMPLATE.md` to `NNNN-short-slug.md` (zero-padded, incrementing).

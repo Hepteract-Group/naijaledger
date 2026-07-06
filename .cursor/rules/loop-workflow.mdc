@@ -1,11 +1,11 @@
 ---
-description: The self-directed build loop and agent merge policy for Narevo
+description: The self-directed build loop and agent merge policy for NaijaLedger
 alwaysApply: true
 ---
 
 # Self-directed loop
 
-Narevo is built incrementally by agents running this loop. One iteration = one issue.
+NaijaLedger is built incrementally by agents running this loop. One iteration = one issue.
 
 1. **Pick** the highest-priority, unblocked, unassigned issue on the project board, respecting the
    dependency order in `docs/architecture/ROADMAP.md`. Assign self → **In progress**.

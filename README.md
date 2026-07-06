@@ -1,8 +1,8 @@
-# Narevo
+# NaijaLedger
 
 **An open civic-accountability data platform for Nigeria.**
 
-Narevo makes public information *undeniable, durable, and legible*. It ingests public data,
+NaijaLedger makes public information *undeniable, durable, and legible*. It ingests public data,
 preserves it, connects the dots, surfaces anomalies with evidence, and tells the story visually —
 with every published claim traceable to a source document.
 
@@ -45,5 +45,5 @@ See [LICENSE](LICENSE).
 
 ---
 
-> Narevo is a transparency and accountability project. It operates lawfully and nonpartisanly, and
+> NaijaLedger is a transparency and accountability project. It operates lawfully and nonpartisanly, and
 > is not a tool for evasion, anonymity, or targeting individuals.

@@ -1,5 +1,5 @@
 ---
-description: How to write and use specs (spec-driven development) on Narevo
+description: How to write and use specs (spec-driven development) on NaijaLedger
 globs: specs/**
 ---
 

@@ -6,7 +6,7 @@
 - **Needs human decision?**: no (schema is derivable from design; seeding sources is a separate `needs-human` issue)
 
 ## 1. Problem
-Narevo must catalog every data source it ingests, monitor source health, and drive scheduled
+NaijaLedger must catalog every data source it ingests, monitor source health, and drive scheduled
 capture. This is the backbone of the engine (see `SYSTEM_DESIGN.md` §4.1, `data-model.md` `sources`).
 Without it we cannot schedule fetches, detect outages (the Open Treasury TLS lapse), or track
 provenance back to an origin.

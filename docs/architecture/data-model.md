@@ -1,4 +1,4 @@
-# Narevo — Data Model
+# NaijaLedger — Data Model
 
 > Status: **Draft v0.1** · Derives from `SYSTEM_DESIGN.md`. Postgres is canonical (P6);
 > Neo4j/search/vector are rebuildable projections.

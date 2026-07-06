@@ -1,4 +1,4 @@
-# Narevo — Roadmap (Epics → Issues)
+# NaijaLedger — Roadmap (Epics → Issues)
 
 > Derives from `SYSTEM_DESIGN.md`. Each **Epic** becomes a GitHub issue labelled `epic`.
 > Each child becomes an issue labelled `story` (or `task`) and references its epic.
