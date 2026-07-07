@@ -29,6 +29,28 @@ Early. The **design is the source of truth** and lives in
 [`docs/architecture/`](docs/architecture/SYSTEM_DESIGN.md). The system is built incrementally by AI
 agents following the loop and spec-driven workflow in [`AGENTS.md`](AGENTS.md).
 
+## Repository layout
+
+```
+/engine   Python 3.11+ (uv, FastAPI, Alembic, ruff, mypy)
+/web      TypeScript + React (Vite, pnpm, eslint, prettier)
+/specs    Spec-driven development contracts
+/docs     Architecture and design
+```
+
+## Local development
+
+Prerequisites: [uv](https://docs.astral.sh/uv/), [pnpm](https://pnpm.io/), Make.
+
+```bash
+make install          # uv sync + pnpm install
+make dev-engine       # API on http://localhost:8000/health
+make dev-web          # UI on http://localhost:5173
+make lint typecheck test
+```
+
+Copy `.env.example` to `.env` for local overrides. OpenAPI → TS types: `make generate-api` (engine must be running).
+
 - [System design](docs/architecture/SYSTEM_DESIGN.md)
 - [Data model](docs/architecture/data-model.md)
 - [Roadmap (epics → issues)](docs/architecture/ROADMAP.md)
@@ -37,7 +59,7 @@ agents following the loop and spec-driven workflow in [`AGENTS.md`](AGENTS.md).
 ## Tech (planned)
 
 Python engine (ingestion, extraction, entity resolution, agents) · PostgreSQL (canonical) · MinIO
-(WORM archive) · Neo4j (graph) · FastAPI · TypeScript + React/Vite web · MapLibre + deck.gl.
+(WORM archive) · Memgraph (graph) · FastAPI · TypeScript + React/Vite web · MapLibre + deck.gl.
 
 ## License
 

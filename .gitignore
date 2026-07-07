@@ -20,7 +20,7 @@ build/
 
 # Node / web
 node_modules/
-.next/
+.pnpm-store/
 web/dist/
 *.log
 npm-debug.log*
@@ -32,8 +32,8 @@ archive/
 *.sqlite
 *.duckdb
 
-# Private brainstorm / working notes (keep local; do not publish)
-chat_with_gemin.md
+# Local working docs (decision briefs, brainstorms — never commit)
+dev_docs/
 notes/
 private/
 
