@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     minio_secret_key: str = "changeme"
     minio_bucket: str = "naijaledger-archive"
     minio_retention_days: int = 3650
+    fetch_http_timeout: float = 60.0
 
     @field_validator("api_cors_origins", mode="before")
     @classmethod

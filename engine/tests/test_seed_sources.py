@@ -2,6 +2,8 @@ from sqlalchemy import text
 
 from naijaledger.seeds.catalog import SEED_CATALOG
 from naijaledger.seeds.run import apply_seed_catalog
+from naijaledger.sources.models import SourceCreate
+from naijaledger.sources.service import approve_source, create_source, get_source
 
 
 def test_seed_catalog_is_idempotent(db_connection) -> None:
@@ -21,3 +23,24 @@ def test_seed_catalog_entries_are_approved(db_connection) -> None:
     rows = db_connection.execute(text("SELECT status FROM sources")).all()
     assert len(rows) == len(SEED_CATALOG)
     assert all(row.status == "approved" for row in rows)
+
+
+def test_seed_corrects_obsolete_open_treasury_url(db_connection) -> None:
+    legacy = create_source(
+        db_connection,
+        SourceCreate(
+            name="Open Treasury Portal",
+            jurisdiction="federal",
+            category="payments",
+            url="https://payment.gov.ng/",
+            fetch_method="http",
+            format="html",
+        ),
+    )
+    approve_source(db_connection, legacy.id, approved_by="test")
+
+    summary = apply_seed_catalog(db_connection)
+    updated = get_source(db_connection, legacy.id)
+
+    assert updated.url == "https://opentreasury.gov.ng/"
+    assert summary["corrected"] == 1

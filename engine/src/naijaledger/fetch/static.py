@@ -9,13 +9,12 @@ from sqlalchemy.engine import Connection
 
 from naijaledger.archive.storage import store_raw_bytes
 from naijaledger.fetch.service import create_fetch_record
+from naijaledger.http.client import create_http_client
 from naijaledger.sources.health import validate_probe_url
 from naijaledger.sources.models import SourceRecord
 from naijaledger.sources.service import list_sources, record_fetch_success
 
 logger = logging.getLogger("naijaledger.fetch")
-
-_DEFAULT_TIMEOUT = 30.0
 
 
 class StaticFetchResult(TypedDict):
@@ -156,7 +155,7 @@ def run_static_fetch_for_approved_http_sources(
     requested_at: datetime | None = None,
 ) -> StaticFetchSummary:
     owned_client = http_client is None
-    client = http_client or httpx.Client(timeout=_DEFAULT_TIMEOUT)
+    client = http_client or create_http_client()
 
     summary: StaticFetchSummary = {"attempted": 0, "succeeded": 0, "failed": 0}
     sources = [

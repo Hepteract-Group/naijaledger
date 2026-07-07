@@ -10,6 +10,7 @@ from uuid import UUID
 import httpx
 from sqlalchemy.engine import Connection
 
+from naijaledger.http.client import create_http_client
 from naijaledger.sources.models import SourceRecord, SourceUpdate
 from naijaledger.sources.service import list_sources, update_source
 from naijaledger.sources.types import HealthStatus
@@ -229,7 +230,7 @@ def run_health_monitor(
 ) -> HealthMonitorSummary:
     checked_at = now or datetime.now(tz=UTC)
     owned_client = client is None
-    http_client = client or httpx.Client(timeout=20.0)
+    http_client = client or create_http_client()
 
     summary: HealthMonitorSummary = {
         "checked": 0,

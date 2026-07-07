@@ -12,4 +12,6 @@ def run() -> None:
         f"created={summary['created']}",
         f"skipped={summary['skipped']}",
         f"approved={summary['approved']}",
+        f"corrected={summary['corrected']}",
+        f"retired={summary['retired']}",
     )
