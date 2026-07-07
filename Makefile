@@ -1,4 +1,4 @@
-.PHONY: install install-engine install-web lint typecheck test format dev-engine dev-web generate-api
+.PHONY: install install-engine install-web lint typecheck test format dev-engine dev-web generate-api docker-up docker-down docker-ps docker-config
 
 install: install-engine install-web
 
@@ -50,3 +50,15 @@ dev-web:
 # Requires engine running on localhost:8000
 generate-api:
 	pnpm --filter @naijaledger/web generate-api
+
+docker-up:
+	docker compose up -d
+
+docker-down:
+	docker compose down
+
+docker-ps:
+	docker compose ps
+
+docker-config:
+	docker compose config

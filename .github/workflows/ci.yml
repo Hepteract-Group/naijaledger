@@ -64,3 +64,12 @@ jobs:
 
       - name: Vitest
         run: pnpm --filter @naijaledger/web test
+
+  compose:
+    name: Docker Compose config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate compose file
+        run: docker compose config
