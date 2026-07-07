@@ -20,6 +20,6 @@ uv run naijaledger-api
 ## Migrations
 
 ```bash
-export DATABASE_URL=postgresql://naijaledger:naijaledger@localhost:5432/naijaledger
+export DATABASE_URL=postgresql+psycopg://naijaledger:naijaledger@localhost:5432/naijaledger
 uv run alembic upgrade head
 ```

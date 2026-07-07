@@ -1,7 +1,7 @@
 # Spec 0001 — Source Registry schema
 
-- **Epic / Issue**: E2.1 / (to be linked)
-- **Status**: Draft (example — demonstrates the spec format)
+- **Epic / Issue**: E2.1 / #17
+- **Status**: Implemented
 - **Author**: architecture
 - **Needs human decision?**: no (schema is derivable from design; seeding sources is a separate `needs-human` issue)
 
@@ -33,11 +33,11 @@ reliability_score, status, added_by, approved_by, created_at, updated_at`).
 Indexes: unique on `(url, format)`; btree on `status`, `category`, `health_status`.
 
 ## 5. Acceptance criteria (testable)
-- [ ] Migration creates all enums and the `sources` table with the columns above.
-- [ ] `url + format` uniqueness is enforced.
-- [ ] `status` defaults to `proposed`; `reliability_score` defaults to `0`.
-- [ ] Migration is reversible (down migration drops table + enums cleanly).
-- [ ] A test inserts a row, violates the unique constraint, and asserts the failure.
+- [x] Migration creates all enums and the `sources` table with the columns above.
+- [x] `url + format` uniqueness is enforced.
+- [x] `status` defaults to `proposed`; `reliability_score` defaults to `0`.
+- [x] Migration is reversible (down migration drops table + enums cleanly).
+- [x] A test inserts a row, violates the unique constraint, and asserts the failure.
 
 ## 6. Risks & mitigations
 - Schema drift vs `data-model.md` → keep this spec and the doc in sync in the same PR.

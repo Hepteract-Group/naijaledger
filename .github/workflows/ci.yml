@@ -13,6 +13,22 @@ jobs:
   engine:
     name: Engine (Python)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: naijaledger
+          POSTGRES_PASSWORD: naijaledger
+          POSTGRES_DB: naijaledger
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U naijaledger -d naijaledger"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+psycopg://naijaledger:naijaledger@localhost:5432/naijaledger
     defaults:
       run:
         working-directory: engine
@@ -34,6 +50,9 @@ jobs:
 
       - name: Mypy
         run: uv run mypy src
+
+      - name: Alembic upgrade
+        run: uv run alembic upgrade head
 
       - name: Pytest
         run: uv run pytest
