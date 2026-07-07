@@ -19,6 +19,32 @@ _SEED_URL_CORRECTIONS: dict[str, str] = {
     "https://www.budgetoffice.gov.ng/": "https://budgetoffice.gov.ng/",
 }
 
+# State OCDS portal audit (specs/0005-state-ocds-portal-audit.md).
+_SEED_STATE_PORTAL_CORRECTIONS: dict[str, SourceUpdate] = {
+    "https://lagosppaocds.azurewebsites.net/": SourceUpdate(
+        url="https://lagosstate.gov.ng/lsppa/",
+        name="Lagos State Public Procurement Agency (LSPPA)",
+        region="Lagos",
+    ),
+    "https://ekitibppaocds.azurewebsites.net/": SourceUpdate(
+        url="https://ocdsportal.azurewebsites.net/",
+    ),
+    "https://adamawappaocds.azurewebsites.net/": SourceUpdate(
+        url="https://bpp.adamawastate.gov.ng/",
+        name="Adamawa State Bureau of Public Procurement",
+    ),
+    "https://anambrappaocds.azurewebsites.net/": SourceUpdate(
+        url="https://eprocure.bpp.an.gov.ng/",
+        name="Anambra State Public Procurement Portal",
+    ),
+}
+
+_RETIRED_STATE_PORTAL_URLS: tuple[str, ...] = (
+    "https://ondobppaocds.azurewebsites.net/",
+    "https://osunbppaocds.azurewebsites.net/",
+    "https://riversbppaocds.azurewebsites.net/",
+)
+
 
 class SeedApplySummary(TypedDict):
     created: int
@@ -50,6 +76,36 @@ def _apply_seed_url_corrections(connection: Connection) -> tuple[int, int]:
     return corrected, retired
 
 
+def _apply_seed_state_portal_corrections(connection: Connection) -> tuple[int, int]:
+    corrected = 0
+    retired = 0
+    for old_url, update in _SEED_STATE_PORTAL_CORRECTIONS.items():
+        for source in list_sources(connection):
+            if source.url != old_url:
+                continue
+            new_url = update.url
+            if new_url is None:
+                continue
+            replacement = get_source_by_url_and_format(connection, new_url, source.format)
+            if replacement is not None and replacement.id != source.id:
+                if source.status != "retired":
+                    retire_source(connection, source.id)
+                    retired += 1
+                continue
+            update_source(connection, source.id, update)
+            corrected += 1
+
+    for old_url in _RETIRED_STATE_PORTAL_URLS:
+        for source in list_sources(connection):
+            if source.url != old_url:
+                continue
+            if source.status != "retired":
+                retire_source(connection, source.id)
+                retired += 1
+
+    return corrected, retired
+
+
 def apply_seed_catalog(
     connection: Connection,
     *,
@@ -58,6 +114,9 @@ def apply_seed_catalog(
 ) -> SeedApplySummary:
     catalog = entries if entries is not None else SEED_CATALOG
     corrected, retired = _apply_seed_url_corrections(connection)
+    state_corrected, state_retired = _apply_seed_state_portal_corrections(connection)
+    corrected += state_corrected
+    retired += state_retired
     summary: SeedApplySummary = {
         "created": 0,
         "skipped": 0,

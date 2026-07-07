@@ -44,3 +44,25 @@ def test_seed_corrects_obsolete_open_treasury_url(db_connection) -> None:
 
     assert updated.url == "https://opentreasury.gov.ng/"
     assert summary["corrected"] == 1
+
+
+def test_seed_retires_substituted_state_portals(db_connection) -> None:
+    legacy = create_source(
+        db_connection,
+        SourceCreate(
+            name="Ondo State Open Contracting Portal",
+            jurisdiction="state",
+            region="Ondo",
+            category="procurement",
+            url="https://ondobppaocds.azurewebsites.net/",
+            fetch_method="scrapling",
+            format="html",
+        ),
+    )
+    approve_source(db_connection, legacy.id, approved_by="test")
+
+    summary = apply_seed_catalog(db_connection)
+    updated = get_source(db_connection, legacy.id)
+
+    assert updated.status == "retired"
+    assert summary["retired"] >= 1
