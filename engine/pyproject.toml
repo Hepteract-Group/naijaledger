@@ -28,6 +28,7 @@ naijaledger-api = "naijaledger.main:run"
 naijaledger-seed = "naijaledger.seeds.cli:run"
 naijaledger-health-monitor = "naijaledger.sources.health_cli:run"
 naijaledger-archive-init = "naijaledger.archive.cli:run"
+naijaledger-fetch = "naijaledger.fetch.cli:run"
 
 [build-system]
 requires = ["hatchling"]
