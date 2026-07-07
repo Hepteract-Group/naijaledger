@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "lint": "eslint . && prettier --check \"src/**/*.{ts,tsx,css}\"",
     "typecheck": "tsc -b --noEmit",
+    "test": "vitest run",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
     "generate-api": "openapi-typescript ${VITE_API_BASE_URL:-http://localhost:8000}/openapi.json -o src/api/schema.d.ts"
   },
@@ -25,10 +26,12 @@
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.16",
     "globals": "^15.14.0",
+    "jsdom": "^26.0.0",
     "openapi-typescript": "^7.5.2",
     "prettier": "^3.4.2",
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.18.2",
-    "vite": "^6.0.6"
+    "vite": "^6.0.6",
+    "vitest": "^3.0.5"
   }
 }
