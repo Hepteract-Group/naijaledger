@@ -7,6 +7,7 @@
     "build:web": "pnpm --filter @naijaledger/web build",
     "lint": "pnpm --filter @naijaledger/web lint",
     "typecheck": "pnpm --filter @naijaledger/web typecheck",
+    "test": "make test",
     "format": "pnpm --filter @naijaledger/web format"
   }
 }

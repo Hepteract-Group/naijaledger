@@ -25,10 +25,13 @@ typecheck-engine:
 typecheck-web:
 	pnpm typecheck
 
-test: test-engine
+test: test-engine test-web
 
 test-engine:
 	cd engine && uv run pytest
+
+test-web:
+	pnpm --filter @naijaledger/web test
 
 format: format-engine format-web
 
