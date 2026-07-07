@@ -28,7 +28,7 @@ pnpm-debug.log*
 
 # Data & artifacts (never commit ingested data or archives)
 data/
-archive/
+/archive/
 *.sqlite
 *.duckdb
 
