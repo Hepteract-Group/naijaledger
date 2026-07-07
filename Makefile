@@ -62,3 +62,6 @@ docker-ps:
 
 docker-config:
 	docker compose config
+
+migrate:
+	cd engine && uv run alembic upgrade head
