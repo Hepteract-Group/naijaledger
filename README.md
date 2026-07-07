@@ -45,6 +45,8 @@ Prerequisites: [uv](https://docs.astral.sh/uv/), [pnpm](https://pnpm.io/), Make.
 ```bash
 make install          # uv sync + pnpm install
 make docker-up        # Postgres, MinIO, Memgraph (see docker-compose.yml)
+make migrate          # apply Alembic migrations
+make seed-sources     # seed approved federal + state sources (idempotent)
 make dev-engine       # API on http://localhost:8000/health
 make dev-web          # UI on http://localhost:5173 (or next free port)
 make lint typecheck test

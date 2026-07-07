@@ -1,4 +1,4 @@
-.PHONY: install install-engine install-web lint typecheck test format dev-engine dev-web generate-api docker-up docker-down docker-ps docker-config
+.PHONY: install install-engine install-web lint typecheck test format dev-engine dev-web generate-api docker-up docker-down docker-ps docker-config migrate seed-sources
 
 install: install-engine install-web
 
@@ -65,3 +65,6 @@ docker-config:
 
 migrate:
 	cd engine && uv run alembic upgrade head
+
+seed-sources: migrate
+	cd engine && uv run naijaledger-seed
