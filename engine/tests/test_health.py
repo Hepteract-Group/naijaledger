@@ -12,3 +12,9 @@ def test_health_returns_ok() -> None:
     assert body["status"] == "ok"
     assert body["service"] == "naijaledger-engine"
     assert "version" in body
+
+
+def test_health_includes_cors_for_vite_dev_origin() -> None:
+    response = client.get("/health", headers={"Origin": "http://localhost:5174"})
+    assert response.status_code == 200
+    assert response.headers.get("access-control-allow-origin") == "http://localhost:5174"

@@ -4,7 +4,7 @@ export type EngineHealth = {
   version: string;
 };
 
-const apiBase = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+const apiBase = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
 export async function fetchEngineHealth(): Promise<EngineHealth> {
   const response = await fetch(`${apiBase}/health`);
