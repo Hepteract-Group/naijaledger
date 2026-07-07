@@ -78,5 +78,5 @@ health-monitor:
 archive-init:
 	cd engine && uv run naijaledger-archive-init
 
-fetch-sources: archive-init
+fetch-sources: seed-sources archive-init
 	cd engine && uv run naijaledger-fetch
