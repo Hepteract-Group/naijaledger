@@ -4,8 +4,8 @@ from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from urllib.parse import urlparse
 
-from minio.commonconfig import COMPLIANCE
 from minio import Minio
+from minio.commonconfig import COMPLIANCE
 from minio.error import S3Error
 from minio.retention import Retention
 
