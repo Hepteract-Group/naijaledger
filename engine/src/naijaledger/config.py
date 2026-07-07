@@ -1,6 +1,8 @@
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from naijaledger.db.connection import DEFAULT_DATABASE_URL
+
 
 def load_settings() -> "Settings":
     return Settings()
@@ -9,7 +11,7 @@ def load_settings() -> "Settings":
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    database_url: str = "postgresql+psycopg://naijaledger:naijaledger@localhost:5432/naijaledger"
+    database_url: str = DEFAULT_DATABASE_URL
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     api_cors_origins: list[str] = Field(

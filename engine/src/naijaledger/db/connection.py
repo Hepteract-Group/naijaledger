@@ -3,6 +3,8 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine, make_url
 
+DEFAULT_DATABASE_URL = "postgresql+psycopg://naijaledger:naijaledger@localhost:5432/naijaledger"
+
 
 def normalize_database_url(url: str) -> str:
     if url.startswith("postgresql://"):
@@ -10,9 +12,10 @@ def normalize_database_url(url: str) -> str:
     return url
 
 
+def resolve_database_url(database_url: str | None = None) -> str:
+    raw = database_url or os.environ.get("DATABASE_URL") or DEFAULT_DATABASE_URL
+    return normalize_database_url(raw)
+
+
 def create_db_engine(database_url: str | None = None) -> Engine:
-    resolved = database_url or os.environ.get("DATABASE_URL")
-    if not resolved:
-        msg = "DATABASE_URL is required"
-        raise ValueError(msg)
-    return create_engine(make_url(normalize_database_url(resolved)))
+    return create_engine(make_url(resolve_database_url(database_url)))

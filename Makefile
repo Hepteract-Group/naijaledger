@@ -1,5 +1,8 @@
 .PHONY: install install-engine install-web lint typecheck test format dev-engine dev-web generate-api docker-up docker-down docker-ps docker-config migrate seed-sources
 
+DATABASE_URL ?= postgresql+psycopg://naijaledger:naijaledger@localhost:5432/naijaledger
+export DATABASE_URL
+
 install: install-engine install-web
 
 install-engine:

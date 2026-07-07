@@ -4,6 +4,8 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from naijaledger.db.connection import resolve_database_url
+
 config = context.config
 
 if config.config_file_name is not None:
@@ -11,11 +13,7 @@ if config.config_file_name is not None:
 
 target_metadata = None
 
-database_url = os.environ.get("DATABASE_URL")
-if database_url:
-    if database_url.startswith("postgresql://"):
-        database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
-    config.set_main_option("sqlalchemy.url", database_url)
+config.set_main_option("sqlalchemy.url", resolve_database_url(os.environ.get("DATABASE_URL")))
 
 
 def run_migrations_offline() -> None:
