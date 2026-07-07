@@ -22,6 +22,11 @@ class Settings(BaseSettings):
             "http://127.0.0.1:5174",
         ]
     )
+    minio_endpoint: str = "http://localhost:9000"
+    minio_access_key: str = "changeme"
+    minio_secret_key: str = "changeme"
+    minio_bucket: str = "naijaledger-archive"
+    minio_retention_days: int = 3650
 
     @field_validator("api_cors_origins", mode="before")
     @classmethod

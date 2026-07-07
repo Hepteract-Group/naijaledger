@@ -8,6 +8,7 @@ dependencies = [
     "alembic>=1.14",
     "fastapi>=0.115",
     "httpx>=0.28",
+    "minio>=7.2",
     "psycopg[binary]>=3.2",
     "pydantic-settings>=2.6",
     "sqlalchemy>=2.0",
@@ -26,6 +27,7 @@ dev = [
 naijaledger-api = "naijaledger.main:run"
 naijaledger-seed = "naijaledger.seeds.cli:run"
 naijaledger-health-monitor = "naijaledger.sources.health_cli:run"
+naijaledger-archive-init = "naijaledger.archive.cli:run"
 
 [build-system]
 requires = ["hatchling"]
@@ -51,3 +53,6 @@ mypy_path = "src"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "integration: tests that require external services (MinIO, etc.)",
+]
