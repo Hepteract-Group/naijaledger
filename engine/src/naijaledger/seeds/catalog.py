@@ -1,4 +1,8 @@
-"""Approved initial source catalog for registry seeding (E2.3)."""
+"""Approved initial source catalog for registry seeding (E2.3).
+
+State OCDS URLs audited 2026-07-07 — see specs/0005-state-ocds-portal-audit.md.
+Three slots (Ondo, Osun, Rivers) use substitute states whose portals are live.
+"""
 
 from datetime import timedelta
 
@@ -72,11 +76,11 @@ _FEDERAL_SOURCES: list[SourceCreate] = [
 
 _STATE_PROCUREMENT_SOURCES: list[SourceCreate] = [
     SourceCreate(
-        name="Lagos State Open Contracting Portal",
+        name="Lagos State Public Procurement Agency (LSPPA)",
         jurisdiction="state",
         region="Lagos",
         category="procurement",
-        url="https://lagosppaocds.azurewebsites.net/",
+        url="https://lagosstate.gov.ng/lsppa/",
         fetch_method="scrapling",
         format="html",
         expected_cadence=timedelta(days=7),
@@ -98,62 +102,62 @@ _STATE_PROCUREMENT_SOURCES: list[SourceCreate] = [
         jurisdiction="state",
         region="Ekiti",
         category="procurement",
-        url="https://ekitibppaocds.azurewebsites.net/",
+        url="https://ocdsportal.azurewebsites.net/",
         fetch_method="scrapling",
         format="html",
         expected_cadence=timedelta(days=7),
         added_by=SEED_ADDED_BY,
     ),
     SourceCreate(
-        name="Adamawa State Open Contracting Portal",
+        name="Adamawa State Bureau of Public Procurement",
         jurisdiction="state",
         region="Adamawa",
         category="procurement",
-        url="https://adamawappaocds.azurewebsites.net/",
+        url="https://bpp.adamawastate.gov.ng/",
         fetch_method="scrapling",
         format="html",
         expected_cadence=timedelta(days=7),
         added_by=SEED_ADDED_BY,
     ),
     SourceCreate(
-        name="Ondo State Open Contracting Portal",
+        name="Kwara State Open Contracting Portal",
         jurisdiction="state",
-        region="Ondo",
+        region="Kwara",
         category="procurement",
-        url="https://ondobppaocds.azurewebsites.net/",
+        url="https://kwppa.kwarastate.gov.ng/ocds-portal/awarded-contracts",
         fetch_method="scrapling",
         format="html",
         expected_cadence=timedelta(days=7),
         added_by=SEED_ADDED_BY,
     ),
     SourceCreate(
-        name="Osun State Open Contracting Portal",
+        name="Jigawa State Open Contracting Portal",
         jurisdiction="state",
-        region="Osun",
+        region="Jigawa",
         category="procurement",
-        url="https://osunbppaocds.azurewebsites.net/",
+        url="https://ocds.dueprocess.jg.gov.ng/",
         fetch_method="scrapling",
         format="html",
         expected_cadence=timedelta(days=7),
         added_by=SEED_ADDED_BY,
     ),
     SourceCreate(
-        name="Anambra State Open Contracting Portal",
+        name="Anambra State Public Procurement Portal",
         jurisdiction="state",
         region="Anambra",
         category="procurement",
-        url="https://anambrappaocds.azurewebsites.net/",
+        url="https://eprocure.bpp.an.gov.ng/",
         fetch_method="scrapling",
         format="html",
         expected_cadence=timedelta(days=7),
         added_by=SEED_ADDED_BY,
     ),
     SourceCreate(
-        name="Rivers State Open Contracting Portal",
+        name="Benue State Procurement Portal",
         jurisdiction="state",
-        region="Rivers",
+        region="Benue",
         category="procurement",
-        url="https://riversbppaocds.azurewebsites.net/",
+        url="https://procurement.benuestate.gov.ng/",
         fetch_method="scrapling",
         format="html",
         expected_cadence=timedelta(days=7),
