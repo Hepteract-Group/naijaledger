@@ -3,6 +3,7 @@ import logging
 from naijaledger.archive.storage import create_minio_client, ensure_archive_bucket
 from naijaledger.config import load_settings
 from naijaledger.db.connection import create_db_engine
+from naijaledger.fetch.scrapling_fetch import run_scrapling_fetch_for_approved_scrapling_sources
 from naijaledger.fetch.static import run_static_fetch_for_approved_http_sources
 
 
@@ -18,15 +19,27 @@ def run() -> None:
 
     engine = create_db_engine()
     with engine.connect() as connection, connection.begin():
-        summary = run_static_fetch_for_approved_http_sources(
+        http_summary = run_static_fetch_for_approved_http_sources(
             connection,
             minio_client=minio_client,
             bucket=settings.minio_bucket,
         )
+        scrapling_summary = run_scrapling_fetch_for_approved_scrapling_sources(
+            connection,
+            minio_client=minio_client,
+            bucket=settings.minio_bucket,
+            settings=settings,
+        )
 
     print(
-        "Static fetch complete:",
-        f"attempted={summary['attempted']}",
-        f"succeeded={summary['succeeded']}",
-        f"failed={summary['failed']}",
+        "HTTP fetch complete:",
+        f"attempted={http_summary['attempted']}",
+        f"succeeded={http_summary['succeeded']}",
+        f"failed={http_summary['failed']}",
+    )
+    print(
+        "Scrapling fetch complete:",
+        f"attempted={scrapling_summary['attempted']}",
+        f"succeeded={scrapling_summary['succeeded']}",
+        f"failed={scrapling_summary['failed']}",
     )

@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     minio_bucket: str = "naijaledger-archive"
     minio_retention_days: int = 3650
     fetch_http_timeout: float = 60.0
+    scrapling_timeout: float = 60.0
+    scrapling_impersonate: str = "chrome"
+    scrapling_stealthy_headers: bool = True
 
     @field_validator("api_cors_origins", mode="before")
     @classmethod
