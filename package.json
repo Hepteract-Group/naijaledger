@@ -1,0 +1,12 @@
+{
+  "name": "naijaledger",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev:web": "pnpm --filter @naijaledger/web dev",
+    "build:web": "pnpm --filter @naijaledger/web build",
+    "lint": "pnpm --filter @naijaledger/web lint",
+    "typecheck": "pnpm --filter @naijaledger/web typecheck",
+    "format": "pnpm --filter @naijaledger/web format"
+  }
+}

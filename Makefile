@@ -1,0 +1,49 @@
+.PHONY: install install-engine install-web lint typecheck test format dev-engine dev-web generate-api
+
+install: install-engine install-web
+
+install-engine:
+	cd engine && uv sync --all-extras
+
+install-web:
+	pnpm install
+
+lint: lint-engine lint-web
+
+lint-engine:
+	cd engine && uv run ruff check src tests
+	cd engine && uv run ruff format --check src tests
+
+lint-web:
+	pnpm lint
+
+typecheck: typecheck-engine typecheck-web
+
+typecheck-engine:
+	cd engine && uv run mypy src
+
+typecheck-web:
+	pnpm typecheck
+
+test: test-engine
+
+test-engine:
+	cd engine && uv run pytest
+
+format: format-engine format-web
+
+format-engine:
+	cd engine && uv run ruff format src tests
+
+format-web:
+	pnpm format
+
+dev-engine:
+	cd engine && uv run naijaledger-api
+
+dev-web:
+	pnpm dev:web
+
+# Requires engine running on localhost:8000
+generate-api:
+	pnpm --filter @naijaledger/web generate-api
