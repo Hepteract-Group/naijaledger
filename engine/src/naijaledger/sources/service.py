@@ -9,7 +9,13 @@ from sqlalchemy.exc import IntegrityError, NoResultFound
 
 from naijaledger.sources.errors import InvalidSourceTransitionError, SourceNotFoundError
 from naijaledger.sources.models import SourceCreate, SourceRecord, SourceUpdate
-from naijaledger.sources.types import HealthStatus, Jurisdiction, SourceCategory, SourceStatus
+from naijaledger.sources.types import (
+    HealthStatus,
+    Jurisdiction,
+    SourceCategory,
+    SourceFormat,
+    SourceStatus,
+)
 
 _SOURCE_COLUMNS = """
     id, name, jurisdiction, region, category, url, fetch_method, format,
@@ -95,6 +101,24 @@ def create_source(connection: Connection, data: SourceCreate) -> SourceRecord:
 
 def get_source(connection: Connection, source_id: UUID) -> SourceRecord:
     return _fetch_one(connection, source_id)
+
+
+def get_source_by_url_and_format(
+    connection: Connection,
+    url: str,
+    format: SourceFormat,
+) -> SourceRecord | None:
+    query = text(
+        f"""
+        SELECT {_SOURCE_COLUMNS}
+        FROM sources
+        WHERE url = :url AND format = :format
+        """
+    )
+    row = connection.execute(query, {"url": url, "format": format}).first()
+    if row is None:
+        return None
+    return _row_to_record(row)
 
 
 def list_sources(

@@ -23,3 +23,9 @@ uv run naijaledger-api
 export DATABASE_URL=postgresql+psycopg://naijaledger:naijaledger@localhost:5432/naijaledger
 uv run alembic upgrade head
 ```
+
+Seed the approved source catalog (idempotent):
+
+```bash
+make seed-sources
+```

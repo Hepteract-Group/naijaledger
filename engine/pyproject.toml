@@ -24,6 +24,7 @@ dev = [
 
 [project.scripts]
 naijaledger-api = "naijaledger.main:run"
+naijaledger-seed = "naijaledger.seeds.cli:run"
 
 [build-system]
 requires = ["hatchling"]
