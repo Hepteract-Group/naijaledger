@@ -84,7 +84,7 @@ def test_static_fetch_source_success(db_connection, monkeypatch: pytest.MonkeyPa
             created=True,
         )
 
-    monkeypatch.setattr("naijaledger.fetch.static.store_raw_bytes", fake_store)
+    monkeypatch.setattr("naijaledger.fetch.capture.store_raw_bytes", fake_store)
 
     result = static_fetch_source(
         db_connection,
@@ -140,7 +140,7 @@ def test_static_fetch_source_connection_error(
             created=True,
         )
 
-    monkeypatch.setattr("naijaledger.fetch.static.store_raw_bytes", fake_store)
+    monkeypatch.setattr("naijaledger.fetch.capture.store_raw_bytes", fake_store)
 
     result = static_fetch_source(
         db_connection,
