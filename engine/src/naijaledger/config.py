@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     scrapling_timeout: float = 60.0
     scrapling_impersonate: str = "chrome"
     scrapling_stealthy_headers: bool = True
+    playwright_timeout: float = 90.0
+    playwright_headless: bool = True
+    playwright_network_idle: bool = True
+    playwright_post_wait_ms: int = 1000
 
     @field_validator("api_cors_origins", mode="before")
     @classmethod
