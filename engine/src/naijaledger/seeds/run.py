@@ -29,6 +29,7 @@ _SEED_FEDERAL_SOURCE_CORRECTIONS: dict[str, SourceUpdate] = {
     "https://nocopo.bpp.gov.ng/": SourceUpdate(
         url="https://nocopo.bpp.gov.ng/Open-Data",
         name="Nigeria Open Contracting Portal (NOCOPO) — Open Data",
+        fetch_method="playwright",
     ),
 }
 
@@ -102,6 +103,13 @@ _RETIRED_STATE_PORTAL_URLS: tuple[str, ...] = (
     "https://ondobppaocds.azurewebsites.net/",
     "https://osunbppaocds.azurewebsites.net/",
     "https://riversbppaocds.azurewebsites.net/",
+)
+
+_PLAYWRIGHT_SOURCE_URLS: frozenset[str] = frozenset(
+    {
+        "https://nocopo.bpp.gov.ng/Open-Data",
+        "https://project.dueprocess.gm.gov.ng/projects",
+    }
 )
 
 
@@ -195,6 +203,22 @@ def _apply_seed_state_portal_corrections(connection: Connection) -> tuple[int, i
     return corrected, retired
 
 
+def _apply_seed_playwright_fetch_corrections(connection: Connection) -> int:
+    corrected = 0
+    for source in list_sources(connection):
+        if source.url not in _PLAYWRIGHT_SOURCE_URLS:
+            continue
+        if source.fetch_method == "playwright":
+            continue
+        update_source(
+            connection,
+            source.id,
+            SourceUpdate(fetch_method="playwright"),
+        )
+        corrected += 1
+    return corrected
+
+
 def apply_seed_catalog(
     connection: Connection,
     *,
@@ -206,6 +230,7 @@ def apply_seed_catalog(
     federal_corrected, federal_retired = _apply_seed_federal_source_corrections(connection)
     state_corrected, state_retired = _apply_seed_state_portal_corrections(connection)
     corrected += federal_corrected + state_corrected
+    corrected += _apply_seed_playwright_fetch_corrections(connection)
     retired += federal_retired + state_retired
     summary: SeedApplySummary = {
         "created": 0,

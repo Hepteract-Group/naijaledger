@@ -187,3 +187,25 @@ def test_seed_corrects_budget_and_neiti_to_document_indexes(db_connection) -> No
     assert get_source(db_connection, budget.id).url.endswith("/budget-documents")
     assert get_source(db_connection, neiti.id).url == "https://neiti.gov.ng/documents/all"
     assert summary["corrected"] >= 2
+
+
+def test_seed_corrects_playwright_fetch_method(db_connection) -> None:
+    legacy = create_source(
+        db_connection,
+        SourceCreate(
+            name="Gombe State Due Process Portal",
+            jurisdiction="state",
+            region="Gombe",
+            category="procurement",
+            url="https://project.dueprocess.gm.gov.ng/projects",
+            fetch_method="scrapling",
+            format="html",
+        ),
+    )
+    approve_source(db_connection, legacy.id, approved_by="test")
+
+    summary = apply_seed_catalog(db_connection)
+    updated = get_source(db_connection, legacy.id)
+
+    assert updated.fetch_method == "playwright"
+    assert summary["corrected"] >= 1

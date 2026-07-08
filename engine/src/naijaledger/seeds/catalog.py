@@ -18,7 +18,7 @@ _FEDERAL_SOURCES: list[SourceCreate] = [
         jurisdiction="federal",
         category="procurement",
         url="https://nocopo.bpp.gov.ng/Open-Data",
-        fetch_method="scrapling",
+        fetch_method="playwright",
         format="html",
         expected_cadence=timedelta(days=7),
         added_by=SEED_ADDED_BY,
@@ -112,13 +112,11 @@ _STATE_PROCUREMENT_SOURCES: list[SourceCreate] = [
     ),
     SourceCreate(
         name="Gombe State Due Process Portal",
-        # Leaf data needs JS (Playwright DynamicFetcher); current scrapling Fetcher.get
-        # archives a thin shell until that path is wired — see specs/0005.
         jurisdiction="state",
         region="Gombe",
         category="procurement",
         url="https://project.dueprocess.gm.gov.ng/projects",
-        fetch_method="scrapling",
+        fetch_method="playwright",
         format="html",
         expected_cadence=timedelta(days=7),
         added_by=SEED_ADDED_BY,
