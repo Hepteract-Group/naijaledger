@@ -1,6 +1,6 @@
 import logging
 from datetime import UTC, datetime
-from typing import TypedDict
+from typing import Any, TypedDict
 from uuid import UUID
 
 from minio import Minio
@@ -48,6 +48,8 @@ def persist_fetch_capture(
     error: str | None,
     minio_client: Minio,
     bucket: str,
+    document_meta: dict[str, Any] | None = None,
+    document_title: str | None = None,
 ) -> FetchCaptureResult:
     if error is not None or body is None:
         record = create_fetch_record(
@@ -110,6 +112,8 @@ def persist_fetch_capture(
             sha256=content_hash,
             archive_key=archive_key,
             format=document_format,
+            title=document_title,
+            meta=document_meta,
         )
         document_id = upsert["document_id"]
         record_fetch_success(

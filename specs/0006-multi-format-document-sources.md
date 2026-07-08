@@ -70,8 +70,8 @@ URL → validate → fetch bytes → archive (MinIO) → fetch_record
 
 ## 4. Acceptance criteria (testable)
 
-- [ ] `documents.format` is set from `Content-Type` or URL extension when creating document rows.
-- [ ] Catalog fetch of Lagos registered-awards discovers ≥1 PDF link and archives each child.
+- [x] `documents.format` is set from `Content-Type` or URL extension when creating document rows.
+- [x] Catalog fetch of Lagos registered-awards discovers ≥1 PDF link and archives each child (see `specs/0008-catalog-link-discovery.md`).
 - [ ] E4.4 xlsx parser produces `extractions` rows from a Gombe SUBEB XLSX fixture.
 - [ ] E4.3 pdf parser produces table blocks from a Lagos award-register PDF fixture.
 - [ ] HTML table sources (Benue, Ekiti) produce row-level extractions without requiring PDF step.

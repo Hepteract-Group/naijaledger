@@ -15,7 +15,7 @@ create duplicate logical documents and complicate provenance.
 
 - In scope: `documents` migration; upsert on successful fetch; format inference from
   Content-Type / URL / source; link `first_fetch_id` + `archive_key`.
-- Out of scope: catalog link-discovery (#80), Playwright fetch (#81), extraction (E4),
+- Out of scope: catalog link-discovery (#80), Playwright fetch (#81 — done), extraction (E4),
   backfill job for historical `fetch_records` (follow-up).
 
 ## 3. Design

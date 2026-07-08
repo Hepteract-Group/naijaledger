@@ -77,7 +77,7 @@ Raw probes stored under `.probe/v4/` (gitignored locally; not committed).
 | Epic | Must account for |
 |------|------------------|
 | **E3.4 documents** | Dedup by hash; classify format from Content-Type **or** extension; child docs from catalog HTML |
-| **E3.4+ link discovery** | Lagos PDF index, Jigawa PDF reports, Budget Joomla downloads, NEITI document lists, Gombe `/publication` Cloudinary URLs, NOCOPO per-row JSON downloads |
+| **E3.4+ link discovery** | **Implemented** — Lagos/Jigawa/Budget/NEITI catalog pages discover child PDF/XLSX links; see `specs/0008-catalog-link-discovery.md` |
 | **E3.3 Playwright path** | **Implemented** — `fetch_method=playwright` uses Scrapling `DynamicFetcher` for Gombe + NOCOPO Open-Data; scrapling CLI still uses non-JS `Fetcher.get` |
 | **E4.3 PDF tables** | Lagos / Jigawa award-register PDFs (multi-column tables) |
 | **E4.4 XLSX** | Gombe Cloudinary award workbooks |

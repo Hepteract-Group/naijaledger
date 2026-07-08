@@ -13,6 +13,10 @@ from naijaledger.fetch.capture import (
     persist_fetch_capture,
     record_batch_result,
 )
+from naijaledger.fetch.link_discovery import (
+    absorb_batch_summary,
+    discover_and_fetch_catalog_children,
+)
 from naijaledger.http.client import create_http_client
 from naijaledger.sources.health import validate_probe_url
 from naijaledger.sources.models import SourceRecord
@@ -37,6 +41,7 @@ def static_fetch_source(
     minio_client: Minio,
     bucket: str,
     requested_at: datetime | None = None,
+    batch_summary: FetchBatchSummary | None = None,
 ) -> FetchCaptureResult:
     if source.fetch_method != "http":
         msg = f"static fetch only supports http sources (got {source.fetch_method})"
@@ -48,7 +53,7 @@ def static_fetch_source(
 
     try:
         response = http_client.get(url, follow_redirects=True)
-        return persist_fetch_capture(
+        result = persist_fetch_capture(
             connection,
             source,
             url=url,
@@ -60,6 +65,20 @@ def static_fetch_source(
             minio_client=minio_client,
             bucket=bucket,
         )
+        child_summary = discover_and_fetch_catalog_children(
+            connection,
+            source,
+            catalog_result=result,
+            catalog_html=response.content,
+            catalog_url=url,
+            http_client=http_client,
+            minio_client=minio_client,
+            bucket=bucket,
+            requested_at=when,
+        )
+        if batch_summary is not None:
+            absorb_batch_summary(batch_summary, child_summary)
+        return result
     except httpx.HTTPError as exc:
         return persist_fetch_capture(
             connection,
@@ -105,6 +124,7 @@ def run_static_fetch_for_approved_http_sources(
                 minio_client=minio_client,
                 bucket=bucket,
                 requested_at=requested_at,
+                batch_summary=summary,
             )
             record_batch_result(summary, result)
     finally:

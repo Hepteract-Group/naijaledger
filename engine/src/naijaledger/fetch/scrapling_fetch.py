@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Any, TypedDict, cast
 
+import httpx
 from minio import Minio
 from sqlalchemy.engine import Connection
 
@@ -13,6 +14,11 @@ from naijaledger.fetch.capture import (
     persist_fetch_capture,
     record_batch_result,
 )
+from naijaledger.fetch.link_discovery import (
+    absorb_batch_summary,
+    discover_and_fetch_catalog_children,
+)
+from naijaledger.http.client import create_http_client
 from naijaledger.sources.health import validate_probe_url
 from naijaledger.sources.models import SourceRecord
 from naijaledger.sources.service import list_sources
@@ -79,6 +85,8 @@ def scrapling_fetch_source(
     bucket: str,
     requested_at: datetime | None = None,
     settings: Settings | None = None,
+    http_client: httpx.Client | None = None,
+    batch_summary: FetchBatchSummary | None = None,
 ) -> FetchCaptureResult:
     if source.fetch_method != "scrapling":
         msg = f"scrapling fetch only supports scrapling sources (got {source.fetch_method})"
@@ -86,7 +94,7 @@ def scrapling_fetch_source(
 
     when = requested_at or now_utc()
     page = fetch_url_with_scrapling(source.url, settings=settings)
-    return persist_fetch_capture(
+    result = persist_fetch_capture(
         connection,
         source,
         url=source.url,
@@ -98,6 +106,22 @@ def scrapling_fetch_source(
         minio_client=minio_client,
         bucket=bucket,
     )
+    if http_client is not None and page["body"] is not None:
+        child_summary = discover_and_fetch_catalog_children(
+            connection,
+            source,
+            catalog_result=result,
+            catalog_html=page["body"],
+            catalog_url=source.url,
+            http_client=http_client,
+            minio_client=minio_client,
+            bucket=bucket,
+            requested_at=when,
+            settings=settings,
+        )
+        if batch_summary is not None:
+            absorb_batch_summary(batch_summary, child_summary)
+    return result
 
 
 def run_scrapling_fetch_for_approved_scrapling_sources(
@@ -107,11 +131,14 @@ def run_scrapling_fetch_for_approved_scrapling_sources(
     bucket: str,
     requested_at: datetime | None = None,
     settings: Settings | None = None,
+    http_client: httpx.Client | None = None,
 ) -> FetchBatchSummary:
     if minio_client is None:
         msg = "minio_client is required"
         raise ValueError(msg)
 
+    owned_client = http_client is None
+    client = http_client or create_http_client()
     summary = empty_batch_summary()
     sources = [
         source
@@ -119,15 +146,21 @@ def run_scrapling_fetch_for_approved_scrapling_sources(
         if source.fetch_method == "scrapling"
     ]
 
-    for source in sources:
-        result = scrapling_fetch_source(
-            connection,
-            source,
-            minio_client=minio_client,
-            bucket=bucket,
-            requested_at=requested_at,
-            settings=settings,
-        )
-        record_batch_result(summary, result)
+    try:
+        for source in sources:
+            result = scrapling_fetch_source(
+                connection,
+                source,
+                minio_client=minio_client,
+                bucket=bucket,
+                requested_at=requested_at,
+                settings=settings,
+                http_client=client,
+                batch_summary=summary,
+            )
+            record_batch_result(summary, result)
+    finally:
+        if owned_client:
+            client.close()
 
     return summary
