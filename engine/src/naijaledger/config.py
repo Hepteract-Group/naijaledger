@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     playwright_headless: bool = True
     playwright_network_idle: bool = True
     playwright_post_wait_ms: int = 1000
+    catalog_discovery_max_children: int = 50
 
     @field_validator("api_cors_origins", mode="before")
     @classmethod
