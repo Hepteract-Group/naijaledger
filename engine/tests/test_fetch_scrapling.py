@@ -66,6 +66,7 @@ def test_scrapling_fetch_source_success(db_connection, monkeypatch: pytest.Monke
     )
 
     assert result["ok"] is True
+    assert result["document_id"] is not None
     updated = get_source(db_connection, approved.id)
     assert updated.last_success_hash == "scrapling"
 

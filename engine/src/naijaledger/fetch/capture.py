@@ -7,6 +7,8 @@ from minio import Minio
 from sqlalchemy.engine import Connection
 
 from naijaledger.archive.storage import store_raw_bytes
+from naijaledger.documents.format import infer_document_format
+from naijaledger.documents.service import upsert_document_from_fetch
 from naijaledger.fetch.service import create_fetch_record
 from naijaledger.sources.models import SourceRecord
 from naijaledger.sources.service import record_fetch_success
@@ -19,6 +21,7 @@ class FetchCaptureResult(TypedDict):
     ok: bool
     archive_key: str | None
     content_hash: str | None
+    document_id: UUID | None
 
 
 class FetchBatchSummary(TypedDict):
@@ -66,6 +69,7 @@ def persist_fetch_capture(
             ok=False,
             archive_key=None,
             content_hash=None,
+            document_id=None,
         )
 
     archived = store_raw_bytes(
@@ -92,7 +96,22 @@ def persist_fetch_capture(
         archive_key=archive_key,
     )
 
+    document_id: UUID | None = None
     if ok:
+        document_format = infer_document_format(
+            url=url,
+            content_type=(headers or {}).get("content-type"),
+            source_format=source.format,
+        )
+        upsert = upsert_document_from_fetch(
+            connection,
+            source_id=source.id,
+            first_fetch_id=record.id,
+            sha256=content_hash,
+            archive_key=archive_key,
+            format=document_format,
+        )
+        document_id = upsert["document_id"]
         record_fetch_success(
             connection,
             source.id,
@@ -100,11 +119,12 @@ def persist_fetch_capture(
             content_hash=content_hash,
         )
         logger.info(
-            "fetch archived %s (%s) -> %s (%d bytes)",
+            "fetch archived %s (%s) -> %s (%d bytes, document %s)",
             source.name,
             url,
             archive_key,
             len(body),
+            document_id,
         )
     else:
         logger.warning(
@@ -119,6 +139,7 @@ def persist_fetch_capture(
         ok=ok,
         archive_key=archive_key,
         content_hash=content_hash,
+        document_id=document_id,
     )
 
 

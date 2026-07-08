@@ -97,6 +97,7 @@ def test_static_fetch_source_success(db_connection, monkeypatch: pytest.MonkeyPa
 
     assert result["ok"] is True
     assert result["archive_key"] == "sha256/deadbeef"
+    assert result["document_id"] is not None
     record = get_fetch_record(db_connection, result["fetch_record_id"])
     assert record.byte_count == len(b"<html>payments</html>")
     assert record.sha256 == "deadbeef"
@@ -153,6 +154,7 @@ def test_static_fetch_source_connection_error(
 
     assert result["ok"] is False
     assert result["archive_key"] is None
+    assert result["document_id"] is None
     assert store_called["value"] is False
     record = get_fetch_record(db_connection, result["fetch_record_id"])
     assert record.error is not None
