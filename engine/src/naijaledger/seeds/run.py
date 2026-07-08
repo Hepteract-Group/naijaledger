@@ -15,27 +15,86 @@ from naijaledger.sources.service import (
 
 # Canonical URL fixes for sources already seeded with obsolete endpoints.
 _SEED_URL_CORRECTIONS: dict[str, str] = {
-    "https://payment.gov.ng/": "https://opentreasury.gov.ng/",
-    "https://www.budgetoffice.gov.ng/": "https://budgetoffice.gov.ng/",
+    "https://www.budgetoffice.gov.ng/": (
+        "https://budgetoffice.gov.ng/index.php/resources/internal-resources/budget-documents"
+    ),
+    "https://budgetoffice.gov.ng/": (
+        "https://budgetoffice.gov.ng/index.php/resources/internal-resources/budget-documents"
+    ),
+    "https://neiti.gov.ng/": "https://neiti.gov.ng/documents/all",
 }
+
+# Federal source audit (specs/0005-state-ocds-portal-audit.md).
+_SEED_FEDERAL_SOURCE_CORRECTIONS: dict[str, SourceUpdate] = {
+    "https://nocopo.bpp.gov.ng/": SourceUpdate(
+        url="https://nocopo.bpp.gov.ng/Open-Data",
+        name="Nigeria Open Contracting Portal (NOCOPO) — Open Data",
+    ),
+}
+
+_RETIRED_FEDERAL_SOURCE_URLS: tuple[str, ...] = (
+    "https://opentreasury.gov.ng/",
+    "https://payment.gov.ng/",
+)
 
 # State OCDS portal audit (specs/0005-state-ocds-portal-audit.md).
 _SEED_STATE_PORTAL_CORRECTIONS: dict[str, SourceUpdate] = {
     "https://lagosppaocds.azurewebsites.net/": SourceUpdate(
-        url="https://lagosstate.gov.ng/lsppa/",
-        name="Lagos State Public Procurement Agency (LSPPA)",
+        url="https://www.lagosppa.gov.ng/registered-awards/",
+        name="Lagos State Public Procurement Agency — Registered Awards",
+        region="Lagos",
+    ),
+    "https://lagosstate.gov.ng/lsppa/": SourceUpdate(
+        url="https://www.lagosppa.gov.ng/registered-awards/",
+        name="Lagos State Public Procurement Agency — Registered Awards",
         region="Lagos",
     ),
     "https://ekitibppaocds.azurewebsites.net/": SourceUpdate(
-        url="https://ocdsportal.azurewebsites.net/",
+        url="https://ocdsportal.azurewebsites.net/Home/Procurements",
+    ),
+    "https://ocdsportal.azurewebsites.net/": SourceUpdate(
+        url="https://ocdsportal.azurewebsites.net/Home/Procurements",
     ),
     "https://adamawappaocds.azurewebsites.net/": SourceUpdate(
-        url="https://bpp.adamawastate.gov.ng/",
-        name="Adamawa State Bureau of Public Procurement",
+        url="https://ocdsbpp.adamawastate.gov.ng/projects",
+        name="Adamawa State Open Contracting Portal",
+    ),
+    "https://bpp.adamawastate.gov.ng/": SourceUpdate(
+        url="https://ocdsbpp.adamawastate.gov.ng/projects",
+        name="Adamawa State Open Contracting Portal",
+    ),
+    "https://www.ocds.kdsg.gov.ng/": SourceUpdate(
+        url="https://www.ocds.kdsg.gov.ng/Projects",
+    ),
+    "https://ocds.dueprocess.jg.gov.ng/": SourceUpdate(
+        url="https://dueprocess.jigawastate.gov.ng/contracts",
+        name="Jigawa State Open Contracting Portal",
     ),
     "https://anambrappaocds.azurewebsites.net/": SourceUpdate(
-        url="https://eprocure.bpp.an.gov.ng/",
+        url="https://eprocure.bpp.an.gov.ng/awarded_contracts.php",
         name="Anambra State Public Procurement Portal",
+    ),
+    "https://eprocure.bpp.an.gov.ng/": SourceUpdate(
+        url="https://eprocure.bpp.an.gov.ng/awarded_contracts.php",
+    ),
+    "https://eprocure.bpp.an.gov.ng/tenders.php": SourceUpdate(
+        url="https://eprocure.bpp.an.gov.ng/awarded_contracts.php",
+    ),
+    "https://procurement.benuestate.gov.ng/": SourceUpdate(
+        url="https://procurement.benuestate.gov.ng/all-awards/",
+    ),
+    "https://procurement.benuestate.gov.ng/tenders": SourceUpdate(
+        url="https://procurement.benuestate.gov.ng/all-awards/",
+    ),
+    "https://kwppa.kwarastate.gov.ng/ocds-portal/awarded-contracts": SourceUpdate(
+        url="https://project.dueprocess.gm.gov.ng/projects",
+        name="Gombe State Due Process Portal",
+        region="Gombe",
+    ),
+    "https://kwppa.kwarastate.gov.ng/ocds-portal/": SourceUpdate(
+        url="https://project.dueprocess.gm.gov.ng/projects",
+        name="Gombe State Due Process Portal",
+        region="Gombe",
     ),
 }
 
@@ -73,6 +132,36 @@ def _apply_seed_url_corrections(connection: Connection) -> tuple[int, int]:
                 SourceUpdate(url=new_url),
             )
             corrected += 1
+    return corrected, retired
+
+
+def _apply_seed_federal_source_corrections(connection: Connection) -> tuple[int, int]:
+    corrected = 0
+    retired = 0
+    for old_url, update in _SEED_FEDERAL_SOURCE_CORRECTIONS.items():
+        for source in list_sources(connection):
+            if source.url != old_url:
+                continue
+            new_url = update.url
+            if new_url is None:
+                continue
+            replacement = get_source_by_url_and_format(connection, new_url, source.format)
+            if replacement is not None and replacement.id != source.id:
+                if source.status != "retired":
+                    retire_source(connection, source.id)
+                    retired += 1
+                continue
+            update_source(connection, source.id, update)
+            corrected += 1
+
+    for old_url in _RETIRED_FEDERAL_SOURCE_URLS:
+        for source in list_sources(connection):
+            if source.url != old_url:
+                continue
+            if source.status != "retired":
+                retire_source(connection, source.id)
+                retired += 1
+
     return corrected, retired
 
 
@@ -114,9 +203,10 @@ def apply_seed_catalog(
 ) -> SeedApplySummary:
     catalog = entries if entries is not None else SEED_CATALOG
     corrected, retired = _apply_seed_url_corrections(connection)
+    federal_corrected, federal_retired = _apply_seed_federal_source_corrections(connection)
     state_corrected, state_retired = _apply_seed_state_portal_corrections(connection)
-    corrected += state_corrected
-    retired += state_retired
+    corrected += federal_corrected + state_corrected
+    retired += federal_retired + state_retired
     summary: SeedApplySummary = {
         "created": 0,
         "skipped": 0,
