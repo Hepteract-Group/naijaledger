@@ -116,6 +116,13 @@ status enum: open|dismissed|confirmed, created_by (agent), reviewed_by`
 `subject_type, subject_id, decision enum: approve_publish|reject|needs_more_evidence,
 reviewer, rationale, decided_at` — enforces P3 (human-in-the-loop before publication).
 
+### `party_match_proposals` (E6.2)
+Pending entity-resolution judgments. See `specs/0015-llm-match-adjudication.md`.
+`left_party_id, right_party_id, match_score, match_rule, match_reason, opinion
+(same_entity|different|uncertain), opinion_rationale, adjudicator, status
+(pending|confirmed|rejected|withdrawn), suggested_survivor_id, resolved_by, resolved_at, meta`.
+Human confirm is required before `apply_party_merge`; LLM opinion is advisory only.
+
 ### `transparency_log`
 `leaf_hash, tree_size, root_hash, anchored_at, anchor_ref` — Merkle log for tamper-evidence (§5.2).
 

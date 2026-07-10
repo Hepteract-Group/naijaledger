@@ -47,7 +47,7 @@ Legend: `[H]` = likely needs a human decision (`needs-human`), `[S]` = spec requ
 - E5.4 Idempotent load/upsert with re-run safety. ✓ (OCDS path; awards/contracts via `meta.ocds_*_id`)
 
 ## E6 — Entity Resolution & Graph
-- E6.1 Deterministic + probabilistic party matching; `merged_into` handling. `[S]`
+- E6.1 Deterministic + probabilistic party matching; `merged_into` handling. `[S]` ✓
 - E6.2 LLM adjudication for hard matches (human-confirmed).
 - E6.3 Beneficial-ownership enrichment (CAC PSC / NEITI BO / OpenOwnership). `[H]` access strategy.
 - E6.4 Neo4j projection builder (rebuildable from Postgres).
