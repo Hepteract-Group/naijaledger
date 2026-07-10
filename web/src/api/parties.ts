@@ -1,4 +1,5 @@
 import { apiGet } from "./client";
+import { buildQuery, type Page } from "./types";
 
 export type PublicParty = {
   id: string;
@@ -10,13 +11,19 @@ export type PublicParty = {
   updated_at: string;
 };
 
-export type PartiesPage = {
-  items: PublicParty[];
-  limit: number;
-  offset: number;
-  count: number;
+export type PartiesPage = Page<PublicParty>;
+
+export type FetchPartiesParams = {
+  party_type?: string;
+  q?: string;
+  limit?: number;
+  offset?: number;
 };
 
-export function fetchParties(limit = 50): Promise<PartiesPage> {
-  return apiGet<PartiesPage>(`/v1/parties?limit=${limit}`);
+export function fetchParties(params: FetchPartiesParams = {}): Promise<PartiesPage> {
+  return apiGet<PartiesPage>(`/v1/parties${buildQuery(params)}`);
+}
+
+export function fetchParty(id: string): Promise<PublicParty> {
+  return apiGet<PublicParty>(`/v1/parties/${id}`);
 }
