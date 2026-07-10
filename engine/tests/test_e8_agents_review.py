@@ -235,6 +235,8 @@ def test_enqueue_story_verified_and_failed(db_connection) -> None:
     decision = enqueue_story_for_review(db_connection, empty, failed)
     assert decision.decision == "needs_more_evidence"
     assert decision.reviewer == "system:verification"
+    again = enqueue_story_for_review(db_connection, empty, failed)
+    assert again.id == decision.id
     assert is_approved_for_publish(db_connection, "story", empty.id) is False
 
 
