@@ -213,6 +213,13 @@ def _normalize_tender(
     meta: dict[str, Any] = {}
     if isinstance(raw_method, str) and method is None:
         meta["procurementMethod"] = raw_method
+    raw_tenderers = tender.get("numberOfTenderers")
+    if isinstance(raw_tenderers, bool):
+        pass
+    elif isinstance(raw_tenderers, int) and raw_tenderers >= 0:
+        meta["numberOfTenderers"] = raw_tenderers
+    elif isinstance(raw_tenderers, float) and raw_tenderers >= 0 and raw_tenderers.is_integer():
+        meta["numberOfTenderers"] = int(raw_tenderers)
 
     return NormalizedTender(
         ocid=ocid,

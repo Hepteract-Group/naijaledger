@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from typing import Any
-from uuid import UUID
 
 from pydantic import BaseModel, Field
 from sqlalchemy import text
@@ -26,7 +25,7 @@ def load_rule_context(connection: Connection) -> RuleContext:
             connection,
             """
             SELECT id, ocid, agency_id, title, method, value_amount, currency,
-                   bidding_opens_at, bidding_closes_at
+                   bidding_opens_at, bidding_closes_at, meta
             FROM tenders
             """,
         ),
@@ -77,9 +76,3 @@ def load_rule_context(connection: Connection) -> RuleContext:
 
 def _rows(connection: Connection, sql: str) -> list[dict[str, Any]]:
     return [dict(row) for row in connection.execute(text(sql)).mappings()]
-
-
-def as_uuid(value: Any) -> UUID:
-    if isinstance(value, UUID):
-        return value
-    return UUID(str(value))

@@ -199,4 +199,6 @@ def test_run_smoke_rule(db_connection) -> None:
     assert result.drafts == 0
     assert result.upserted == 0
     assert db_connection.execute(text("SELECT count(*) FROM flags")).scalar() == before_flags
-    assert production_rules() == []
+    prod_ids = [rule.id for rule in production_rules()]
+    assert "smoke" not in prod_ids
+    assert len(prod_ids) == 7
