@@ -76,8 +76,9 @@ A claim **passes** iff:
 
 Story **passes** iff all claims pass and there is ≥1 claim.
 
-No DB round-trip required for v1 verification (structural). Optional later: resolve subjects
-exist in Postgres.
+**v1 is structural citation hygiene only** — it does not resolve that the subject/document
+exists in Postgres or that the claim text is true. Human review (E8.3) remains the
+substantive gate. Optional later: existence checks against canonical tables.
 
 ### 3.4 Agents
 

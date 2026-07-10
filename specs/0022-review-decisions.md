@@ -37,47 +37,39 @@ publication gate, nothing enforces P3 (“AI proposes, humans dispose”) before
 
 ```text
 enqueue (pending) ← agents/services
-decide(approve_publish) ← human reviewer only
-is_approved_for_publish ← true only if latest decision is approve_publish
+decide(approve_publish) ← human reviewer only (service-layer v1)
+is_approved_for_publish ← true only if latest decided row is approve_publish
 ```
 
-No row with `decision=approve_publish` may be inserted by an agent id.
+**v1 enforcement** is in `decide_review` (same class of guardrail as E6.2 human confirm —
+no auth binding yet). The DB does not prevent a raw SQL insert of `approve_publish`;
+application code and tests must. Follow-up: bind reviewer to authenticated session / DB role.
 
-### 3.2 Status model
+No `approve_publish` row may be created via `decide_review` with an agent-prefixed reviewer.
 
-v1 uses **one row per decision event** (append-only style), not a mutable status column:
+### 3.2 Lifecycle (update-in-place)
 
-```text
-review_decisions(
-  id, subject_type, subject_id,
-  decision,  -- pending|approve_publish|reject|needs_more_evidence
-  reviewer,  -- null while pending; required when decided
-  rationale,
-  decided_at,  -- null while pending
-  meta jsonb,  -- may store story_id, verification snapshot
-  created_at, updated_at
-)
-```
-
-`pending` rows are the queue. Deciding updates the same row (set decision, reviewer,
-decided_at) — simpler for unique open queue:
-
-Unique partial index: `(subject_type, subject_id) WHERE decision = 'pending'`.
+One **pending** row per subject at a time (partial unique index). Deciding **updates that
+row** in place (`decision`, `reviewer`, `decided_at`, `rationale`). After decide, a new
+`enqueue` may create a fresh pending row for the same subject. Not append-only history of
+every event — decided rows remain as audit; only pending is unique/mutable.
 
 ### 3.3 Enqueue rules
 
 - Subject for stories: `subject_type='story'`, `subject_id=story.id`.
 - Require `VerificationReport.ok` to enqueue as `pending`.
-- If not verified: do **not** create `approve_publish`; either skip or insert
-  `needs_more_evidence` with `reviewer='system:verification'` (allowed — not approve).
+- If not verified: do **not** create `approve_publish`; either skip or insert a **decided**
+  row `needs_more_evidence` with `reviewer='system:verification'` (system may record
+  non-publish outcomes only).
 
 ### 3.4 Decide rules
 
 - Only from `pending`.
-- `approve_publish` / `reject` / `needs_more_evidence` require non-empty `reviewer` not
-  starting with `agent:`.
-- Sticky: after decide, new enqueue for same subject creates a new pending only if no
-  pending exists (unique index).
+- **`approve_publish`** requires non-empty `reviewer` that does **not** start with `agent:`
+  or `system:` (human-only — P3).
+- `reject` / `needs_more_evidence` via `decide_review` also require non-empty `reviewer` not
+  starting with `agent:` (humans or `system:` allowed for these two).
+- After decide, new enqueue for same subject is allowed (no pending row remains).
 
 ## 4. Data contracts / schemas
 
@@ -117,19 +109,20 @@ def enqueue_story_for_review(connection, story, report) -> ReviewDecision: ...
 - [ ] Invalid decision / pending-with-reviewer fails CHECK.
 - [ ] `enqueue_review` creates pending; second pending for same subject fails unique.
 - [ ] `decide_review` to `approve_publish` with human reviewer succeeds; gate returns True.
-- [ ] `decide_review` with `reviewer` starting with `agent:` raises for `approve_publish`.
+- [ ] `decide_review` with `reviewer` starting with `agent:` or `system:` raises for
+      `approve_publish`.
+- [ ] `decide_review` with `reviewer='system:verification'` is allowed for
+      `needs_more_evidence` only (not `approve_publish`).
 - [ ] `enqueue_story_for_review` with failed verification does not create `approve_publish`.
 - [ ] `is_approved_for_publish` is False when only pending/reject/needs_more_evidence exist.
 
 ## 6. Risks & mitigations
 
-- **Agent spoofing reviewer** — naming convention is weak; later auth binds reviewer to
-  session. Document as v1 guardrail.
-- **Multiple historical decisions** — gate uses latest `approve_publish` if any, or
-  “latest non-pending wins”: prefer **any** `approve_publish` that has not been superseded.
-  v1 rule: `is_approved_for_publish` ↔ exists row with `decision='approve_publish'` for the
-  subject (reject later does not auto-revoke unless we add revoke — for v1, **latest decided
-  row by decided_at** wins).
+- **Agent spoofing reviewer** — naming convention is a **service-layer** guardrail only
+  (mirrors E6.2 human-confirm pattern). Documented weakness; later auth binds reviewer to
+  session / DB role. Not a DB CHECK in v1.
+- **Multiple historical decisions** — gate uses latest decided row by `decided_at` (see §6
+  rule below).
 
 **v1 gate rule (explicit):** among rows with `decision <> 'pending'` for the subject, take
 the one with max `decided_at`; approved iff that decision is `approve_publish`.
