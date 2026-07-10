@@ -15,8 +15,8 @@ cannot measure false-positive rate or catch regressions when thresholds change
 ## 2. Scope & non-scope
 
 - **In scope**
-  - Labeled fixture corpus under `engine/tests/fixtures/anomaly_backtest/` (Python module or
-    JSON) describing a `RuleContext` plus expected open flags
+  - Labeled fixture corpus as `naijaledger.anomaly.corpus` (scenarios documented in the
+    module docstring) describing a `RuleContext` plus expected open flags
     `(rule, subject_type, subject_key)`.
   - Pure harness: `run_backtest(case: BacktestCase, rules) -> BacktestReport` with per-rule and
     overall precision / recall / F1, plus TP/FP/FN lists (set-deduped on
@@ -78,7 +78,9 @@ The fixture MUST include, for each of the seven production rules:
 - ≥1 **true positive** scenario (rule should fire).
 - ≥1 **true negative** near-miss (similar data; rule should **not** fire).
 
-Overall expected positives ≥ 7. Document scenarios in a short README beside the fixture.
+Overall expected positives ≥ 7. Scenarios are documented in the
+`naijaledger.anomaly.corpus` module docstring (package module so the CLI can import it
+without a separate fixtures path).
 
 ### 3.4 CLI
 
