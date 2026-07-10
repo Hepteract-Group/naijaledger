@@ -65,7 +65,7 @@ Legend: `[H]` = likely needs a human decision (`needs-human`), `[S]` = spec requ
 ## E9 — Public API
 - E9.1 FastAPI read API over canonical + derived stores. `[S]` ✓
 - E9.2 OpenAPI docs + versioning + rate limiting. `[S]` ✓
-- E9.3 Partner data-export endpoints (newsrooms).
+- E9.3 Partner data-export endpoints (newsrooms). `[S]` ✓
 
 ## E10 — Frontend / Visualization
 - E10.1 Web app skeleton (React + Vite + TS). `[H]` design system.

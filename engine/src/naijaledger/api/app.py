@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from naijaledger import __version__
-from naijaledger.api.rate_limit import build_rate_limit_middleware
+from naijaledger.api.rate_limit import build_rate_limit_middleware, create_fixed_window_limiter
 from naijaledger.api.v1 import router as v1_router
 from naijaledger.api.versioning import build_api_version_middleware
 from naijaledger.config import Settings, load_settings
@@ -30,6 +30,10 @@ OPENAPI_TAGS = [
         "name": "flags",
         "description": "Open anomaly flag hypotheses (not verified claims)",
     },
+    {
+        "name": "export",
+        "description": ("Partner bulk export (bearer token required). Flags remain hypotheses."),
+    },
 ]
 
 
@@ -44,6 +48,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
 
     application.include_router(v1_router, prefix="/v1")
+    application.state.partner_export_tokens = list(cfg.api_partner_export_tokens)
+    application.state.partner_export_take = create_fixed_window_limiter(
+        limit=cfg.api_partner_export_per_minute,
+        max_keys=cfg.api_rate_limit_max_keys,
+    )
 
     @application.get("/health", include_in_schema=False)
     def health() -> dict[str, str]:
