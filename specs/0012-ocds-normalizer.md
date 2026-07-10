@@ -1,7 +1,7 @@
 # Spec 0012 — OCDS normalizer mapping (E5.2)
 
 - **Epic / Issue**: E5.2 / #33
-- **Status**: Draft
+- **Status**: Implemented
 - **Author**: agent
 - **Needs human decision?**: no — map OCDS release fields onto E5.1 tables; money as kobo;
   thin natural-key upserts (full re-run policy remains #35).
@@ -193,15 +193,15 @@ Document this gap in #35 acceptance criteria.
 
 ## 5. Acceptance criteria (testable)
 
-- [ ] `amount_to_kobo(1000.5)` → `100050`; `None` → `None`.
-- [ ] `map_procurement_method` covers open/selective/limited/direct; unknown → `None`.
-- [ ] Fixture release with buyer + tender + one award + one contract produces expected DTO fields
+- [x] `amount_to_kobo(1000.5)` → `100050`; `None` → `None`.
+- [x] `map_procurement_method` covers open/selective/limited/direct; unknown → `None`.
+- [x] Fixture release with buyer + tender + one award + one contract produces expected DTO fields
       (`ocid`, titles, kobo amounts, party names).
-- [ ] Release package with two releases → two `NormalizedRelease`s.
-- [ ] `unwrap_extraction_payload({"value": {...}})` returns inner object.
-- [ ] `load_normalized_release` against Postgres: second call with same `ocid` does not create a
+- [x] Release package with two releases → two `NormalizedRelease`s.
+- [x] `unwrap_extraction_payload({"value": {...}})` returns inner object.
+- [x] `load_normalized_release` against Postgres: second call with same `ocid` does not create a
       second tender; party unique holds.
-- [ ] Missing agency (no buyer/procuringEntity) → tender not loaded; reason in `skipped`.
+- [x] Missing agency (no buyer/procuringEntity) → tender not loaded; reason in `skipped`.
 
 ## 6. Risks & mitigations
 
