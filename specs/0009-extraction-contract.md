@@ -1,7 +1,7 @@
 # Spec 0009 — Extraction contract & dual-pass pipeline (E4)
 
 - **Epic / Issue**: E4.1 / #27 (contract) — also seeds E4 stories (routing+Magika, confidence schema, Docling tables)
-- **Status**: Approved (contract via #94); schema implementation in progress (#88)
+- **Status**: Implemented (E4 Pass 1 + Pass 2 OCR; vision-LLM hook cost-gated/off)
 - **Author**: agent
 - **Needs human decision?**: no — contract approved; PDF-table engine decided (Docling in-engine, #29).
 
@@ -164,8 +164,8 @@ Each `Block` with a `page`/`region` yields one `provenance_edges` row
       and `method`/`method_version` recording the pinned Docling version (#29).
 - [x] Pass 2 is not invoked when Pass 1 returns usable blocks (assert via spy/mock) (#28).
 - [x] Every emitted block with page/region writes a matching `provenance_edges` row (#28).
-- [ ] A scanned-PDF fixture (no recoverable layout) routes to Pass 2 and is tagged `inferred`
-      (not `extracted`).
+- [x] A scanned-PDF fixture (no recoverable layout) routes to Pass 2 and is tagged `inferred`
+      (not `extracted`) (#31).
 
 ## 6. Risks & mitigations
 

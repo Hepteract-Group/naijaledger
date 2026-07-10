@@ -12,8 +12,11 @@ dependencies = [
     "magika>=1.0.3",
     "minio>=7.2",
     "openpyxl>=3.1.5",
+    "pillow>=12.3.0",
     "psycopg[binary]>=3.2",
     "pydantic-settings>=2.6",
+    "pypdfium2>=5.11.0",
+    "pytesseract>=0.3.13",
     "scrapling[fetchers]>=0.4",
     "sqlalchemy>=2.0",
     "truststore>=0.10.4",
@@ -61,6 +64,8 @@ module = [
     "docling.*",
     "docling_core.*",
     "magika.*",
+    "pytesseract.*",
+    "pypdfium2.*",
 ]
 ignore_missing_imports = true
 
