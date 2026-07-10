@@ -1,7 +1,7 @@
 # Spec 0020 — Agent runtime + retrieval tools (E8.1)
 
 - **Epic / Issue**: E8.1 / #43
-- **Status**: Draft
+- **Status**: Implemented
 - **Author**: agent
 - **Needs human decision?**: no — v1 is a **tool + runtime skeleton** with stub/deterministic
   agents; live LLM orchestration stays opt-in (same pattern as E6.2). Agents **propose only**
@@ -147,16 +147,16 @@ def default_tools() -> list[Tool]: ...  # production retrieval set
 ```
 ## 5. Acceptance criteria (testable)
 
-- [ ] `run_agent` with smoke agent + fake tool completes with `finished=True` and a transcript.
-- [ ] `run_agent` stops at `max_steps` without hanging when the agent never finishes.
-- [ ] `lookup_party` / `list_open_flags` / `search_documents` return `ToolResult` against a
+- [x] `run_agent` with smoke agent + fake tool completes with `finished=True` and a transcript.
+- [x] `run_agent` stops at `max_steps` without hanging when the agent never finishes.
+- [x] `lookup_party` / `list_open_flags` / `search_documents` return `ToolResult` against a
       migrated DB (empty ok; seeded when needed).
-- [ ] `default_tools()` names are unique and exclude mutating operations.
-- [ ] Smoke/agent run does not insert into `review_decisions` (table may not exist — assert no
+- [x] `default_tools()` names are unique and exclude mutating operations.
+- [x] Smoke/agent run does not insert into `review_decisions` (table may not exist — assert no
       write attempt / zero rows if table exists).
-- [ ] `graph_neighbors` either returns neighbors or `ok=False` when Memgraph is down (no
+- [x] `graph_neighbors` either returns neighbors or `ok=False` when Memgraph is down (no
       uncaught exception from `run_agent`).
-- [ ] Package is functional (Protocol + functions; Pydantic models only as needed).
+- [x] Package is functional (Protocol + functions; Pydantic models only as needed).
 
 ## 6. Risks & mitigations
 
