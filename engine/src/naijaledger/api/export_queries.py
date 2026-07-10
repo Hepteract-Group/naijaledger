@@ -82,10 +82,12 @@ def _page(
     limit: int,
     map_row: Any,
 ) -> tuple[list[Any], datetime | None, UUID | None]:
-    rows = connection.execute(text(sql), {**params, "limit": limit}).all()
-    items = [map_row(row) for row in rows]
-    if not items:
-        return [], None, None
+    rows = connection.execute(text(sql), {**params, "limit": limit + 1}).all()
+    mapped = [map_row(row) for row in rows]
+    has_more = len(mapped) > limit
+    items = mapped[:limit]
+    if not items or not has_more:
+        return items, None, None
     last = items[-1]
     return items, last.created_at, last.id
 

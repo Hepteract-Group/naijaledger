@@ -54,7 +54,8 @@ def test_export_requires_auth(db_connection: Connection) -> None:
 
 def test_export_disabled_when_no_tokens(db_connection: Connection) -> None:
     client = _client(db_connection, api_partner_export_tokens=[])
-    assert client.get("/v1/export/parties", headers=_auth()).status_code == 401
+    for path in ("/v1/export/parties", "/v1/export/flags", "/v1/export/sources"):
+        assert client.get(path, headers=_auth()).status_code == 401
 
 
 def test_export_parties_ndjson_and_json(db_connection: Connection) -> None:

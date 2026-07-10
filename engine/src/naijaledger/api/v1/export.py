@@ -45,8 +45,8 @@ def _parse_cursor(cursor: str | None) -> Any:
         raise HTTPException(status_code=422, detail="invalid cursor") from exc
 
 
-def _next_cursor(created_at: Any, row_id: UUID | None, *, page_len: int, limit: int) -> str | None:
-    if row_id is None or created_at is None or page_len < limit:
+def _next_cursor(created_at: Any, row_id: UUID | None) -> str | None:
+    if row_id is None or created_at is None:
         return None
     return encode_cursor(created_at=created_at, id=row_id)
 
@@ -71,10 +71,9 @@ def _export_response(
     *,
     created_at: Any,
     row_id: UUID | None,
-    limit: int,
     fmt: ExportFormat,
 ) -> StreamingResponse | JSONResponse:
-    nxt = _next_cursor(created_at, row_id, page_len=len(items), limit=limit)
+    nxt = _next_cursor(created_at, row_id)
     if fmt == "json":
         body = ExportPage(items=list(items), next_cursor=nxt)
         return JSONResponse(content=body.model_dump(mode="json"))
@@ -90,7 +89,7 @@ def export_parties_endpoint(
     format: Annotated[ExportFormat, Query()] = "ndjson",
 ) -> StreamingResponse | JSONResponse:
     items, ts, row_id = export_parties(connection, cursor=_parse_cursor(cursor), limit=limit)
-    return _export_response(items, created_at=ts, row_id=row_id, limit=limit, fmt=format)
+    return _export_response(items, created_at=ts, row_id=row_id, fmt=format)
 
 
 @router.get("/tenders", response_model=None)
@@ -102,7 +101,7 @@ def export_tenders_endpoint(
     format: Annotated[ExportFormat, Query()] = "ndjson",
 ) -> StreamingResponse | JSONResponse:
     items, ts, row_id = export_tenders(connection, cursor=_parse_cursor(cursor), limit=limit)
-    return _export_response(items, created_at=ts, row_id=row_id, limit=limit, fmt=format)
+    return _export_response(items, created_at=ts, row_id=row_id, fmt=format)
 
 
 @router.get("/awards", response_model=None)
@@ -114,7 +113,7 @@ def export_awards_endpoint(
     format: Annotated[ExportFormat, Query()] = "ndjson",
 ) -> StreamingResponse | JSONResponse:
     items, ts, row_id = export_awards(connection, cursor=_parse_cursor(cursor), limit=limit)
-    return _export_response(items, created_at=ts, row_id=row_id, limit=limit, fmt=format)
+    return _export_response(items, created_at=ts, row_id=row_id, fmt=format)
 
 
 @router.get("/contracts", response_model=None)
@@ -126,7 +125,7 @@ def export_contracts_endpoint(
     format: Annotated[ExportFormat, Query()] = "ndjson",
 ) -> StreamingResponse | JSONResponse:
     items, ts, row_id = export_contracts(connection, cursor=_parse_cursor(cursor), limit=limit)
-    return _export_response(items, created_at=ts, row_id=row_id, limit=limit, fmt=format)
+    return _export_response(items, created_at=ts, row_id=row_id, fmt=format)
 
 
 @router.get(
@@ -143,7 +142,7 @@ def export_flags_endpoint(
     format: Annotated[ExportFormat, Query()] = "ndjson",
 ) -> StreamingResponse | JSONResponse:
     items, ts, row_id = export_open_flags(connection, cursor=_parse_cursor(cursor), limit=limit)
-    return _export_response(items, created_at=ts, row_id=row_id, limit=limit, fmt=format)
+    return _export_response(items, created_at=ts, row_id=row_id, fmt=format)
 
 
 @router.get("/sources", response_model=None)
@@ -162,4 +161,4 @@ def export_sources_endpoint(
         limit=limit,
         status=status_filter,
     )
-    return _export_response(items, created_at=ts, row_id=row_id, limit=limit, fmt=format)
+    return _export_response(items, created_at=ts, row_id=row_id, fmt=format)
