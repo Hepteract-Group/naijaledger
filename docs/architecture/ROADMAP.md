@@ -58,7 +58,7 @@ Legend: `[H]` = likely needs a human decision (`needs-human`), `[S]` = spec requ
 - E7.3 Backtest/precision harness on seeded data. `[S]` ✓
 
 ## E8 — Intelligence / Agents
-- E8.1 Agent runtime + tool interfaces (retrieval over search/vector/graph). `[S]`
+- E8.1 Agent runtime + tool interfaces (retrieval over search/vector/graph). `[S]` ✓
 - E8.2 Narrative agent (drafts cited stories) + Verification agent (claim→evidence check).
 - E8.3 Human-review queue (`review_decisions`) gating publication (P3).
 
