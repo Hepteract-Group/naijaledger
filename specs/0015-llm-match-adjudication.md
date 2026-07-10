@@ -1,7 +1,7 @@
 # Spec 0015 — LLM match adjudication + human confirm (E6.2)
 
 - **Epic / Issue**: E6.2 / #37
-- **Status**: Draft
+- **Status**: Implemented
 - **Author**: agent
 - **Needs human decision?**: no — LLM is advisory only; merges require explicit human confirm.
   Provider choice is pluggable (stub default; optional live LLM behind env).
@@ -137,13 +137,13 @@ def reject_match_proposal(connection, proposal_id, *, rejected_by: str) -> Party
 
 ## 5. Acceptance criteria (testable)
 
-- [ ] Migration creates `party_match_proposals` with CHECKs and pending-pair unique index.
-- [ ] Stub adjudicator returns `uncertain` for mid-band probabilistic scores.
-- [ ] Creating a proposal persists opinion + leaves parties unmerged.
-- [ ] `confirm_match_proposal` merges via `apply_party_merge` and sets status `confirmed`.
-- [ ] `reject_match_proposal` does not merge; status `rejected`.
-- [ ] Second pending proposal for the same pair fails unique constraint.
-- [ ] Live LLM path is not required for CI (stub default).
+- [x] Migration creates `party_match_proposals` with CHECKs and pending-pair unique index.
+- [x] Stub adjudicator returns `uncertain` for mid-band probabilistic scores.
+- [x] Creating a proposal persists opinion + leaves parties unmerged.
+- [x] `confirm_match_proposal` merges via `apply_party_merge` and sets status `confirmed`.
+- [x] `reject_match_proposal` does not merge; status `rejected`.
+- [x] Second pending proposal for the same pair fails unique constraint.
+- [x] Live LLM path is not required for CI (stub default).
 
 ## 6. Risks & mitigations
 

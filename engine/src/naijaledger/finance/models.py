@@ -29,3 +29,24 @@ class Party(BaseModel):
     meta: dict[str, Any] | None
     created_at: datetime
     updated_at: datetime
+
+
+class PartyMatchProposal(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    left_party_id: UUID
+    right_party_id: UUID
+    match_score: float
+    match_rule: str
+    match_reason: str
+    opinion: str
+    opinion_rationale: str
+    adjudicator: str
+    status: str
+    suggested_survivor_id: UUID | None
+    resolved_by: str | None
+    resolved_at: datetime | None
+    meta: dict[str, Any] | None
+    created_at: datetime
+    updated_at: datetime
