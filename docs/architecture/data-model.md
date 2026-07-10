@@ -57,31 +57,36 @@ verified_by, verified_at`
 
 ## Public-finance domain (OCDS-aligned)
 
+Money: integer **minor units** (kobo) + `currency` (default `NGN`). See `specs/0011-canonical-finance-schema.md`.
+
 ### `parties` (polymorphic via `party_type`)
-`party_type enum: company|person|agency`, `canonical_name`, `aliases text[]`,
-`identifiers jsonb` (RC number/CAC id, TIN, etc.), `address jsonb`, `merged_into_id` (entity res.)
+`party_type` (`company|person|agency`), `canonical_name`, `aliases text[]`,
+`identifiers jsonb` (RC/CAC/TIN/etc.), `address jsonb`, `merged_into_id` (entity res.),
+unique `(party_type, lower(canonical_name))` for v1 upsert.
 
 ### `party_relationships`
-`from_party_id, to_party_id, relationship enum: owns|director_of|significant_control|same_address|associated,
-weight, source provenance`
+`from_party_id, to_party_id, relationship` (`owns|director_of|significant_control|same_address|associated`),
+`weight`, unique `(from, to, relationship)`.
 
 ### `tenders`
-`ocid text, agency_id (party), title, method enum: open|selective|limited|direct, value_amount,
-currency, bidding_opens_at, bidding_closes_at, meta jsonb`
+`ocid` (unique when present), `agency_id` → parties, `title`, `method`
+(`open|selective|limited|direct`), `value_amount` (kobo), `currency`, bidding window, `meta`.
 
 ### `awards`
-`tender_id, supplier_id (party), value_amount, currency, awarded_at, meta jsonb`
+`tender_id`, `supplier_id` → parties, `value_amount`, `currency`, `awarded_at`, `meta`.
 
 ### `contracts`
-`award_id, supplier_id, agency_id, value_amount, currency, signed_at, period jsonb, status, meta jsonb`
+`award_id` (nullable), `supplier_id`, `agency_id`, `value_amount`, `currency`, `signed_at`,
+`period jsonb`, `status`, `meta`.
 
 ### `payments`
-`contract_id (nullable), agency_id, beneficiary_id (party, nullable), amount, currency, paid_at,
-purpose, source_ref (e.g. Open Treasury row), meta jsonb`
+`contract_id` (nullable), `agency_id`, `beneficiary_id` (nullable), `amount`, `currency`,
+`paid_at`, `purpose`, `source_ref` (unique when present), `meta`.
 
 ### `budget_lines`
-`fiscal_year, agency_id, code, description, allocated_amount, revised_amount, released_amount,
-utilised_amount, jurisdiction, region`
+`fiscal_year`, `agency_id`, `code`, `description`, allocated/revised/released/utilised amounts,
+`currency`, `jurisdiction`, `region`; unique `(fiscal_year, agency_id, code, jurisdiction)`.
+
 
 ---
 
