@@ -77,8 +77,7 @@ points at a merged party, resolve with `canonical_party_id` before emitting edge
 ```python
 class GraphNode(BaseModel):
     labels: list[str]
-    key: str          # "id"
-    properties: dict[str, Any]
+    properties: dict[str, Any]   # must include string "id"
 
 class GraphRel(BaseModel):
     rel_type: str
@@ -92,7 +91,14 @@ class GraphPlan(BaseModel):
     nodes: list[GraphNode]
     relationships: list[GraphRel]
 
-def plan_finance_projection(...) -> GraphPlan: ...
+def plan_finance_projection(
+    *,
+    parties: list[Party],
+    tenders: list[dict],
+    awards: list[dict],
+    contracts: list[dict],
+    canonical_ids: dict[UUID, UUID],
+) -> GraphPlan: ...
 def rebuild_finance_graph(pg: Connection, graph: GraphClient) -> RebuildStats: ...
 ```
 

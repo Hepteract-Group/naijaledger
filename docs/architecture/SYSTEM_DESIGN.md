@@ -77,7 +77,7 @@ the record survives neglect, takedown, or revision.
                           │        ┌────────────┬───────────────┬───────────┤           │
                           │        ▼            ▼               ▼            ▼           │
                           │   ┌─────────┐  ┌─────────┐   ┌───────────┐  ┌──────────┐     │
-                          │   │ Neo4j   │  │ Search  │   │  Vector   │  │ Anomaly/ │     │
+                          │   │Memgraph │  │ Search  │   │  Vector   │  │ Anomaly/ │     │
                           │   │ (graph) │  │ index   │   │  store    │  │ red-flag │     │
                           │   └────┬────┘  └────┬────┘   └─────┬─────┘  └────┬─────┘     │
                           │        └───────────┴───────┬───────┴────────────┘           │
@@ -249,7 +249,7 @@ to what, extracted by which method/version, verified by whom.* Stored as first-c
 | Fetching | httpx, **Scrapling**, Playwright | Static → adaptive → JS-heavy. |
 | PDF | **Docling** (in-engine); Tesseract OCR fallback | Layout + tables + bbox provenance; no external convert hop. |
 | Canonical DB | **PostgreSQL** (+ pgvector) | Boring, bulletproof source of truth. |
-| Graph | **Neo4j** (Community) | Relationship analysis. (ADR to confirm.) |
+| Graph | **Memgraph** | Relationship analysis (Cypher/Bolt). Decided — see docker-compose / `specs/0016`. |
 | Object store | **MinIO** | Self-hosted WORM archive. |
 | Search | OpenSearch / Postgres FTS | Query + retrieval. |
 | Orchestration | **Postgres `jobs` + worker + cron/Make** (v1) | Decided #26; Prefect/Dagster later if needed. |
@@ -265,12 +265,12 @@ to what, extracted by which method/version, verified by whom.* Stored as first-c
 
 Core entities: `Source`, `FetchRecord`, `Document`, `Extraction`, `Party (Company|Person|Agency)`,
 `Tender`, `Award`, `Contract`, `Payment`, `PollingUnitResult`, `Flag`, `ReviewDecision`,
-`ProvenanceEdge`. Postgres is canonical; Neo4j mirrors Party/Contract/Award/ownership edges.
+`ProvenanceEdge`. Postgres is canonical; Memgraph mirrors Party/Contract/Award/ownership edges.
 
 ---
 
 ## 8. Deployment & environments
-- Local dev via docker-compose (Postgres, MinIO, Neo4j, search).
+- Local dev via docker-compose (Postgres, MinIO, Memgraph, search).
 - Prod: self-hostable; components independently deployable. Election capture backend can scale
   independently for its episodic burst.
 - Data mirrored to multiple hosts for resilience (P5).
@@ -298,7 +298,7 @@ Detailed epic/issue breakdown lives in `ROADMAP.md`. Summary:
 - **E3 — Capture & Archive**: fetch layer + MinIO WORM + fetch records + hashing.
 - **E4 — Extraction**: Magika router, Docling PDF tables, XLSX/JSON, Tesseract OCR fallback.
 - **E5 — Normalize & Canonical store**: OCDS mapping, Postgres schema, provenance.
-- **E6 — Entity Resolution & Graph**: matching, Neo4j projection, ownership enrichment.
+- **E6 — Entity Resolution & Graph**: matching, Memgraph projection, ownership enrichment.
 - **E7 — Anomaly Engine**: red-flag rules + evidence outputs.
 - **E8 — Intelligence/Agents**: agent roles + human-review queue.
 - **E9 — API**: public read API + OpenAPI.
@@ -309,7 +309,7 @@ Detailed epic/issue breakdown lives in `ROADMAP.md`. Summary:
 ---
 
 ## 11. Open questions (need human decision — flag with `needs-human`)
-1. Graph engine final choice — **Memgraph** decided (see docker-compose / #14); confirm AGE not needed.
+1. Graph engine — **Memgraph** (closed; docker-compose + `specs/0016`). AGE not needed for v1.
 2. Orchestrator choice — **minimal Postgres `jobs` + worker + cron/Make** decided (#26 / `specs/0010`).
 3. Repo/product name: keep **NaijaLedger**?
 4. Hosting/infra budget & provider for prod?
