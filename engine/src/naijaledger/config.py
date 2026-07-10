@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     playwright_post_wait_ms: int = 1000
     catalog_discovery_max_children: int = 50
     magika_min_confidence: float = 0.5
+    ocr_max_pages: int = 20
+    vision_llm_enabled: bool = False
 
     @field_validator("api_cors_origins", mode="before")
     @classmethod

@@ -10,6 +10,7 @@ from naijaledger.extract.parsers_csv import parse_csv
 from naijaledger.extract.parsers_json import parse_json
 from naijaledger.extract.parsers_pdf import parse_pdf
 from naijaledger.extract.parsers_xlsx import parse_xlsx
+from naijaledger.extract.pass2 import default_pass2
 from naijaledger.extract.route import DEFAULT_MAGIKA_MIN_CONFIDENCE
 from naijaledger.extract.router import route_document_bytes
 from naijaledger.extractions.models import ExtractionCreate, ProvenanceEdgeCreate
@@ -74,10 +75,12 @@ def extract_document(
     *,
     min_confidence: float = DEFAULT_MAGIKA_MIN_CONFIDENCE,
     pass2: Pass2Fn | None = None,
+    enable_pass2: bool = True,
 ) -> ExtractionOutcome:
-    """Magika route → Pass 1 → optional Pass 2 only if Pass 1 has no blocks.
+    """Magika route → Pass 1 → Pass 2 (OCR) only if Pass 1 has no blocks.
 
     Does not write to the DB. Use `extract_and_persist` for persistence.
+    When `pass2` is None and `enable_pass2` is True, uses `default_pass2` (Tesseract).
     """
     decision = route_document_bytes(
         data=data,
@@ -131,10 +134,13 @@ def extract_document(
     if pass1["blocks"]:
         return pass1
 
-    if pass2 is not None:
-        pass2_outcome = pass2(document, data, pass1)
-        if pass2_outcome is not None:
-            return pass2_outcome
+    if not enable_pass2:
+        return pass1
+
+    pass2_fn = pass2 or default_pass2
+    pass2_outcome = pass2_fn(document, data, pass1)
+    if pass2_outcome is not None:
+        return pass2_outcome
 
     return pass1
 
@@ -193,11 +199,13 @@ def extract_and_persist(
     *,
     min_confidence: float = DEFAULT_MAGIKA_MIN_CONFIDENCE,
     pass2: Pass2Fn | None = None,
+    enable_pass2: bool = True,
 ) -> ExtractPersistResult:
     outcome = extract_document(
         document,
         data,
         min_confidence=min_confidence,
         pass2=pass2,
+        enable_pass2=enable_pass2,
     )
     return persist_outcome(connection, document_id=document.id, outcome=outcome)
