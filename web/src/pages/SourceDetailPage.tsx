@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { ApiError } from "../api/client";
 import { fetchSource, type PublicSource } from "../api/sources";
 
 type LoadState =
@@ -26,12 +27,12 @@ export function SourceDetailPage() {
       })
       .catch((error: unknown) => {
         if (!cancelled) {
-          const message = error instanceof Error ? error.message : "Unknown error";
-          if (message.includes("404")) {
+          if (error instanceof ApiError && error.status === 404) {
             setState({ kind: "missing" });
-          } else {
-            setState({ kind: "error", message });
+            return;
           }
+          const message = error instanceof Error ? error.message : "Unknown error";
+          setState({ kind: "error", message });
         }
       });
     return () => {

@@ -197,6 +197,8 @@ export function ExplorePage() {
             key={id}
             type="button"
             role="tab"
+            id={`explore-tab-${id}`}
+            aria-controls="explore-tabpanel"
             aria-selected={resource === id}
             className={`explore-tabs__btn${resource === id ? " explore-tabs__btn--active" : ""}`}
             onClick={() =>
@@ -277,7 +279,7 @@ export function ExplorePage() {
       )}
 
       {state.kind === "ok" && (
-        <div className="explore-grid">
+        <div className="explore-grid" id="explore-tabpanel" role="tabpanel">
           <div className="explore-main">
             {rowCount === 0 ? (
               <p className="placeholder">

@@ -4,7 +4,7 @@
 - **Status**: Implemented
 - **Author**: agent
 - **Needs human decision?**: no — frontend over existing E9 `/v1` reads; archive-byte
-  download remains deferred (0023). Charts: lightweight SVG distribution for v1 (ECharts when
+  download remains deferred (0023). Charts: lightweight CSS bar distribution for v1 (ECharts when
   series get richer — follow-up).
 
 ## 1. Problem
@@ -21,7 +21,7 @@ still a flat parties list; Sources is a placeholder.
     (title/rule text, severity/method when present).
   - Sort: client-side on loaded rows (name/title, value, severity, updated).
   - Compare: select up to **2** rows → side-by-side field panel.
-  - Distribution chart (SVG) for the active resource (party_type / method / severity counts).
+  - Distribution chart (CSS bar list) for the active resource (party_type / method / severity counts).
   - Row → detail panel (inline) with key fields + link toward Sources.
   - Sources: `/sources` list from `GET /v1/sources`; `/sources/:id` detail drill-down.
   - Flags UI copy: clearly **hypotheses**, not verified claims.
@@ -61,8 +61,8 @@ Reuse E9 public DTOs. Web clients:
 
 ```ts
 fetchParties({ party_type?, q?, limit?, offset? })
-fetchTenders({ limit?, offset? })
-fetchFlags({ limit? })
+fetchTenders(limit?, offset?)
+fetchFlags(limit?)
 fetchSources({ status?, limit?, offset? })
 fetchSource(id)
 ```
