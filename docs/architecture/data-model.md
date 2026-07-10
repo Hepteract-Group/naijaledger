@@ -113,7 +113,7 @@ Anomaly hypotheses (never auto-published claims). See `specs/0017-anomaly-flags.
 shared_address|price_outlier|budget_payment_mismatch|overvote|smoke`), `severity`
 (`low|medium|high`), `evidence jsonb` (requires `summary`), `status`
 (`open|dismissed|confirmed`), `created_by`, `reviewed_by`, `reviewed_at`; unique open
-`(rule, subject_type, subject_id)`.
+`(rule, subject_type, subject_id)`; sticky non-open rows suppress re-open on re-run.
 
 ### `review_decisions`
 `subject_type, subject_id, decision enum: approve_publish|reject|needs_more_evidence,
