@@ -34,8 +34,9 @@ export function GraphCanvas({ data, selectedId, onSelect }: GraphCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
   const [size, setSize] = useState({ width: 640, height: 420 });
-  const tokens = useMemo(
-    () => ({
+  const tokens = useMemo(() => {
+    void theme; // data-theme on <html> changes CSS variables
+    return {
       accent: readToken("--accent", "#0b6e4f"),
       indigo: readToken("--indigo", "#243b6b"),
       gold: readToken("--gold", "#b8892d"),
@@ -43,9 +44,8 @@ export function GraphCanvas({ data, selectedId, onSelect }: GraphCanvasProps) {
       line: readToken("--line", "#c5d4c8"),
       ink: readToken("--ink", "#14261c"),
       font: readToken("--font-body", "sans-serif"),
-    }),
-    [theme],
-  );
+    };
+  }, [theme]);
 
   useEffect(() => {
     const el = containerRef.current;
