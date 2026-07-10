@@ -4,7 +4,18 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from naijaledger.extractions.types import ExtractionDerivation, ExtractionMethod
 from naijaledger.finance.types import PartyType, TenderMethod
+
+
+class ProvenanceContext(BaseModel):
+    document_id: UUID
+    extraction_id: UUID
+    method: ExtractionMethod
+    derivation: ExtractionDerivation
+    confidence: float = Field(ge=0.0, le=1.0)
+    page: int | None = None
+    region: dict[str, float] | None = None
 
 
 class NormalizedParty(BaseModel):
@@ -64,6 +75,7 @@ class LoadResult(BaseModel):
     party_ids: dict[str, UUID] = Field(default_factory=dict)
     award_ids: list[UUID] = Field(default_factory=list)
     contract_ids: list[UUID] = Field(default_factory=list)
+    provenance_edge_ids: list[UUID] = Field(default_factory=list)
     parties_upserted: int = 0
     tenders_upserted: int = 0
     awards_inserted: int = 0

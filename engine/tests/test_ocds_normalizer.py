@@ -1,10 +1,16 @@
 from __future__ import annotations
 
 from typing import Any
+from uuid import UUID
 
 import pytest
 from sqlalchemy import text
 
+from naijaledger.extractions.models import ExtractionCreate
+from naijaledger.extractions.service import (
+    create_extraction,
+    list_provenance_edges_for_subject,
+)
 from naijaledger.finance.ocds import (
     OcdsNormalizeError,
     amount_to_kobo,
@@ -14,6 +20,10 @@ from naijaledger.finance.ocds import (
     unwrap_extraction_payload,
 )
 from naijaledger.finance.ocds_load import load_normalized_release
+from naijaledger.finance.ocds_models import ProvenanceContext
+from naijaledger.seeds.catalog import SEED_ADDED_BY
+from naijaledger.sources.models import SourceCreate
+from naijaledger.sources.service import create_source
 
 
 def _sample_release() -> dict[str, Any]:
@@ -64,6 +74,61 @@ def _sample_release() -> dict[str, Any]:
             }
         ],
     }
+
+
+def _seed_extraction(db_connection) -> tuple[UUID, UUID]:
+    source = create_source(
+        db_connection,
+        SourceCreate(
+            name="OCDS Provenance Test",
+            jurisdiction="federal",
+            category="procurement",
+            url="https://example.com/ocds.json",
+            fetch_method="http",
+            format="json",
+            added_by=SEED_ADDED_BY,
+        ),
+    )
+    fetch_id = db_connection.execute(
+        text(
+            """
+            INSERT INTO fetch_records (
+                source_id, url, requested_at, status_code, ok, sha256, archive_key
+            ) VALUES (
+                :source_id, :url, now(), 200, true, 'ocds-prov-hash', 'sha256/ocds-prov-hash'
+            )
+            RETURNING id
+            """
+        ),
+        {"source_id": source.id, "url": source.url},
+    ).scalar_one()
+    document_id = db_connection.execute(
+        text(
+            """
+            INSERT INTO documents (
+                source_id, first_fetch_id, sha256, format, archive_key
+            ) VALUES (
+                :source_id, :fetch_id, 'ocds-prov-hash', 'json', 'sha256/ocds-prov-hash'
+            )
+            RETURNING id
+            """
+        ),
+        {"source_id": source.id, "fetch_id": fetch_id},
+    ).scalar_one()
+    extraction = create_extraction(
+        db_connection,
+        ExtractionCreate(
+            document_id=document_id,
+            method="json",
+            method_version="stdlib-json-1",
+            derivation="extracted",
+            confidence=1.0,
+            ok=True,
+            payload={"blocks": []},
+            status="parsed",
+        ),
+    )
+    return document_id, extraction.id
 
 
 def test_amount_to_kobo() -> None:
@@ -145,3 +210,46 @@ def test_load_normalized_release_idempotent_tender(db_connection) -> None:
     assert count == 1
     parties = db_connection.execute(text("SELECT count(*) FROM parties")).scalar_one()
     assert parties == 2
+
+
+def test_load_without_provenance_creates_no_edges(db_connection) -> None:
+    before = db_connection.execute(text("SELECT count(*) FROM provenance_edges")).scalar_one()
+    load_normalized_release(db_connection, normalize_ocds_release(_sample_release()))
+    after = db_connection.execute(text("SELECT count(*) FROM provenance_edges")).scalar_one()
+    assert after == before
+
+
+def test_load_with_provenance_links_subjects(db_connection) -> None:
+    document_id, extraction_id = _seed_extraction(db_connection)
+    ctx = ProvenanceContext(
+        document_id=document_id,
+        extraction_id=extraction_id,
+        method="json",
+        derivation="extracted",
+        confidence=1.0,
+    )
+    normalized = normalize_ocds_release(_sample_release())
+    first = load_normalized_release(db_connection, normalized, provenance=ctx)
+    second = load_normalized_release(db_connection, normalized, provenance=ctx)
+
+    assert first.tender_id is not None
+    tender_edges = list_provenance_edges_for_subject(db_connection, "tender", first.tender_id)
+    assert len(tender_edges) == 1
+    assert tender_edges[0].document_id == document_id
+    assert tender_edges[0].extraction_id == extraction_id
+
+    assert len(first.provenance_edge_ids) >= 4  # 2 parties + tender + award + contract
+    assert set(second.provenance_edge_ids) == set(first.provenance_edge_ids)
+    assert second.awards_inserted == 0
+    assert second.contracts_inserted == 0
+
+    edge_count = db_connection.execute(
+        text(
+            """
+            SELECT count(*) FROM provenance_edges
+            WHERE extraction_id = :extraction_id AND subject_id IS NOT NULL
+            """
+        ),
+        {"extraction_id": extraction_id},
+    ).scalar_one()
+    assert edge_count == len(first.provenance_edge_ids)

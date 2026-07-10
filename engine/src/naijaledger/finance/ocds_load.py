@@ -1,4 +1,4 @@
-"""Thin OCDS load into canonical finance tables (E5.2)."""
+"""Thin OCDS load into canonical finance tables (E5.2 / E5.3)."""
 
 import json
 from typing import Any
@@ -8,13 +8,54 @@ from sqlalchemy import String, bindparam, text
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.engine import Connection
 
-from naijaledger.finance.ocds_models import LoadResult, NormalizedParty, NormalizedRelease
+from naijaledger.extractions.models import ProvenanceEdgeCreate
+from naijaledger.extractions.service import create_provenance_edge, find_provenance_edge
+from naijaledger.finance.ocds_models import (
+    LoadResult,
+    NormalizedParty,
+    NormalizedRelease,
+    ProvenanceContext,
+)
 
 
 def _merge_identifiers(existing: dict[str, Any] | None, incoming: dict[str, Any]) -> dict[str, Any]:
     merged = dict(existing or {})
     merged.update(incoming)
     return merged
+
+
+def _link_subject(
+    connection: Connection,
+    provenance: ProvenanceContext,
+    *,
+    subject_type: str,
+    subject_id: UUID,
+    edge_ids: list[UUID],
+) -> None:
+    existing = find_provenance_edge(
+        connection,
+        extraction_id=provenance.extraction_id,
+        subject_type=subject_type,
+        subject_id=subject_id,
+    )
+    if existing is not None:
+        edge_ids.append(existing.id)
+        return
+    edge = create_provenance_edge(
+        connection,
+        ProvenanceEdgeCreate(
+            document_id=provenance.document_id,
+            extraction_id=provenance.extraction_id,
+            method=provenance.method,
+            derivation=provenance.derivation,
+            confidence=provenance.confidence,
+            page=provenance.page,
+            region=provenance.region,
+            subject_type=subject_type,
+            subject_id=subject_id,
+        ),
+    )
+    edge_ids.append(edge.id)
 
 
 def _upsert_party(connection: Connection, party: NormalizedParty) -> UUID:
@@ -154,8 +195,175 @@ def _upsert_tender(
     return row.id  # type: ignore[no-any-return]
 
 
-def load_normalized_release(connection: Connection, release: NormalizedRelease) -> LoadResult:
+def _upsert_award(
+    connection: Connection,
+    *,
+    tender_id: UUID,
+    supplier_id: UUID,
+    ocds_award_id: str | None,
+    value_amount: int | None,
+    currency: str,
+    awarded_at: Any,
+    meta: dict[str, Any],
+) -> tuple[UUID, bool]:
+    if ocds_award_id is not None:
+        existing = connection.execute(
+            text(
+                """
+                SELECT id FROM awards
+                WHERE tender_id = :tender_id
+                  AND supplier_id = :supplier_id
+                  AND meta->>'ocds_award_id' = :ocds_award_id
+                """
+            ),
+            {
+                "tender_id": tender_id,
+                "supplier_id": supplier_id,
+                "ocds_award_id": ocds_award_id,
+            },
+        ).first()
+        if existing is not None:
+            connection.execute(
+                text(
+                    """
+                    UPDATE awards
+                    SET value_amount = :value_amount,
+                        currency = :currency,
+                        awarded_at = :awarded_at,
+                        meta = CAST(:meta AS jsonb),
+                        updated_at = now()
+                    WHERE id = :id
+                    """
+                ),
+                {
+                    "id": existing.id,
+                    "value_amount": value_amount,
+                    "currency": currency,
+                    "awarded_at": awarded_at,
+                    "meta": json.dumps(meta),
+                },
+            )
+            return existing.id, False
+
+    row = connection.execute(
+        text(
+            """
+            INSERT INTO awards (
+                tender_id, supplier_id, value_amount, currency, awarded_at, meta
+            ) VALUES (
+                :tender_id, :supplier_id, :value_amount, :currency, :awarded_at,
+                CAST(:meta AS jsonb)
+            )
+            RETURNING id
+            """
+        ),
+        {
+            "tender_id": tender_id,
+            "supplier_id": supplier_id,
+            "value_amount": value_amount,
+            "currency": currency,
+            "awarded_at": awarded_at,
+            "meta": json.dumps(meta),
+        },
+    ).one()
+    return row.id, True
+
+
+def _upsert_contract(
+    connection: Connection,
+    *,
+    award_id: UUID | None,
+    supplier_id: UUID,
+    agency_id: UUID,
+    ocds_contract_id: str | None,
+    value_amount: int | None,
+    currency: str,
+    signed_at: Any,
+    period: dict[str, Any] | None,
+    status: str | None,
+    meta: dict[str, Any],
+) -> tuple[UUID, bool]:
+    if ocds_contract_id is not None:
+        existing = connection.execute(
+            text(
+                """
+                SELECT id FROM contracts
+                WHERE agency_id = :agency_id
+                  AND supplier_id = :supplier_id
+                  AND meta->>'ocds_contract_id' = :ocds_contract_id
+                """
+            ),
+            {
+                "agency_id": agency_id,
+                "supplier_id": supplier_id,
+                "ocds_contract_id": ocds_contract_id,
+            },
+        ).first()
+        if existing is not None:
+            connection.execute(
+                text(
+                    """
+                    UPDATE contracts
+                    SET award_id = :award_id,
+                        value_amount = :value_amount,
+                        currency = :currency,
+                        signed_at = :signed_at,
+                        period = CAST(:period AS jsonb),
+                        status = :status,
+                        meta = CAST(:meta AS jsonb),
+                        updated_at = now()
+                    WHERE id = :id
+                    """
+                ),
+                {
+                    "id": existing.id,
+                    "award_id": award_id,
+                    "value_amount": value_amount,
+                    "currency": currency,
+                    "signed_at": signed_at,
+                    "period": json.dumps(period) if period is not None else None,
+                    "status": status,
+                    "meta": json.dumps(meta),
+                },
+            )
+            return existing.id, False
+
+    row = connection.execute(
+        text(
+            """
+            INSERT INTO contracts (
+                award_id, supplier_id, agency_id, value_amount, currency,
+                signed_at, period, status, meta
+            ) VALUES (
+                :award_id, :supplier_id, :agency_id, :value_amount, :currency,
+                :signed_at, CAST(:period AS jsonb), :status, CAST(:meta AS jsonb)
+            )
+            RETURNING id
+            """
+        ),
+        {
+            "award_id": award_id,
+            "supplier_id": supplier_id,
+            "agency_id": agency_id,
+            "value_amount": value_amount,
+            "currency": currency,
+            "signed_at": signed_at,
+            "period": json.dumps(period) if period is not None else None,
+            "status": status,
+            "meta": json.dumps(meta),
+        },
+    ).one()
+    return row.id, True
+
+
+def load_normalized_release(
+    connection: Connection,
+    release: NormalizedRelease,
+    *,
+    provenance: ProvenanceContext | None = None,
+) -> LoadResult:
     party_ids: dict[str, UUID] = {}
+    edge_ids: list[UUID] = []
     for ref, party in release.parties.items():
         party_ids[ref] = _upsert_party(connection, party)
 
@@ -163,6 +371,16 @@ def load_normalized_release(connection: Connection, release: NormalizedRelease) 
         party_ids=party_ids,
         parties_upserted=len(party_ids),
     )
+
+    if provenance is not None:
+        for party_id in party_ids.values():
+            _link_subject(
+                connection,
+                provenance,
+                subject_type="party",
+                subject_id=party_id,
+                edge_ids=edge_ids,
+            )
 
     tender_id: UUID | None = None
     if release.tender is not None:
@@ -181,68 +399,70 @@ def load_normalized_release(connection: Connection, release: NormalizedRelease) 
         )
         result.tender_id = tender_id
         result.tenders_upserted = 1
+        if provenance is not None:
+            _link_subject(
+                connection,
+                provenance,
+                subject_type="tender",
+                subject_id=tender_id,
+                edge_ids=edge_ids,
+            )
 
     award_id_by_ocds: dict[str, UUID] = {}
     if tender_id is not None:
         for award in release.awards:
-            row = connection.execute(
-                text(
-                    """
-                    INSERT INTO awards (
-                        tender_id, supplier_id, value_amount, currency, awarded_at, meta
-                    ) VALUES (
-                        :tender_id, :supplier_id, :value_amount, :currency, :awarded_at,
-                        CAST(:meta AS jsonb)
-                    )
-                    RETURNING id
-                    """
-                ),
-                {
-                    "tender_id": tender_id,
-                    "supplier_id": party_ids[award.supplier_ref],
-                    "value_amount": award.value_amount,
-                    "currency": award.currency,
-                    "awarded_at": award.awarded_at,
-                    "meta": json.dumps(
-                        {"ocds_award_id": award.ocds_award_id, **(award.meta or {})}
-                    ),
-                },
-            ).one()
-            result.award_ids.append(row.id)
-            result.awards_inserted += 1
+            meta = {"ocds_award_id": award.ocds_award_id, **(award.meta or {})}
+            award_id, inserted = _upsert_award(
+                connection,
+                tender_id=tender_id,
+                supplier_id=party_ids[award.supplier_ref],
+                ocds_award_id=award.ocds_award_id,
+                value_amount=award.value_amount,
+                currency=award.currency,
+                awarded_at=award.awarded_at,
+                meta=meta,
+            )
+            result.award_ids.append(award_id)
+            if inserted:
+                result.awards_inserted += 1
             if award.ocds_award_id is not None:
-                award_id_by_ocds[award.ocds_award_id] = row.id
+                award_id_by_ocds[award.ocds_award_id] = award_id
+            if provenance is not None:
+                _link_subject(
+                    connection,
+                    provenance,
+                    subject_type="award",
+                    subject_id=award_id,
+                    edge_ids=edge_ids,
+                )
 
     for contract in release.contracts:
-        award_id = award_id_by_ocds.get(contract.award_ref) if contract.award_ref else None
-        row = connection.execute(
-            text(
-                """
-                INSERT INTO contracts (
-                    award_id, supplier_id, agency_id, value_amount, currency,
-                    signed_at, period, status, meta
-                ) VALUES (
-                    :award_id, :supplier_id, :agency_id, :value_amount, :currency,
-                    :signed_at, CAST(:period AS jsonb), :status, CAST(:meta AS jsonb)
-                )
-                RETURNING id
-                """
-            ),
-            {
-                "award_id": award_id,
-                "supplier_id": party_ids[contract.supplier_ref],
-                "agency_id": party_ids[contract.agency_ref],
-                "value_amount": contract.value_amount,
-                "currency": contract.currency,
-                "signed_at": contract.signed_at,
-                "period": json.dumps(contract.period) if contract.period is not None else None,
-                "status": contract.status,
-                "meta": json.dumps(
-                    {"ocds_contract_id": contract.ocds_contract_id, **(contract.meta or {})}
-                ),
-            },
-        ).one()
-        result.contract_ids.append(row.id)
-        result.contracts_inserted += 1
+        linked_award_id = award_id_by_ocds.get(contract.award_ref) if contract.award_ref else None
+        meta = {"ocds_contract_id": contract.ocds_contract_id, **(contract.meta or {})}
+        contract_id, inserted = _upsert_contract(
+            connection,
+            award_id=linked_award_id,
+            supplier_id=party_ids[contract.supplier_ref],
+            agency_id=party_ids[contract.agency_ref],
+            ocds_contract_id=contract.ocds_contract_id,
+            value_amount=contract.value_amount,
+            currency=contract.currency,
+            signed_at=contract.signed_at,
+            period=contract.period,
+            status=contract.status,
+            meta=meta,
+        )
+        result.contract_ids.append(contract_id)
+        if inserted:
+            result.contracts_inserted += 1
+        if provenance is not None:
+            _link_subject(
+                connection,
+                provenance,
+                subject_type="contract",
+                subject_id=contract_id,
+                edge_ids=edge_ids,
+            )
 
+    result.provenance_edge_ids = edge_ids
     return result

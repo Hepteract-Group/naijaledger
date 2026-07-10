@@ -184,12 +184,65 @@ def list_provenance_edges_for_extraction(
     return [_row_to_provenance_edge(row) for row in rows]
 
 
+def list_provenance_edges_for_subject(
+    connection: Connection,
+    subject_type: str,
+    subject_id: UUID,
+) -> list[ProvenanceEdge]:
+    query = text(
+        f"""
+        SELECT {_PROVENANCE_COLUMNS}
+        FROM provenance_edges
+        WHERE subject_type = :subject_type
+          AND subject_id = :subject_id
+        ORDER BY created_at ASC
+        """
+    )
+    rows = connection.execute(
+        query,
+        {"subject_type": subject_type, "subject_id": subject_id},
+    ).all()
+    return [_row_to_provenance_edge(row) for row in rows]
+
+
+def find_provenance_edge(
+    connection: Connection,
+    *,
+    extraction_id: UUID,
+    subject_type: str,
+    subject_id: UUID,
+) -> ProvenanceEdge | None:
+    query = text(
+        f"""
+        SELECT {_PROVENANCE_COLUMNS}
+        FROM provenance_edges
+        WHERE extraction_id = :extraction_id
+          AND subject_type = :subject_type
+          AND subject_id = :subject_id
+        LIMIT 1
+        """
+    )
+    row = connection.execute(
+        query,
+        {
+            "extraction_id": extraction_id,
+            "subject_type": subject_type,
+            "subject_id": subject_id,
+        },
+    ).first()
+    if row is None:
+        return None
+    return _row_to_provenance_edge(row)
+
+
 __all__ = [
     "ExtractionNotFoundError",
     "ExtractionValidationError",
     "create_extraction",
     "create_provenance_edge",
+    "find_provenance_edge",
     "get_extraction",
     "list_extractions_for_document",
     "list_provenance_edges_for_extraction",
+    "list_provenance_edges_for_subject",
 ]
