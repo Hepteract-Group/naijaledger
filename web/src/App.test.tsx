@@ -71,7 +71,113 @@ describe("App routes", () => {
 
     fireEvent.click(screen.getByRole("link", { name: "Explore" }));
     expect(await screen.findByRole("heading", { name: "Explore" })).toBeTruthy();
-    expect(await screen.findByText(/no parties yet/i)).toBeTruthy();
+    expect(await screen.findByText(/no parties match/i)).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Parties" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Tenders" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Flags" })).toBeTruthy();
+  });
+
+  it("switches explore resource and shows flag hypothesis copy", async () => {
+    stubMatchMedia(false);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ items: [], limit: 50, offset: 0, count: 0 }),
+      }),
+    );
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("link", { name: "Explore" }));
+    await screen.findByRole("heading", { name: "Explore" });
+    fireEvent.click(screen.getByRole("tab", { name: "Flags" }));
+    expect(await screen.findByText(/hypotheses pending human review/i)).toBeTruthy();
+  });
+
+  it("compares two parties side by side", async () => {
+    stubMatchMedia(false);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          items: [
+            {
+              id: "11111111-1111-1111-1111-111111111111",
+              party_type: "agency",
+              canonical_name: "Ministry A",
+              aliases: [],
+              merged_into_id: null,
+              created_at: "2026-01-01T00:00:00Z",
+              updated_at: "2026-01-02T00:00:00Z",
+            },
+            {
+              id: "22222222-2222-2222-2222-222222222222",
+              party_type: "company",
+              canonical_name: "Vendor B",
+              aliases: ["VB"],
+              merged_into_id: null,
+              created_at: "2026-01-01T00:00:00Z",
+              updated_at: "2026-01-03T00:00:00Z",
+            },
+          ],
+          limit: 50,
+          offset: 0,
+          count: 2,
+        }),
+      }),
+    );
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("link", { name: "Explore" }));
+    expect(await screen.findByText("Ministry A")).toBeTruthy();
+    fireEvent.click(screen.getByRole("checkbox", { name: /compare ministry a/i }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /compare vendor b/i }));
+    expect(await screen.findByRole("heading", { name: "Compare" })).toBeTruthy();
+    expect(screen.getAllByText("Vendor B").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByLabelText("Party types")).toBeTruthy();
+  });
+
+  it("lists sources and drills into detail", async () => {
+    stubMatchMedia(false);
+    const source = {
+      id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      name: "Open Treasury demo",
+      url: "https://example.test/treasury",
+      jurisdiction: "federal",
+      region: null,
+      category: "payments",
+      format: "html",
+      fetch_method: "http",
+      status: "approved",
+      health_status: "ok",
+      expected_cadence: 86400,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-02T00:00:00Z",
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (input: RequestInfo) => {
+        const url = String(input);
+        if (url.includes("/v1/sources/") && !url.endsWith("/v1/sources")) {
+          return { ok: true, json: async () => source };
+        }
+        if (url.includes("/v1/sources")) {
+          return {
+            ok: true,
+            json: async () => ({ items: [source], limit: 50, offset: 0, count: 1 }),
+          };
+        }
+        return { ok: true, json: async () => ({ items: [], limit: 50, offset: 0, count: 0 }) };
+      }),
+    );
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("link", { name: "Sources" }));
+    expect(await screen.findByRole("heading", { name: "Sources" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("link", { name: /open treasury demo/i }));
+    expect(await screen.findByRole("heading", { name: "Open Treasury demo" })).toBeTruthy();
+    expect(screen.getByText("https://example.test/treasury")).toBeTruthy();
   });
 
   it("lists stories and opens the demo scrollytelling narrative", async () => {
