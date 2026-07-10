@@ -1,7 +1,7 @@
 # Spec 0018 — Red-flag rules (E7.2)
 
 - **Epic / Issue**: E7.2 / #41
-- **Status**: Draft
+- **Status**: Implemented
 - **Author**: agent
 - **Needs human decision?**: no — thresholds are v1 defaults (tunable constants); E7.3 measures
   precision. Flags remain hypotheses (P3); never auto-published.
@@ -119,15 +119,15 @@ MISMATCH_TOLERANCE = 0.10
 
 ## 5. Acceptance criteria (testable)
 
-- [ ] Each of the seven rules emits expected drafts on a crafted `RuleContext` fixture.
-- [ ] Each rule emits **zero** drafts when inputs are empty / missing required fields.
-- [ ] `production_rules()` returns exactly those seven ids (no `smoke`).
-- [ ] `load_rule_context` includes `tenders.meta`; `single_bidder` fires on
+- [x] Each of the seven rules emits expected drafts on a crafted `RuleContext` fixture.
+- [x] Each rule emits **zero** drafts when inputs are empty / missing required fields.
+- [x] `production_rules()` returns exactly those seven ids (no `smoke`).
+- [x] `load_rule_context` includes `tenders.meta`; `single_bidder` fires on
       `meta.numberOfTenderers == 1` in a context/DB fixture.
-- [ ] `run_anomaly_rules(connection, production_rules())` succeeds on a migrated DB (empty ok).
-- [ ] OCDS tender with `numberOfTenderers: 1` lands in tender `meta` after normalize.
-- [ ] Evidence always includes non-empty `summary`; subjects use correct `subject_type`.
-- [ ] `price_outlier` emits nothing for an agency sample whose MAD is 0.
+- [x] `run_anomaly_rules(connection, production_rules())` succeeds on a migrated DB (empty ok).
+- [x] OCDS tender with `numberOfTenderers: 1` lands in tender `meta` after normalize.
+- [x] Evidence always includes non-empty `summary`; subjects use correct `subject_type`.
+- [x] `price_outlier` emits nothing for an agency sample whose MAD is 0.
 
 ## 6. Risks & mitigations
 

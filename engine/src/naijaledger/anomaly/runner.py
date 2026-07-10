@@ -45,4 +45,22 @@ def run_anomaly_rules(
 
 def production_rules() -> list[AnomalyRule]:
     """Finance red-flag rules registered for scheduled runs (excludes smoke)."""
-    return []
+    from naijaledger.anomaly.rules import (
+        BudgetPaymentMismatchRule,
+        PriceOutlierRule,
+        RepeatWinnerRule,
+        SharedAddressRule,
+        ShortWindowRule,
+        SingleBidderRule,
+        ThresholdHuggingRule,
+    )
+
+    return [
+        SingleBidderRule(),
+        ShortWindowRule(),
+        ThresholdHuggingRule(),
+        RepeatWinnerRule(),
+        SharedAddressRule(),
+        PriceOutlierRule(),
+        BudgetPaymentMismatchRule(),
+    ]
