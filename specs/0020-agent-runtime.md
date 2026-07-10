@@ -21,9 +21,11 @@ can query Postgres + Memgraph (+ lightweight search) without each inventing ad-h
     `AgentContext`, `run_agent` loop (max steps, tool-call transcript).
   - Retrieval tools (read-only):
     - `lookup_party` — by id or name substring (Postgres).
-    - `lookup_flag` / `list_open_flags` — anomaly flags (reuse anomaly service).
-    - `search_documents` — Postgres `ILIKE` on `documents` title/url (v1 search stand-in;
-      OpenSearch/pgvector deferred).
+    - `lookup_flag` / `list_open_flags` — wrap `anomaly.service.get_flag` /
+      `list_open_flags`.
+    - `search_documents` — Postgres `ILIKE` on `documents.title` (and optionally
+      `sha256` prefix); v1 search stand-in (no `url` column on `documents` — URL lives on
+      sources/fetch_records; OpenSearch/pgvector deferred).
     - `graph_neighbors` — 1-hop neighbors from Memgraph for a finance node id (optional if
       Memgraph unreachable; tool returns structured error, does not crash the run).
   - One **smoke agent** (`echo_tools`) that calls a fixed tool sequence for wiring tests.
@@ -52,8 +54,8 @@ runtime (human-gated elsewhere).
 ### 3.2 Run loop (v1)
 
 ```text
-ctx = AgentContext(connection, graph_client?, tool_registry, run_id)
-agent.plan_or_step(ctx, history) → AgentAction
+ctx = AgentContext(connection, graph_client?, tools, run_id)
+agent.step(ctx, history) → AgentAction
   AgentAction = CallTool(name, args) | Finish(drafts?, summary)
 until Finish or max_steps
 ```
@@ -69,9 +71,10 @@ able to attach evidence without re-querying blindly.
 
 ### 3.4 Search v1
 
-`search_documents(query, limit=20)` uses parameterized SQL `ILIKE` against `documents`
-(fields available in schema — typically source URL / content hash / meta). Document as
-**interim** until FTS/OpenSearch; do not pretend semantic search.
+`search_documents(query, limit=20)` uses parameterized SQL `ILIKE` against
+`documents.title` (and optional exact/prefix match on `sha256`). Document as **interim**
+until FTS/OpenSearch; do not pretend semantic search. Do not invent a `documents.url`
+column — join to `sources` only if a later story needs URL search.
 
 ### 3.5 Graph tool safety
 
@@ -104,12 +107,26 @@ class Tool(Protocol):
     name: str
     def run(self, ctx: AgentContext, args: dict[str, Any]) -> ToolResult: ...
 
+class ToolRegistry(BaseModel):
+    tools: dict[str, Tool]  # name → tool; constructed via register_tools(list[Tool])
+
+class AgentContext(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    connection: Connection
+    tools: ToolRegistry
+    run_id: UUID
+    graph_client: GraphClient | None = None
+
 class AgentAction(BaseModel):
     type: Literal["call_tool", "finish"]
     tool: str | None = None
     args: dict[str, Any] = {}
     summary: str | None = None
     drafts: list[dict[str, Any]] = []  # opaque for E8.2; unused by smoke
+
+class Agent(Protocol):
+    id: str
+    def step(self, ctx: AgentContext, history: list[dict[str, Any]]) -> AgentAction: ...
 
 class AgentRunResult(BaseModel):
     run_id: UUID
@@ -128,7 +145,6 @@ def run_agent(
 
 def default_tools() -> list[Tool]: ...  # production retrieval set
 ```
-
 ## 5. Acceptance criteria (testable)
 
 - [ ] `run_agent` with smoke agent + fake tool completes with `finished=True` and a transcript.
