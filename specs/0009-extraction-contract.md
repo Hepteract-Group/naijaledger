@@ -1,10 +1,9 @@
 # Spec 0009 — Extraction contract & dual-pass pipeline (E4)
 
 - **Epic / Issue**: E4.1 / #27 (contract) — also seeds E4 stories (routing+Magika, confidence schema, Docling tables)
-- **Status**: Draft
+- **Status**: Approved (contract via #94); schema implementation in progress (#88)
 - **Author**: agent
-- **Needs human decision?**: yes — extraction contract is `[H]` in `ROADMAP.md` (approve this
-  contract). PDF-table engine is **decided**: Docling in-engine (see §3.4 / #29).
+- **Needs human decision?**: no — contract approved; PDF-table engine decided (Docling in-engine, #29).
 
 ## 1. Problem
 
@@ -153,8 +152,9 @@ Each `Block` with a `page`/`region` yields one `provenance_edges` row
 
 ## 5. Acceptance criteria (testable)
 
-- [ ] Alembic migration adds `derivation` (CHECK in {extracted,inferred,ambiguous}), `confidence`,
-      `method`/`method_version`, `content_type`, `content_type_conf`, `status` to `extractions`.
+- [x] Alembic migration adds `derivation` (CHECK in {extracted,inferred,ambiguous}), `confidence`,
+      `method`/`method_version`, `content_type`, `content_type_conf`, `status` to `extractions`
+      (and matching `derivation`/`confidence` on `provenance_edges`) — #88.
 - [ ] Magika detection returns `(label, confidence)`; a low-confidence or format-mismatched document
       produces `status="quarantined"` and **no** parsed rows (unit test with a mislabeled fixture).
 - [ ] XLSX and JSON fixtures parse via Pass 1 with `derivation="extracted"`, `confidence=1.0`.

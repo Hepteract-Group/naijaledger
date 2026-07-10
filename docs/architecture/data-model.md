@@ -41,14 +41,17 @@ A distinct artifact (a specific PDF/XLSX/JSON/image) identified by content hash.
 `source_id, first_fetch_id, sha256 (unique), format, archive_key, title, published_at, meta jsonb`
 
 ### `extractions`
-Result of parsing a document (versioned by extractor).
-`document_id, extractor (enum: peadf_pdfjs|peadf_ocr|tables|xlsx|json|vision_llm), extractor_version,
-ok bool, payload jsonb, ocr_used bool, created_at`
+Result of parsing a document (versioned by method). See `specs/0009-extraction-contract.md`.
+`document_id, method (xlsx|csv|json|pdf_text|pdf_table|ocr|vision_llm), method_version,
+derivation (extracted|inferred|ambiguous), confidence numeric(4,3), ok bool, payload jsonb,
+content_type, content_type_conf, status (parsed|quarantined|unsupported|failed), created_at`
+- `derivation=extracted` ⇒ `confidence=1.0`; `inferred`/`ambiguous` ⇒ `confidence < 1.0`.
 
 ### `provenance_edges`
-Ties any canonical record back to evidence.
-`subject_type, subject_id, document_id, extraction_id, page int, region jsonb (bbox),
-method, verified_by, verified_at`
+Ties any canonical record (or pre-canonical extraction block) back to evidence.
+`subject_type, subject_id` (nullable until E5 links a canonical subject),
+`document_id, extraction_id, page int, region jsonb (bbox), method, derivation, confidence,
+verified_by, verified_at`
 
 ---
 
