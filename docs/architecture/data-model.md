@@ -108,9 +108,12 @@ discrepancy jsonb, status enum: match|mismatch|missing_irev|under_review`
 ## Analysis & review
 
 ### `flags`
-`subject_type, subject_id, rule enum (single_bidder|short_window|threshold_hugging|repeat_winner|
-shared_address|price_outlier|budget_payment_mismatch|overvote|...), severity, evidence jsonb,
-status enum: open|dismissed|confirmed, created_by (agent), reviewed_by`
+Anomaly hypotheses (never auto-published claims). See `specs/0017-anomaly-flags.md`.
+`subject_type, subject_id, rule` (`single_bidder|short_window|threshold_hugging|repeat_winner|
+shared_address|price_outlier|budget_payment_mismatch|overvote|smoke`), `severity`
+(`low|medium|high`), `evidence jsonb` (requires `summary`), `status`
+(`open|dismissed|confirmed`), `created_by`, `reviewed_by`, `reviewed_at`; unique open
+`(rule, subject_type, subject_id)`.
 
 ### `review_decisions`
 `subject_type, subject_id, decision enum: approve_publish|reject|needs_more_evidence,
