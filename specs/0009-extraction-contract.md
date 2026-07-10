@@ -155,8 +155,9 @@ Each `Block` with a `page`/`region` yields one `provenance_edges` row
 - [x] Alembic migration adds `derivation` (CHECK in {extracted,inferred,ambiguous}), `confidence`,
       `method`/`method_version`, `content_type`, `content_type_conf`, `status` to `extractions`
       (and matching `derivation`/`confidence` on `provenance_edges`) — #88.
-- [ ] Magika detection returns `(label, confidence)`; a low-confidence or format-mismatched document
-      produces `status="quarantined"` and **no** parsed rows (unit test with a mislabeled fixture).
+- [x] Magika detection returns `(label, confidence)`; a low-confidence or format-mismatched document
+      produces `status="quarantined"` and **no** parsed rows (unit test with a mislabeled fixture)
+      — #87.
 - [ ] XLSX and JSON fixtures parse via Pass 1 with `derivation="extracted"`, `confidence=1.0`.
 - [ ] A text-layer PDF fixture via Docling yields ≥1 table block with `page` + `region` provenance
       and `method`/`method_version` recording the pinned Docling version.
