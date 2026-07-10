@@ -30,7 +30,9 @@ E9.1 delivered GET `/v1/*` with FastAPI’s default OpenAPI. Partners and the we
   - In-process rate limiter middleware (functional):
     - Key: `request.client.host` by default.
     - Honor `X-Forwarded-For` **only when** `api_trust_forwarded_for=true` (default **false**);
-      when trusted, use the **leftmost** hop (edge-set client IP after the proxy rewrites XFF).
+      when trusted, use the **leftmost** hop. Deployment contract: the edge proxy **MUST
+      overwrite** (not append) `X-Forwarded-For` with the real client IP; if the proxy only
+      appends, leave trust disabled.
     - Default: **60 requests / 60 seconds** per key for `/v1/*` (configurable).
     - `/health` and `/docs` / `/openapi.json` / `/redoc` exempt.
     - On exceed: `429` with `Retry-After` (seconds until window reset).
