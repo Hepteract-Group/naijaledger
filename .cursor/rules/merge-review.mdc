@@ -1,0 +1,98 @@
+---
+description: Pre-merge review by a stronger model than the implementer; fix or escalate
+alwaysApply: true
+---
+
+# Merge review (cross-model)
+
+Before any agent self-merge, a **merge review** MUST run on a **stronger model** than the one
+that wrote the code. Same-model or weaker-model “review” does not satisfy this gate.
+
+## When
+
+After: implementation + self-review clean + PR open + CI green (or about to be).
+Before: `gh pr merge` / self-merge under `loop-workflow.mdc`.
+
+Spec-only PRs still get a merge review (lighter checklist), unless the change is a typo/docs
+nit under ~20 lines — then note `merge-review: skipped (trivial)` in the PR and proceed.
+
+## Reviewer model (must be stronger)
+
+Prefer, in order, the strongest available that is **not** the implementer’s model family:
+
+1. `claude-opus-4-8-thinking-medium` (or latest Opus thinking slug available)
+2. `claude-opus-4-7-thinking-medium`
+3. `gpt-5.6-terra-medium` / `gpt-5.6-sol-medium` / `gpt-5.5-medium`
+
+| Implementer (approx.) | Reviewer MUST be |
+|---|---|
+| Composer / Auto / `composer-*` | Opus (preferred) or GPT-5.6 tier |
+| Sonnet / `claude-sonnet-*` / `claude-4.6-sonnet-*` | Opus |
+| GPT-5.x medium | Opus (preferred) or a different GPT high-tier if Opus unavailable |
+| Opus (rare: Opus wrote the code) | GPT-5.6 tier (different family) |
+
+If no stronger model can be launched (tooling failure), **do not self-merge**: label `needs-human`,
+comment that merge-review could not run, and wait.
+
+Launch via the Task tool (`subagent_type: generalPurpose`, `readonly: true` for the review pass)
+with an explicit `model:` slug from the list above. Do not “review yourself” in the same turn and
+call it a merge review.
+
+## Reviewer brief (give the subagent all of this)
+
+- PR URL / branch / `git diff origin/main...HEAD`
+- Spec path + acceptance criteria (if any)
+- What the implementer believes is done
+- Ask for a structured report only:
+
+```text
+## Verdict
+approve | approve-with-fixes | block
+
+## Findings
+For each finding:
+- severity: must-fix | should-fix | nit | ambiguous
+- location: path:line (if known)
+- issue: …
+- recommendation: …
+
+## Ambiguities for human
+(only decisions that need product/security/legal judgment — not style nits)
+
+## Summary
+1–3 sentences
+```
+
+Review focus: correctness vs spec/acceptance criteria, security/privacy, provenance gaps,
+destructive/irreversible risk, missing tests, silent behavior changes. Skip drive-by style
+rewrites unless they hide a bug.
+
+## Implementer response (mandatory)
+
+1. **must-fix** / **should-fix** → implement on the PR branch, push, re-run lint/typecheck/tests.
+2. **nit** → optional; skip unless cheap.
+3. **ambiguous** → do **not** guess. Comment on the PR + issue with the decision needed, apply
+   `needs-human`, and **stop** (no self-merge).
+4. If the reviewer **blocks** or leaves unresolved must-fix items → no self-merge until fixed
+   or human clears them.
+5. After non-trivial fixes, run **one** follow-up merge review (same stronger model). Cap at
+   two review rounds; if still contested → `needs-human`.
+
+## PR attestation
+
+PR body (or a follow-up comment before merge) MUST include:
+
+```markdown
+## Merge review
+- Reviewer model: `<slug>`
+- Implementer model: `<slug or "session/auto">`
+- Verdict: approve | approve-with-fixes (then fixed) | block → needs-human
+- Link/summary: <comment URL or paste short summary>
+```
+
+Self-merge is forbidden without this attestation (except the trivial skip note above).
+
+## Relationship to self-review
+
+Self-review (same agent, up to 3 passes) remains required and is **not** a substitute for
+merge review. Order: implement → self-review → PR → CI → **merge review** → fix/escalate → merge.

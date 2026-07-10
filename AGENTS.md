@@ -49,8 +49,12 @@ NaijaLedger is built by agents running a **self-directed loop**. One iteration:
    until a pass finds nothing. Verify against the spec's acceptance criteria.
 6. **PR** with `gh pr create`; body must `Closes #N`, summarise *what/why*, list how it was verified,
    and note rollback. Move ticket to **In review**.
-7. **Merge policy** (see next section) — auto-merge if eligible, else request human review.
-8. **Reflect & seed the next iteration.** After merge, run a gap check: did you spot missing
+7. **Merge review (stronger model).** A *different, stronger* model than the implementer reviews
+   the PR (see `.cursor/rules/merge-review.mdc`). Implement must/should fixes; escalate
+   ambiguities with `needs-human`. Attest reviewer model + verdict on the PR before merge.
+8. **Merge policy** (see next section) — auto-merge if eligible (including merge-review gate),
+   else request human review.
+9. **Reflect & seed the next iteration.** After merge, run a gap check: did you spot missing
    implementation, tech debt, or a follow-up? **Create new issues** for them (don't silently drop
    them). Then start the loop again.
 
@@ -67,6 +71,8 @@ You **may** merge your own PR **only if ALL of these hold**:
   evidentiary data, or anything labelled `needs-human`.
 - The PR body clearly explains what changed and why (auditable trail).
 - Self-review reached a clean pass and acceptance criteria are met.
+- Merge review by a stronger model is attested on the PR (`approve` or fixes landed after
+  `approve-with-fixes`); no unresolved `ambiguous` / `block` findings.
 
 Otherwise: open the PR, apply `needs-human`, and **wait**. Always prefer escalation when uncertain —
 the user has asked to be involved specifically in **areas of uncertainty**.
@@ -101,6 +107,7 @@ skip hooks, or bypass CI.
 | Rule file | Loaded when |
 |---|---|
 | `.cursor/rules/loop-workflow.mdc` | Always — the self-directed loop + merge policy |
+| `.cursor/rules/merge-review.mdc` | Always — stronger-model merge review before self-merge |
 | `.cursor/rules/spec-driven.mdc` | When creating/refreshing a spec |
 | `.cursor/rules/functional-code.mdc` | Always |
 | `.cursor/rules/provenance-and-verification.mdc` | When touching ingestion/extraction/publication |

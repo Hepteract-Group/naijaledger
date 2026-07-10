@@ -15,8 +15,11 @@ NaijaLedger is built incrementally by agents running this loop. One iteration = 
 4. **Implement** in small commits. Run lint + typecheck + tests before every push.
 5. **Self-review up to 3 passes** until a pass is clean; verify acceptance criteria.
 6. **PR** (`gh pr create`), body: `Closes #N`, what/why, how-verified, rollback note. → **In review**.
-7. **Merge** per policy below, else `needs-human` + wait.
-8. **Reflect**: file new issues for gaps/debt/follow-ups you noticed. Restart the loop.
+7. **Merge review** by a **stronger model** than the implementer (see `merge-review.mdc`).
+   Apply must/should fixes; escalate `ambiguous` / blocks with `needs-human`. Attest on the PR.
+8. **Merge** per policy below only after merge-review approve (or approve-with-fixes completed);
+   else `needs-human` + wait.
+9. **Reflect**: file new issues for gaps/debt/follow-ups you noticed. Restart the loop.
 
 Stop the loop when no eligible issues remain or a `needs-human` gate blocks progress.
 
@@ -29,6 +32,8 @@ Self-merge only if ALL hold:
   security/secrets, destructive migrations, evidentiary-data deletion, or `needs-human` items.
 - PR clearly explains the change (auditable trail).
 - Clean self-review pass + acceptance criteria met.
+- **Merge review** completed on a stronger model than the implementer, attested on the PR,
+  verdict `approve` or `approve-with-fixes` with fixes pushed; no open `ambiguous`/`block` items.
 
 Otherwise open PR, label `needs-human`, wait. Prefer escalation whenever uncertain.
 
