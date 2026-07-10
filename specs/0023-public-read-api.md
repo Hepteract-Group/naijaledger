@@ -64,7 +64,7 @@ No SSRF / user-supplied URL fetch
 | GET | `/v1/awards/{id}` | |
 | GET | `/v1/contracts/{id}` | |
 | GET | `/v1/flags` | open only; `limit` |
-| GET | `/v1/flags/{id}` | any status by id |
+| GET | `/v1/flags/{id}` | **open only** (404 if missing or not open) |
 
 **Sources:** query param `status` defaults to `approved`. Values: `approved` | `proposed` |
 `retired` | `all`.
@@ -90,7 +90,7 @@ Explicit public response models. **Do not** `model_dump` domain objects wholesal
 
 | Resource | Allowed fields (v1) |
 |----------|---------------------|
-| Source | `id`, `name`, `url`, `jurisdiction`, `category`, `format`, `fetch_method`, `status`, `health_status`, `expected_cadence` (ISO-8601 duration or seconds), `created_at`, `updated_at` |
+| Source | `id`, `name`, `url`, `jurisdiction`, `region`, `category`, `format`, `fetch_method`, `status`, `health_status`, `expected_cadence` (ISO-8601 duration or seconds), `created_at`, `updated_at` |
 | Party | `id`, `party_type`, `canonical_name`, `aliases`, `merged_into_id`, `created_at`, `updated_at` (no `identifiers`/`address`/`meta` in v1 — PII/minimization) |
 | Tender | `id`, `ocid`, `agency_id`, `title`, `method`, `value_amount`, `currency`, `bidding_opens_at`, `bidding_closes_at`, `created_at`, `updated_at` |
 | Award | `id`, `tender_id`, `supplier_id`, `value_amount`, `currency`, `awarded_at`, `created_at`, `updated_at` |
