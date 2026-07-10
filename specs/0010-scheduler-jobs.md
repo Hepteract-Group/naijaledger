@@ -1,7 +1,7 @@
 # Spec 0010 — Scheduler: Postgres jobs + worker + Make/cron (E3.5)
 
 - **Epic / Issue**: E3.5 / #26
-- **Status**: Draft
+- **Status**: Implemented
 - **Author**: agent
 - **Needs human decision?**: no — orchestrator choice already recorded on #26 (2026-07-07):
   minimal Postgres `jobs` table + worker + cron/Make trigger (not Prefect/Dagster; not Make.com).
@@ -174,20 +174,20 @@ Settings (optional): `job_lock_timeout_seconds=1800`, `job_max_attempts=3`.
 
 ## 5. Acceptance criteria (testable)
 
-- [ ] Migration creates `jobs` with unique `idempotency_key` and status/kind CHECKs.
-- [ ] `list_due_sources`: approved + cadence set + never fetched **or** past cadence; excludes
+- [x] Migration creates `jobs` with unique `idempotency_key` and status/kind CHECKs.
+- [x] `list_due_sources`: approved + cadence set + never fetched **or** past cadence; excludes
       retired/proposed and null-cadence.
-- [ ] `enqueue_due_fetch_jobs` inserts one row per due source; second enqueue in the same due
+- [x] `enqueue_due_fetch_jobs` inserts one row per due source; second enqueue in the same due
       window inserts **0** new rows (conflict on idempotency_key).
-- [ ] `claim_next_job` returns a queued job with `run_after <= now`, sets `running` + lock fields;
+- [x] `claim_next_job` returns a queued job with `run_after <= now`, sets `running` + lock fields;
       concurrent claim of the same row is impossible under `SKIP LOCKED` (tested with two
       connections or simulated).
-- [ ] Successful `fetch_source` job → `succeeded` + `result` containing `fetch_record_id` (mock
+- [x] Successful `fetch_source` job → `succeeded` + `result` containing `fetch_record_id` (mock
       fetch OK).
-- [ ] Failed job with attempts remaining → back to `queued` with future `run_after`; after
+- [x] Failed job with attempts remaining → back to `queued` with future `run_after`; after
       `max_attempts` → `dead`.
-- [ ] Stale `running` job older than lock timeout is reclaimable to `queued`.
-- [ ] Unit tests do not require live network (mock per-source fetch).
+- [x] Stale `running` job older than lock timeout is reclaimable to `queued`.
+- [x] Unit tests do not require live network (mock per-source fetch).
 
 ## 6. Risks & mitigations
 

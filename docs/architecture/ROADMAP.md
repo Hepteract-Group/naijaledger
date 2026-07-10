@@ -74,6 +74,7 @@ Legend: `[H]` = likely needs a human decision (`needs-human`), `[S]` = spec requ
 - E10.4 Graph viz (Sigma.js / react-force-graph).
 - E10.5 3D map (MapLibre + deck.gl): state extrusions by contract volume / anomaly density.
 - E10.6 Cited-source component + dossier export.
+- E10.x **Internal admin portal** (ops: jobs queue, sources, quarantine, review) — `#102` `[S]` later.
 
 ## E11 — Election Module
 - E11.1 `polling_units` + `polling_unit_results` + `result_crosschecks` schema + INEC PU seed. `[S][H]`

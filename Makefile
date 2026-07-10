@@ -1,4 +1,4 @@
-.PHONY: install install-engine install-web lint typecheck test format dev-engine dev-web generate-api docker-up docker-down docker-ps docker-config migrate seed-sources health-monitor archive-init fetch-sources
+.PHONY: install install-engine install-web lint typecheck test format dev-engine dev-web generate-api docker-up docker-down docker-ps docker-config migrate seed-sources health-monitor archive-init fetch-sources jobs-enqueue jobs-work
 
 DATABASE_URL ?= postgresql+psycopg://naijaledger:naijaledger@localhost:5432/naijaledger
 export DATABASE_URL
@@ -80,3 +80,9 @@ archive-init:
 
 fetch-sources: seed-sources archive-init
 	cd engine && uv run naijaledger-fetch
+
+jobs-enqueue: migrate
+	cd engine && uv run naijaledger-jobs enqueue
+
+jobs-work: archive-init
+	cd engine && uv run naijaledger-jobs work --once
