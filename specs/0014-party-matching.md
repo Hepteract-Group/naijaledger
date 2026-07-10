@@ -1,7 +1,7 @@
 # Spec 0014 — Party matching + `merged_into` (E6.1)
 
 - **Epic / Issue**: E6.1 / #36
-- **Status**: Draft
+- **Status**: Implemented
 - **Author**: agent
 - **Needs human decision?**: no — start with deterministic rules + simple probabilistic score;
   LLM adjudication is #37.
@@ -116,12 +116,12 @@ Package: `naijaledger.finance.matching` (pure) + merge helpers in `naijaledger.f
 
 ## 5. Acceptance criteria (testable)
 
-- [ ] `normalize_party_name("A.B.C. Limited") == normalize_party_name("abc ltd")`.
-- [ ] Shared `identifiers.rc` → deterministic candidate score 1.0.
-- [ ] Near-duplicate names without shared id → probabilistic candidate with score ≥ 0.82 or none.
-- [ ] `apply_party_merge` sets `merged_into_id`; second merge of same row raises.
-- [ ] `canonical_party_id(merged)` returns survivor.
-- [ ] `propose_party_matches` returns both deterministic and probabilistic hits from a small fixture
+- [x] `normalize_party_name("A.B.C. Limited") == normalize_party_name("abc ltd")`.
+- [x] Shared `identifiers.rc` → deterministic candidate score 1.0.
+- [x] Near-duplicate names without shared id → probabilistic candidate with score ≥ 0.82 or none.
+- [x] `apply_party_merge` sets `merged_into_id`; second merge of same row raises.
+- [x] `canonical_party_id(merged)` returns survivor.
+- [x] `propose_party_matches` returns both deterministic and probabilistic hits from a small fixture
       set in Postgres.
 
 ## 6. Risks & mitigations
