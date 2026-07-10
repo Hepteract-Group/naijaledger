@@ -67,6 +67,11 @@ passes explicit `survivor_id` / `merged_id` (must be the two party ids on the pr
 | `stub` (default) | If E6.1 score ≥ 0.95 → `same_entity`; elif score ≥ 0.82 → `uncertain`; else `different`. Rationale cites score. |
 | `llm` | Prompt with both party records (name, aliases, identifiers, type). Parse structured JSON opinion. On parse/API failure → `uncertain` + error in rationale; **never** merge. |
 
+**Data egress (live LLM only):** prompts may include only public party attributes already in
+`parties` (name, aliases, identifiers, type, address). Never include tipster/observer PII,
+fetch credentials, or unrelated document text. Prefer redacting strong identifiers (`tin`/`rc`)
+when a name+alias comparison suffices. Live LLM remains opt-in via env.
+
 Cost gate: live LLM only when env enabled; batch size left to caller.
 
 ### 3.4 Human confirm
@@ -95,7 +100,7 @@ party_match_proposals(
   opinion_rationale text not null,
   adjudicator text not null,         -- stub | llm:<model>
   status text not null,              -- pending | confirmed | rejected | withdrawn
-  suggested_survivor_id uuid null references parties(id),
+  suggested_survivor_id uuid null references parties(id) ON DELETE SET NULL,
   resolved_by text null,
   resolved_at timestamptz null,
   meta jsonb null,
