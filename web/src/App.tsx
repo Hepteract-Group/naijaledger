@@ -4,6 +4,8 @@ import { ExplorePage } from "./pages/ExplorePage";
 import { HomePage } from "./pages/HomePage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { StatusPage } from "./pages/StatusPage";
+import { StoriesIndexPage } from "./pages/StoriesIndexPage";
+import { StoryPage } from "./pages/StoryPage";
 
 export function App() {
   return (
@@ -12,16 +14,8 @@ export function App() {
         <Route element={<AppShell />}>
           <Route index element={<HomePage />} />
           <Route path="explore" element={<ExplorePage />} />
-          <Route
-            path="stories"
-            element={
-              <PlaceholderPage
-                title="Stories"
-                lede="Cited narrative investigations will land here after human review."
-                next="E10.2"
-              />
-            }
-          />
+          <Route path="stories" element={<StoriesIndexPage />} />
+          <Route path="stories/:slug" element={<StoryPage />} />
           <Route
             path="sources"
             element={
