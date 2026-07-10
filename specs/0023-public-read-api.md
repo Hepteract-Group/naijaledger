@@ -1,0 +1,148 @@
+# Spec 0023 — Public read API (E9.1)
+
+- **Epic / Issue**: E9.1 / #46
+- **Status**: Draft
+- **Author**: agent
+- **Needs human decision?**: no — read-only FastAPI over existing Postgres services; P3 respected
+  by not exposing unpublished stories as facts. Rate limiting / formal versioning policy = E9.2;
+  partner export = E9.3.
+
+## 1. Problem
+
+Canonical finance data, flags, and sources live in Postgres, but the only HTTP surface is
+`GET /health`. The web app and partners need a **stable read API** over canonical (+ light
+derived) stores (`SYSTEM_DESIGN.md` §4.11; ROADMAP E9.1).
+
+## 2. Scope & non-scope
+
+- **In scope**
+  - Versioned prefix `/v1/...` on FastAPI (`naijaledger.api`).
+  - Read-only GET resources (JSON):
+    - `GET /v1/sources` (+ `/{id}`)
+    - `GET /v1/parties` (query: `party_type`, `q` name ILIKE, `limit`, `offset`)
+    - `GET /v1/parties/{id}`
+    - `GET /v1/tenders` (`limit`, `offset`) + `/{id}`
+    - `GET /v1/awards/{id}`, `GET /v1/contracts/{id}`
+    - `GET /v1/flags` — **open** flags only; response documents them as hypotheses
+    - `GET /v1/flags/{id}`
+  - Shared deps: DB connection from settings; 404/422 error shapes.
+  - Thin query helpers where list/get services are missing (tenders/awards/contracts).
+  - Tests via `TestClient` + `DATABASE_URL` (or dependency overrides with fixtures).
+  - Keep `GET /health` unversioned.
+- **Out of scope**
+  - Rate limiting, API keys, formal deprecation policy (E9.2).
+  - Partner bulk export (E9.3).
+  - Write/mutate endpoints.
+  - Serving MinIO archive bytes / signed URLs (follow-up).
+  - Publishing stories / `review_decisions` in the public catalog (only after #126 + explicit
+    product decision; v1 omits story endpoints).
+  - Memgraph/graph HTTP API (E10.4 can add later).
+  - Separate Postgres read-role credentials (**#129**); handlers remain SELECT-only.
+
+## 3. Design
+
+### 3.1 Invariant
+
+```text
+Public API = GET only
+Flags = hypotheses (never presented as verified claims)
+No story/publish endpoints in E9.1
+No SSRF / user-supplied URL fetch
+```
+
+### 3.2 URL map
+
+| Method | Path | Notes |
+|--------|------|--------|
+| GET | `/health` | existing |
+| GET | `/v1/sources` | default `status=approved`; optional `proposed\|retired\|all` |
+| GET | `/v1/sources/{id}` | |
+| GET | `/v1/parties` | `party_type?`, `q?`, pagination |
+| GET | `/v1/parties/{id}` | 404 if missing |
+| GET | `/v1/tenders` | pagination |
+| GET | `/v1/tenders/{id}` | |
+| GET | `/v1/awards/{id}` | |
+| GET | `/v1/contracts/{id}` | |
+| GET | `/v1/flags` | open only; `limit` |
+| GET | `/v1/flags/{id}` | **open only** (404 if missing or not open) |
+
+**Sources:** query param `status` defaults to `approved`. Values: `approved` | `proposed` |
+`retired` | `all`.
+
+### 3.3 Pagination
+
+`limit` (default 50, max 200) + `offset` (default 0). Response envelope:
+
+```json
+{ "items": [...], "limit": 50, "offset": 0, "count": 12 }
+```
+
+`count` = length of this page (not total table count) in v1 — avoids expensive `COUNT(*)`.
+Document that total is deferred.
+
+### 3.4 Response models (public DTOs — not raw domain dumps)
+
+Explicit public response models. **Do not** `model_dump` domain objects wholesale.
+
+**Exclude from all public payloads:** `meta`, operator identities (`added_by`, `approved_by`,
+`created_by`, `reviewed_by`, `reviewed_at`), source internals (`last_success_hash`,
+`schema_fingerprint`).
+
+| Resource | Allowed fields (v1) |
+|----------|---------------------|
+| Source | `id`, `name`, `url`, `jurisdiction`, `region`, `category`, `format`, `fetch_method`, `status`, `health_status`, `expected_cadence` (ISO-8601 duration or seconds), `created_at`, `updated_at` |
+| Party | `id`, `party_type`, `canonical_name`, `aliases`, `merged_into_id`, `created_at`, `updated_at` (no `identifiers`/`address`/`meta` in v1 — PII/minimization) |
+| Tender | `id`, `ocid`, `agency_id`, `title`, `method`, `value_amount`, `currency`, `bidding_opens_at`, `bidding_closes_at`, `created_at`, `updated_at` |
+| Award | `id`, `tender_id`, `supplier_id`, `value_amount`, `currency`, `awarded_at`, `created_at`, `updated_at` |
+| Contract | `id`, `award_id`, `supplier_id`, `agency_id`, `value_amount`, `currency`, `signed_at`, `status`, `created_at`, `updated_at` |
+| Flag | `id`, `subject_type`, `subject_id`, `rule`, `severity`, `evidence`, `status`, `created_at`, `updated_at` — OpenAPI description: **hypothesis, not a verified claim** |
+
+### 3.5 Wiring
+
+```text
+api/app.py → include_router(v1_router, prefix="/v1")
+api/deps.py → get_connection()
+api/v1/sources.py, parties.py, tenders.py, awards.py, contracts.py, flags.py
+api/queries.py → list/get SQL for tenders/awards/contracts if absent from finance.service
+```
+
+Functional handlers; no class-based views.
+
+Separate Postgres **read role** is deferred to **#129** (handlers remain SELECT-only by
+convention in E9.1).
+
+## 4. Data contracts / schemas
+
+```python
+class Page[T](BaseModel):
+    items: list[T]
+    limit: int
+    offset: int
+    count: int
+```
+
+OpenAPI generated by FastAPI (E9.2 hardens docs/versioning/rate limits).
+
+## 5. Acceptance criteria (testable)
+
+- [ ] `GET /health` still returns ok.
+- [ ] `GET /v1/parties` returns page envelope; empty DB → `items=[]`.
+- [ ] `GET /v1/parties/{id}` 404 for unknown UUID.
+- [ ] Seeded party appears in list/get.
+- [ ] `GET /v1/flags` returns only `status=open` rows.
+- [ ] `GET /v1/sources` defaults to approved (or empty).
+- [ ] No POST/PUT/PATCH/DELETE under `/v1` (router is GET-only).
+- [ ] Handlers use parameterized SQL / existing services (no string-built queries from input
+      except bound params); issue only SELECT statements.
+- [ ] Public party/flag/source JSON does **not** include `meta`, `added_by`, `approved_by`,
+      `created_by`, `reviewed_by`, `identifiers`, or `address`.
+
+## 6. Risks & mitigations
+
+- **Over-exposure of hypotheses** — flags labeled in OpenAPI description; no “verified” wording.
+- **Missing read-role** — tracked as **#129**; SELECT-only handlers reduce risk until then.
+- **Pagination without totals** — acceptable v1; add totals when dashboards need them.
+
+## 7. Open questions
+
+None blocking. Story public endpoints wait on #126 + product call.
