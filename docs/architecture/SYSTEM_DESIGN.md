@@ -66,7 +66,7 @@ the record survives neglect, takedown, or revision.
    EC8A photos)           │                                               │            │
                           │   ┌────────────────────────────────────────┐  │            │
                           │   │            Extraction layer             │◄─┘            │
-                          │   │  PDF (PeaDF), tables, XLSX, JSON, OCR    │               │
+                          │   │  PDF (Docling), tables, XLSX, JSON, OCR  │               │
                           │   └───────────────────┬─────────────────────┘               │
                           │                       ▼                                       │
                           │   ┌──────────────┐   ┌────────────────┐   ┌──────────────┐   │
@@ -133,18 +133,17 @@ Responsibilities:
   censorship-resistance layer (mirrorable to multiple hosts/IPFS).
 
 ### 4.4 Extraction layer
-Layered, deterministic-first:
-1. **PDF text layer** → **PeaDF** (`clientPdfJs`) for native-text PDFs.
-2. **PDF tables** → structured table extraction (Camelot/Tabula-style). *Gap:* PeaDF lacks this
-   today; candidate new PeaDF endpoint (maintainer-owned) or a dedicated table service.
-3. **Scanned/garbled PDFs** → OCR (**PeaDF `clientOcr`** / Tesseract), then vision-LLM only as a
-   last resort (cost-gated).
-4. **XLSX/CSV** → `openpyxl` / `pandas`.
+Layered, deterministic-first (see `specs/0009-extraction-contract.md`):
+1. **Content-type sniff** → **Magika**; quarantine on low confidence or declared/sniffed mismatch.
+2. **PDF text + tables** → **Docling** in-engine (layout + TableFormer) with page/bbox provenance.
+3. **Scanned/garbled PDFs** → OCR (**Tesseract** in-engine), then vision-LLM only as a last resort
+   (cost-gated).
+4. **XLSX/CSV** → `openpyxl` / stdlib csv.
 5. **JSON/API** → schema-validated direct ingest.
-- **PeaDF integration contract** (to be specified in `specs/`): `POST /extract` accepting PDF bytes,
-  returning `{ text_blocks[], tables[], metadata, page_regions[], ocr_used }`, each block carrying
-  page + bounding-box provenance. Maintainer can extend PeaDF to satisfy this contract.
-- Every extracted value retains provenance (P2).
+- Contract: functional `extract_document(document, bytes) → ExtractionOutcome` with
+  `derivation` (`extracted|inferred|ambiguous`) + `confidence`, persisted to `extractions` /
+  `provenance_edges`.
+- Every extracted value retains provenance (P2). Hosted PeaDF extract is **not** on the v1 path.
 
 ### 4.5 Normalizer
 - Public-finance records → **Open Contracting Data Standard (OCDS)** where applicable; budgets/
@@ -248,7 +247,7 @@ to what, extracted by which method/version, verified by whom.* Stored as first-c
 |-------|--------|-----------|
 | Ingestion / extraction / AI | **Python 3.11+** | Best scraping/PDF/ML ecosystem. |
 | Fetching | httpx, **Scrapling**, Playwright | Static → adaptive → JS-heavy. |
-| PDF | **PeaDF** (pdf.js + OCR), Camelot/Tabula, Docling (fallback) | Maintainer-owned deterministic core. |
+| PDF | **Docling** (in-engine); Tesseract OCR fallback | Layout + tables + bbox provenance; no external convert hop. |
 | Canonical DB | **PostgreSQL** (+ pgvector) | Boring, bulletproof source of truth. |
 | Graph | **Neo4j** (Community) | Relationship analysis. (ADR to confirm.) |
 | Object store | **MinIO** | Self-hosted WORM archive. |
@@ -297,7 +296,7 @@ Detailed epic/issue breakdown lives in `ROADMAP.md`. Summary:
 - **E1 — Foundations**: repo, CI, dev env, docs, agent workflow, spec framework.
 - **E2 — Source Registry**: schema, CRUD, health monitor, discovery agent (proposal-only).
 - **E3 — Capture & Archive**: fetch layer + MinIO WORM + fetch records + hashing.
-- **E4 — Extraction**: PeaDF integration contract, table extraction, XLSX/JSON, OCR fallback.
+- **E4 — Extraction**: Magika router, Docling PDF tables, XLSX/JSON, Tesseract OCR fallback.
 - **E5 — Normalize & Canonical store**: OCDS mapping, Postgres schema, provenance.
 - **E6 — Entity Resolution & Graph**: matching, Neo4j projection, ownership enrichment.
 - **E7 — Anomaly Engine**: red-flag rules + evidence outputs.

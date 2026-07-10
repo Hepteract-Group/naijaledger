@@ -33,11 +33,11 @@ Legend: `[H]` = likely needs a human decision (`needs-human`), `[S]` = spec requ
 
 ## E4 — Extraction
 - E4.1 **Extraction contract** spec: dual-pass + Magika quarantine + Docling tables — `specs/0009`. `[S]` ✓
-- E4.2 PeaDF client (Python) + provenance capture (page/bbox) — optional/legacy path; Docling is primary for PDF tables.
-- E4.3 Table extraction via **Docling in-engine**. `[S]`
+- E4.2 **`extract_document` orchestrator** + provenance wiring (in-engine; no PeaDF client for v1).
+- E4.3 PDF text/tables via **Docling in-engine**.
 - E4.4 XLSX/CSV + JSON parsers → `extractions`.
-- E4.5 OCR fallback (Tesseract); vision-LLM last resort (cost-gated).
-- E4.x Magika router + quarantine (#87); `extractions` derivation/confidence schema (#88).
+- E4.5 OCR fallback (**Tesseract in-engine**); vision-LLM last resort (cost-gated).
+- E4.x Magika router + quarantine (#87) ✓; `extractions` derivation/confidence schema (#88) ✓.
 
 ## E5 — Normalize & Canonical Store
 - E5.1 Postgres core schema + migrations (parties/tenders/awards/contracts/payments/budget_lines). `[S]`
