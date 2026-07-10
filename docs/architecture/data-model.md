@@ -130,6 +130,6 @@ Human confirm is required before `apply_party_merge`; LLM opinion is advisory on
 
 ## Graph projection (Memgraph — rebuildable)
 
-See `specs/0016-graph-projection.md`. Labels: Agency/Company/Person/Party/Tender/Award/Contract;
+See `specs/0016-graph-projection.md`. Labels: Agency/Company/Person/FinanceParty/Tender/Award/Contract;
 edges ISSUED, RESULTED_IN, AWARDED_TO, CONTRACTED, SUPPLIED, FROM_AWARD. Ownership edges
 (`OWNED_BY`, etc.) land after E6.3. Rebuilt from Postgres; never the source of truth.

@@ -1,7 +1,7 @@
 # Spec 0016 — Graph projection builder (E6.4)
 
 - **Epic / Issue**: E6.4 / #39
-- **Status**: Draft
+- **Status**: Implemented
 - **Author**: agent
 - **Needs human decision?**: no — graph engine is **Memgraph** (SYSTEM_DESIGN open Q #1 /
   docker-compose). Projection is rebuildable from Postgres (P6).
@@ -38,9 +38,9 @@ Derives from `SYSTEM_DESIGN.md` §4.8 and ROADMAP E6.4.
 
 | Postgres | Graph |
 |---|---|
-| `parties` (`agency`) | `(:Agency {id, name, party_type})` |
-| `parties` (`company`) | `(:Company {id, name, party_type})` |
-| `parties` (`person`) | `(:Person {id, name, party_type})` |
+| `parties` (`agency`) | `(:Agency:FinanceParty {id, name, party_type})` |
+| `parties` (`company`) | `(:Company:FinanceParty {id, name, party_type})` |
+| `parties` (`person`) | `(:Person:FinanceParty {id, name, party_type})` |
 | `tenders` | `(:Tender {id, ocid, title})` |
 | `awards` | `(:Award {id})` |
 | `contracts` | `(:Contract {id, status})` |
@@ -106,13 +106,13 @@ Package: `naijaledger.graph` (plan + memgraph client).
 
 ## 5. Acceptance criteria (testable)
 
-- [ ] `plan_finance_projection` emits Agency/Company nodes and ISSUED / AWARDED_TO edges for a
+- [x] `plan_finance_projection` emits Agency/Company nodes and ISSUED / AWARDED_TO edges for a
       fixture set (no Memgraph required).
-- [ ] Merged parties are omitted; FKs resolve to survivor id in the plan.
-- [ ] `rebuild_finance_graph` against Memgraph (when available) is idempotent: second rebuild
+- [x] Merged parties are omitted; FKs resolve to survivor id in the plan.
+- [x] `rebuild_finance_graph` against Memgraph (when available) is idempotent: second rebuild
       yields same node count.
-- [ ] Without Memgraph, integration test skips cleanly.
-- [ ] No Postgres writes from the graph package.
+- [x] Without Memgraph, integration test skips cleanly.
+- [x] No Postgres writes from the graph package.
 
 ## 6. Risks & mitigations
 
