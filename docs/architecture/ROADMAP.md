@@ -55,7 +55,7 @@ Legend: `[H]` = likely needs a human decision (`needs-human`), `[S]` = spec requ
 ## E7 — Anomaly Engine
 - E7.1 Rule framework + evidence output schema (`flags`). `[S]` ✓
 - E7.2 Rules: single_bidder, short_window, threshold_hugging, repeat_winner, shared_address, price_outlier, budget_payment_mismatch. `[S]` ✓
-- E7.3 Backtest/precision harness on seeded real data.
+- E7.3 Backtest/precision harness on seeded data. `[S]`
 
 ## E8 — Intelligence / Agents
 - E8.1 Agent runtime + tool interfaces (retrieval over search/vector/graph). `[S]`
