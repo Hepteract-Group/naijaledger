@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ApiError } from "../api/client";
+import { isApiFailure } from "../api/client";
 import { fetchSource, type PublicSource } from "../api/sources";
 
 type LoadState =
@@ -27,7 +27,7 @@ export function SourceDetailPage() {
       })
       .catch((error: unknown) => {
         if (!cancelled) {
-          if (error instanceof ApiError && error.status === 404) {
+          if (isApiFailure(error) && error.status === 404) {
             setState({ kind: "missing" });
             return;
           }
