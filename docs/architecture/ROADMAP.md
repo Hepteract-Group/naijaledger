@@ -50,7 +50,7 @@ Legend: `[H]` = likely needs a human decision (`needs-human`), `[S]` = spec requ
 - E6.1 Deterministic + probabilistic party matching; `merged_into` handling. `[S]` ✓
 - E6.2 LLM adjudication for hard matches (human-confirmed). ✓ (stub adjudicator + human confirm; live LLM deferred)
 - E6.3 Beneficial-ownership enrichment (CAC PSC / NEITI BO / OpenOwnership). `[H]` access strategy.
-- E6.4 Neo4j projection builder (rebuildable from Postgres).
+- E6.4 Neo4j projection builder (rebuildable from Postgres). → **Memgraph** v1 (`specs/0016`)
 
 ## E7 — Anomaly Engine
 - E7.1 Rule framework + evidence output schema (`flags`). `[S]`

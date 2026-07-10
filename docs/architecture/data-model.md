@@ -1,7 +1,7 @@
 # NaijaLedger — Data Model
 
 > Status: **Draft v0.1** · Derives from `SYSTEM_DESIGN.md`. Postgres is canonical (P6);
-> Neo4j/search/vector are rebuildable projections.
+> Memgraph/search/vector are rebuildable projections.
 
 ## Conventions
 - All tables have `id` (uuid), `created_at`, `updated_at`.
@@ -128,7 +128,8 @@ Human confirm is required before `apply_party_merge`; LLM opinion is advisory on
 
 ---
 
-## Graph projection (Neo4j — rebuildable)
-Nodes: `Company`, `Person`, `Agency`, `Contract`, `Tender`, `Award`.
-Edges: `OWNED_BY`, `DIRECTOR_OF`, `SIGNIFICANT_CONTROL`, `SAME_ADDRESS`, `WON`, `AWARDED_BY`,
-`PAID`. Rebuilt from `parties`, `party_relationships`, `awards`, `contracts`, `payments`.
+## Graph projection (Memgraph — rebuildable)
+
+See `specs/0016-graph-projection.md`. Labels: Agency/Company/Person/Party/Tender/Award/Contract;
+edges ISSUED, RESULTED_IN, AWARDED_TO, CONTRACTED, SUPPLIED, FROM_AWARD. Ownership edges
+(`OWNED_BY`, etc.) land after E6.3. Rebuilt from Postgres; never the source of truth.
