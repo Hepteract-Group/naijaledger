@@ -1,7 +1,7 @@
 # Spec 0017 — Anomaly rule framework + `flags` (E7.1)
 
 - **Epic / Issue**: E7.1 / #40
-- **Status**: Draft
+- **Status**: Implemented
 - **Author**: agent
 - **Needs human decision?**: no — flags are hypotheses with evidence (P3); never auto-published
   claims. Rule list matches `data-model.md` / ROADMAP E7.2.
@@ -116,13 +116,13 @@ required for E7.1 (E7.2 may add optional Memgraph reads later).
 
 ## 5. Acceptance criteria (testable)
 
-- [ ] Migration creates `flags` with CHECKs (incl. `evidence ? 'summary'`) and open-dedupe unique index.
-- [ ] Inserting invalid `rule` / `status` / `severity` fails CHECK.
-- [ ] Inserting evidence without `summary` key fails CHECK.
-- [ ] `create_flag` / upsert round-trips; duplicate open (rule, subject) upserts evidence.
-- [ ] After `dismiss_flag`, a re-run upsert for the same (rule, subject) is suppressed (sticky).
-- [ ] `dismiss_flag` / `confirm_flag` set status + `reviewed_by` / `reviewed_at`.
-- [ ] `run_anomaly_rules` with smoke rule returns without error and does not insert into
+- [x] Migration creates `flags` with CHECKs (incl. `evidence ? 'summary'`) and open-dedupe unique index.
+- [x] Inserting invalid `rule` / `status` / `severity` fails CHECK.
+- [x] Inserting evidence without `summary` key fails CHECK.
+- [x] `create_flag` / upsert round-trips; duplicate open (rule, subject) upserts evidence.
+- [x] After `dismiss_flag`, a re-run upsert for the same (rule, subject) is suppressed (sticky).
+- [x] `dismiss_flag` / `confirm_flag` set status + `reviewed_by` / `reviewed_at`.
+- [x] `run_anomaly_rules` with smoke rule returns without error and does not insert into
       `review_decisions` (table may not exist yet — assert zero writes outside `flags`).
 
 ## 6. Risks & mitigations
