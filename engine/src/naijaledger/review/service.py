@@ -59,6 +59,22 @@ def get_review_decision(connection: Connection, decision_id: UUID) -> ReviewDeci
 
 
 def enqueue_review(connection: Connection, data: ReviewEnqueue) -> ReviewDecision:
+    existing = connection.execute(
+        text(
+            f"""
+            SELECT {_COLUMNS}
+            FROM review_decisions
+            WHERE subject_type = :subject_type
+              AND subject_id = :subject_id
+              AND decision = 'pending'
+            FOR UPDATE
+            """
+        ),
+        {"subject_type": data.subject_type, "subject_id": data.subject_id},
+    ).first()
+    if existing is not None:
+        return _row_to_decision(existing)
+
     row = connection.execute(
         text(
             f"""
@@ -149,7 +165,7 @@ def is_approved_for_publish(connection: Connection, subject_type: str, subject_i
             WHERE subject_type = :subject_type
               AND subject_id = :subject_id
               AND decision <> 'pending'
-            ORDER BY decided_at DESC
+            ORDER BY decided_at DESC, updated_at DESC, id DESC
             LIMIT 1
             """
         ),
@@ -170,6 +186,22 @@ def enqueue_story_for_review(
         "claim_count": len(story.claims),
     }
     if not report.ok:
+        latest = connection.execute(
+            text(
+                f"""
+                SELECT {_COLUMNS}
+                FROM review_decisions
+                WHERE subject_type = 'story'
+                  AND subject_id = :subject_id
+                  AND decision = 'needs_more_evidence'
+                ORDER BY decided_at DESC, id DESC
+                LIMIT 1
+                """
+            ),
+            {"subject_id": story.id},
+        ).first()
+        if latest is not None:
+            return _row_to_decision(latest)
         row = connection.execute(
             text(
                 f"""

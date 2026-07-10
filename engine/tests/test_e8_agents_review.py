@@ -165,10 +165,25 @@ def test_pending_check_and_unique(db_connection) -> None:
         db_connection, ReviewEnqueue(subject_type="story", subject_id=subject_id)
     )
     assert first.decision == "pending"
+    second = enqueue_review(
+        db_connection, ReviewEnqueue(subject_type="story", subject_id=subject_id)
+    )
+    assert second.id == first.id
+    assert len(list_pending_reviews(db_connection)) >= 1
+
+
+def test_invalid_pending_with_reviewer_fails_check(db_connection) -> None:
     with pytest.raises(IntegrityError):
         with db_connection.begin_nested():
-            enqueue_review(
-                db_connection, ReviewEnqueue(subject_type="story", subject_id=subject_id)
+            db_connection.execute(
+                text(
+                    """
+                    INSERT INTO review_decisions (
+                        subject_type, subject_id, decision, reviewer
+                    ) VALUES ('story', :sid, 'pending', 'human:x')
+                    """
+                ),
+                {"sid": uuid4()},
             )
 
 
