@@ -3,6 +3,7 @@ import { AppShell } from "./components/AppShell";
 import { ExplorePage } from "./pages/ExplorePage";
 import { GraphPage } from "./pages/GraphPage";
 import { HomePage } from "./pages/HomePage";
+import { MapPage } from "./pages/MapPage";
 import { SourceDetailPage } from "./pages/SourceDetailPage";
 import { SourcesIndexPage } from "./pages/SourcesIndexPage";
 import { StatusPage } from "./pages/StatusPage";
@@ -17,6 +18,7 @@ export function App() {
           <Route index element={<HomePage />} />
           <Route path="explore" element={<ExplorePage />} />
           <Route path="graph" element={<GraphPage />} />
+          <Route path="map" element={<MapPage />} />
           <Route path="stories" element={<StoriesIndexPage />} />
           <Route path="stories/:slug" element={<StoryPage />} />
           <Route path="sources" element={<SourcesIndexPage />} />

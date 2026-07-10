@@ -6,6 +6,7 @@ import "./styles/layout.css";
 import "./styles/scrolly.css";
 import "./styles/explore.css";
 import "./styles/graph.css";
+import "./styles/map.css";
 import { applyTheme, resolveInitialTheme } from "./theme";
 
 applyTheme(resolveInitialTheme());

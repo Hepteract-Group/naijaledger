@@ -1,0 +1,68 @@
+.page--map {
+  max-width: var(--max);
+}
+
+.map-demo-banner {
+  display: inline-block;
+  margin: 0 0 var(--space-4);
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--gold);
+  color: var(--ink);
+  background: var(--gold-soft);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.map-controls {
+  margin-bottom: var(--space-4);
+}
+
+.map-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(14rem, 0.7fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.map-stage {
+  border: 1px solid var(--line);
+  min-height: 28rem;
+  height: 28rem;
+  overflow: hidden;
+  background: var(--bg-elevated);
+}
+
+.nigeria-map {
+  width: 100%;
+  height: 100%;
+}
+
+.map-side {
+  display: grid;
+  gap: var(--space-4);
+  border-top: 2px solid var(--gold);
+  padding-top: var(--space-3);
+}
+
+.map-side__title {
+  margin: 0;
+  font-size: 1rem;
+  font-family: var(--font-display);
+}
+
+.map-side__hint {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 0.95rem;
+}
+
+@media (max-width: 900px) {
+  .map-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .map-stage {
+    min-height: 22rem;
+    height: 22rem;
+  }
+}
