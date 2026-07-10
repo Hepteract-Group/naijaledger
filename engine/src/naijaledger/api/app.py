@@ -2,27 +2,71 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from naijaledger import __version__
+from naijaledger.api.rate_limit import build_rate_limit_middleware
 from naijaledger.api.v1 import router as v1_router
-from naijaledger.config import load_settings
+from naijaledger.api.versioning import build_api_version_middleware
+from naijaledger.config import Settings, load_settings
 
-app = FastAPI(
-    title="NaijaLedger API",
-    version=__version__,
-    description="Civic accountability data platform for Nigeria",
-)
+PUBLIC_API_DESCRIPTION = """
+NaijaLedger public read API for Nigerian civic-accountability data
+(public finance transparency).
 
-_settings = load_settings()
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_settings.api_cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+**Versioning:** URL path `/v1` is the stable contract. Additive fields and new GET routes
+may appear without a bump; breaking changes require `/v2`. Response header `API-Version: 1`
+mirrors the contract major. OpenAPI `info.version` is the engine *package* version, not the
+API contract major.
 
-app.include_router(v1_router, prefix="/v1")
+**Flags:** Anomaly flags are **hypotheses, not verified claims**. They are never presented as
+proven wrongdoing. Treat `evidence` as investigative leads pending human review.
+""".strip()
+
+OPENAPI_TAGS = [
+    {"name": "sources", "description": "Registered public data sources"},
+    {"name": "parties", "description": "Canonical agencies, companies, and persons"},
+    {"name": "tenders", "description": "Procurement tenders"},
+    {"name": "awards", "description": "Awards linked to tenders"},
+    {"name": "contracts", "description": "Contracts linked to awards"},
+    {
+        "name": "flags",
+        "description": "Open anomaly flag hypotheses (not verified claims)",
+    },
+]
 
 
-@app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok", "service": "naijaledger-engine", "version": __version__}
+def create_app(settings: Settings | None = None) -> FastAPI:
+    cfg = settings if settings is not None else load_settings()
+    application = FastAPI(
+        title="NaijaLedger Public API",
+        version=__version__,
+        description=PUBLIC_API_DESCRIPTION,
+        license_info={"name": "See repository LICENSE"},
+        openapi_tags=OPENAPI_TAGS,
+    )
+
+    application.include_router(v1_router, prefix="/v1")
+
+    @application.get("/health", include_in_schema=False)
+    def health() -> dict[str, str]:
+        return {"status": "ok", "service": "naijaledger-engine", "version": __version__}
+
+    # add_middleware: last registered runs first (outermost).
+    application.add_middleware(build_api_version_middleware())  # type: ignore[arg-type]
+    application.add_middleware(
+        build_rate_limit_middleware(
+            enabled=cfg.api_rate_limit_enabled,
+            limit=cfg.api_rate_limit_per_minute,
+            max_keys=cfg.api_rate_limit_max_keys,
+            trust_forwarded_for=cfg.api_trust_forwarded_for,
+        )  # type: ignore[arg-type]
+    )
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=cfg.api_cors_origins,
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    return application
+
+
+app = create_app()

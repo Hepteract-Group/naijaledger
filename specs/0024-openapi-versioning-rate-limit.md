@@ -1,7 +1,7 @@
 # Spec 0024 — OpenAPI hardening, versioning policy, rate limiting (E9.2)
 
 - **Epic / Issue**: E9.2 / #47
-- **Status**: Draft
+- **Status**: Implemented
 - **Author**: agent
 - **Needs human decision?**: no — public read API already ships `/v1`; this hardens docs,
   documents the versioning contract, and adds a default in-process rate limit. Redis-backed
@@ -142,19 +142,19 @@ No DB migrations.
 
 ## 5. Acceptance criteria (testable)
 
-- [ ] `GET /openapi.json` includes description text stating flags are hypotheses / not verified
+- [x] `GET /openapi.json` includes description text stating flags are hypotheses / not verified
       claims.
-- [ ] OpenAPI `tags` include at least `sources`, `parties`, `flags`.
-- [ ] `GET /v1/parties` response includes header `API-Version: 1`.
-- [ ] With `api_rate_limit_per_minute=5`, the 6th `/v1/parties` from same client within the
+- [x] OpenAPI `tags` include at least `sources`, `parties`, `flags`.
+- [x] `GET /v1/parties` response includes header `API-Version: 1`.
+- [x] With `api_rate_limit_per_minute=5`, the 6th `/v1/parties` from same client within the
       window returns `429` and `Retry-After`.
-- [ ] A `429` response still includes `access-control-allow-origin` when requested with a
+- [x] A `429` response still includes `access-control-allow-origin` when requested with a
       configured CORS `Origin`.
-- [ ] `/health` remains `200` after a rate-limit burst on `/v1`.
-- [ ] Rate limiting can be disabled via `API_RATE_LIMIT_ENABLED=false` (or settings) for tests.
-- [ ] With default `api_trust_forwarded_for=false`, rotating `X-Forwarded-For` does **not**
+- [x] `/health` remains `200` after a rate-limit burst on `/v1`.
+- [x] Rate limiting can be disabled via `API_RATE_LIMIT_ENABLED=false` (or settings) for tests.
+- [x] With default `api_trust_forwarded_for=false`, rotating `X-Forwarded-For` does **not**
       bypass the limit (same underlying client still 429s).
-- [ ] CORS middleware uses `allow_credentials=False`.
+- [x] CORS middleware uses `allow_credentials=False`.
 
 ## 6. Risks & mitigations
 

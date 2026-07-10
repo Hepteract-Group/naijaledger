@@ -22,6 +22,10 @@ class Settings(BaseSettings):
             "http://127.0.0.1:5174",
         ]
     )
+    api_rate_limit_enabled: bool = True
+    api_rate_limit_per_minute: int = Field(default=60, ge=1)
+    api_rate_limit_max_keys: int = Field(default=10_000, ge=1)
+    api_trust_forwarded_for: bool = False
     minio_endpoint: str = "http://localhost:9000"
     minio_access_key: str = "changeme"
     minio_secret_key: str = "changeme"
