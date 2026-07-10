@@ -1,7 +1,7 @@
 # Spec 0019 — Anomaly backtest / precision harness (E7.3)
 
 - **Epic / Issue**: E7.3 / #42
-- **Status**: Draft
+- **Status**: Implemented
 - **Author**: agent
 - **Needs human decision?**: no — v1 uses a **labeled synthetic corpus** (not live portal scrapes).
   Precision floors are engineering gates; product can raise them later.
@@ -109,12 +109,12 @@ class BacktestReport(BaseModel):
 
 ## 5. Acceptance criteria (testable)
 
-- [ ] `run_backtest` on the fixture corpus returns a report with per-rule scores.
-- [ ] Pytest asserts `report.passed` (overall precision/recall floors).
-- [ ] Corpus covers all seven production rule ids with ≥1 expected positive each.
-- [ ] A deliberate FP in a unit test of the scorer increments `fp` and lowers precision.
-- [ ] CLI (if shipped) exits 0 on the fixture corpus.
-- [ ] Harness does not write to `flags` / `review_decisions`.
+- [x] `run_backtest` on the fixture corpus returns a report with per-rule scores.
+- [x] Pytest asserts `report.passed` (overall precision/recall floors).
+- [x] Corpus covers all seven production rule ids with ≥1 expected positive each.
+- [x] A deliberate FP in a unit test of the scorer increments `fp` and lowers precision.
+- [x] CLI (if shipped) exits 0 on the fixture corpus.
+- [x] Harness does not write to `flags` / `review_decisions`.
 
 ## 6. Risks & mitigations
 
