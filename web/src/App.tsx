@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "./components/AppShell";
 import { ExplorePage } from "./pages/ExplorePage";
+import { GraphPage } from "./pages/GraphPage";
 import { HomePage } from "./pages/HomePage";
 import { SourceDetailPage } from "./pages/SourceDetailPage";
 import { SourcesIndexPage } from "./pages/SourcesIndexPage";
@@ -15,6 +16,7 @@ export function App() {
         <Route element={<AppShell />}>
           <Route index element={<HomePage />} />
           <Route path="explore" element={<ExplorePage />} />
+          <Route path="graph" element={<GraphPage />} />
           <Route path="stories" element={<StoriesIndexPage />} />
           <Route path="stories/:slug" element={<StoryPage />} />
           <Route path="sources" element={<SourcesIndexPage />} />

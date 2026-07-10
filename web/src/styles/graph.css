@@ -1,0 +1,65 @@
+.page--graph {
+  max-width: var(--max);
+}
+
+.graph-demo-banner {
+  display: inline-block;
+  margin: 0 0 var(--space-5);
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--gold);
+  color: var(--ink);
+  background: var(--gold-soft);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.graph-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(14rem, 0.7fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.graph-stage {
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(circle at 15% 0%, var(--hero-glow), transparent 50%), var(--bg-elevated);
+  min-height: 28rem;
+  overflow: hidden;
+}
+
+.graph-canvas {
+  width: 100%;
+  height: 28rem;
+}
+
+.graph-side {
+  display: grid;
+  gap: var(--space-4);
+  border-top: 2px solid var(--gold);
+  padding-top: var(--space-3);
+}
+
+.graph-side__title {
+  margin: 0;
+  font-size: 1rem;
+  font-family: var(--font-display);
+}
+
+.graph-side__hint {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 0.95rem;
+}
+
+@media (max-width: 900px) {
+  .graph-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .graph-stage,
+  .graph-canvas {
+    min-height: 22rem;
+    height: 22rem;
+  }
+}

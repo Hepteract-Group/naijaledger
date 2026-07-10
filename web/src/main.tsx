@@ -5,6 +5,7 @@ import "./styles/base.css";
 import "./styles/layout.css";
 import "./styles/scrolly.css";
 import "./styles/explore.css";
+import "./styles/graph.css";
 import { applyTheme, resolveInitialTheme } from "./theme";
 
 applyTheme(resolveInitialTheme());

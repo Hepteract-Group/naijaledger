@@ -3,6 +3,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import { applyTheme, resolveInitialTheme, toggleTheme } from "./theme";
 
+vi.mock("react-force-graph-2d", () => ({
+  default: () => <div data-testid="graph-canvas-mock">graph canvas</div>,
+}));
+
 afterEach(() => {
   cleanup();
   localStorage.clear();
@@ -207,5 +211,14 @@ describe("App routes", () => {
     render(<App />);
     expect(await screen.findByRole("heading", { name: "Story not found" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Back to stories" })).toBeTruthy();
+  });
+
+  it("opens the demo graph page from nav", async () => {
+    stubMatchMedia(false);
+    render(<App />);
+    fireEvent.click(screen.getByRole("link", { name: "Graph" }));
+    expect(await screen.findByRole("heading", { name: "Graph" })).toBeTruthy();
+    expect(screen.getByText(/illustrative demo — not a live memgraph/i)).toBeTruthy();
+    expect(screen.getByTestId("graph-canvas")).toBeTruthy();
   });
 });
