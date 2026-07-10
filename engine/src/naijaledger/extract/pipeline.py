@@ -8,6 +8,7 @@ from naijaledger.documents.models import Document
 from naijaledger.extract.outcome import ExtractionOutcome
 from naijaledger.extract.parsers_csv import parse_csv
 from naijaledger.extract.parsers_json import parse_json
+from naijaledger.extract.parsers_pdf import parse_pdf
 from naijaledger.extract.parsers_xlsx import parse_xlsx
 from naijaledger.extract.route import DEFAULT_MAGIKA_MIN_CONFIDENCE
 from naijaledger.extract.router import route_document_bytes
@@ -22,24 +23,6 @@ class ExtractPersistResult(TypedDict):
     outcome: ExtractionOutcome
     extraction_id: UUID | None
     provenance_edge_ids: list[UUID]
-
-
-def _pass1_not_ready(
-    method: ExtractionMethod,
-    *,
-    content_type: str,
-    content_type_conf: float,
-) -> ExtractionOutcome:
-    return ExtractionOutcome(
-        method=method,
-        method_version="pending",
-        derivation="extracted",
-        confidence=1.0,
-        status="failed",
-        content_type=content_type,
-        content_type_conf=content_type_conf,
-        blocks=[],
-    )
 
 
 def _run_pass1(
@@ -67,11 +50,21 @@ def _run_pass1(
             content_type=content_type,
             content_type_conf=content_type_conf,
         )
-    # pdf_text / pdf_table → Docling (#29); ocr → #31
-    return _pass1_not_ready(
-        method,
+    if method in ("pdf_text", "pdf_table"):
+        return parse_pdf(
+            data,
+            content_type=content_type,
+            content_type_conf=content_type_conf,
+        )
+    return ExtractionOutcome(
+        method=method,
+        method_version="pending",
+        derivation="extracted",
+        confidence=1.0,
+        status="failed",
         content_type=content_type,
         content_type_conf=content_type_conf,
+        blocks=[],
     )
 
 
