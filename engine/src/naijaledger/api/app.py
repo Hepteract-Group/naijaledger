@@ -50,7 +50,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"status": "ok", "service": "naijaledger-engine", "version": __version__}
 
     # add_middleware: last registered runs first (outermost).
-    application.add_middleware(build_api_version_middleware())  # type: ignore[arg-type]
+    # Order: CORS → api_version → rate_limit → routes (version wraps 429s).
     application.add_middleware(
         build_rate_limit_middleware(
             enabled=cfg.api_rate_limit_enabled,
@@ -59,6 +59,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             trust_forwarded_for=cfg.api_trust_forwarded_for,
         )  # type: ignore[arg-type]
     )
+    application.add_middleware(build_api_version_middleware())  # type: ignore[arg-type]
     application.add_middleware(
         CORSMiddleware,
         allow_origins=cfg.api_cors_origins,

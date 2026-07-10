@@ -42,8 +42,8 @@ E9.1 delivered GET `/v1/*` with FastAPI’s default OpenAPI. Partners and the we
     default true), `api_trust_forwarded_for` (bool, default false),
     `api_rate_limit_max_keys` (int, default 10_000).
   - Set CORS `allow_credentials=False` (public unauthenticated API; closes E9.1 review nit).
-  - Middleware order: **CORS outermost**, then rate limit, then versioning header (so `429`
-    responses still carry CORS headers for browser clients).
+  - Middleware order: **CORS outermost**, then versioning header, then rate limit (so `429`
+    responses still carry CORS headers and `API-Version`).
   - Tests: OpenAPI contains expected description/tags; rate limit returns 429 after burst;
     `/health` never rate-limited; `API-Version` present on `/v1` responses; spoofed XFF does
     not bypass when trust is off.
@@ -112,8 +112,8 @@ Document: with N uvicorn workers, effective capacity ≈ `N × limit`. Acceptabl
 
 ```text
 outermost → CORSMiddleware (allow_credentials=False)
+         → api_version_middleware   # sets API-Version on /v1* (including limiter 429s)
          → rate_limit_middleware
-         → api_version_middleware   # sets API-Version on /v1*
          → routes
 ```
 

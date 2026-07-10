@@ -2,6 +2,8 @@
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from naijaledger.api.rate_limit import is_v1_path
+
 API_CONTRACT_VERSION = "1"
 
 
@@ -17,8 +19,8 @@ def build_api_version_middleware() -> type:
                 await self.app(scope, receive, send)
                 return
 
-            path = scope.get("path", "")
-            if not str(path).startswith("/v1"):
+            path = str(scope.get("path", ""))
+            if not is_v1_path(path):
                 await self.app(scope, receive, send)
                 return
 

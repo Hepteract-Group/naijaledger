@@ -62,6 +62,7 @@ def test_rate_limit_returns_429_with_retry_after(
     limited = client.get("/v1/parties", headers=origin)
     assert limited.status_code == 429
     assert limited.headers.get("retry-after") is not None
+    assert limited.headers.get("api-version") == "1"
     assert limited.headers.get("access-control-allow-origin") == "http://localhost:5174"
     assert client.get("/health").status_code == 200
 

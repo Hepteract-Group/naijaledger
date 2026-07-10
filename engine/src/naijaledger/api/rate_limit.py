@@ -60,6 +60,10 @@ def create_fixed_window_limiter(
     return take
 
 
+def is_v1_path(path: str) -> bool:
+    return path == "/v1" or path.startswith("/v1/")
+
+
 def is_rate_limit_exempt(path: str) -> bool:
     if path in EXEMPT_EXACT:
         return True
@@ -88,7 +92,7 @@ def build_rate_limit_middleware(
 
             request = Request(scope, receive=receive)
             path = request.url.path
-            if is_rate_limit_exempt(path) or not path.startswith("/v1"):
+            if is_rate_limit_exempt(path) or not is_v1_path(path):
                 await self.app(scope, receive, send)
                 return
 
