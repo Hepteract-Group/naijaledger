@@ -1,7 +1,7 @@
 # Spec 0022 — Human-review queue `review_decisions` (E8.3)
 
 - **Epic / Issue**: E8.3 / #45
-- **Status**: Draft
+- **Status**: Implemented
 - **Author**: agent
 - **Needs human decision?**: no — schema matches `data-model.md`; only humans may
   `approve_publish` (P3). Agents/services may enqueue pending items and never auto-approve.
@@ -103,16 +103,16 @@ def enqueue_story_for_review(connection, story, report) -> ReviewDecision: ...
 
 ## 5. Acceptance criteria (testable)
 
-- [ ] Migration creates `review_decisions` with CHECKs and pending unique index.
-- [ ] Invalid decision / pending-with-reviewer fails CHECK.
-- [ ] `enqueue_review` creates pending; second pending for same subject fails unique.
-- [ ] `decide_review` to `approve_publish` with human reviewer succeeds; gate returns True.
-- [ ] `decide_review` with `reviewer` starting with `agent:` or `system:` raises for
+- [x] Migration creates `review_decisions` with CHECKs and pending unique index.
+- [x] Invalid decision / pending-with-reviewer fails CHECK.
+- [x] `enqueue_review` creates pending; second pending for same subject fails unique.
+- [x] `decide_review` to `approve_publish` with human reviewer succeeds; gate returns True.
+- [x] `decide_review` with `reviewer` starting with `agent:` or `system:` raises for
       `approve_publish`.
-- [ ] `decide_review` with `reviewer='system:verification'` is allowed for
+- [x] `decide_review` with `reviewer='system:verification'` is allowed for
       `needs_more_evidence` only (not `approve_publish`).
-- [ ] `enqueue_story_for_review` with failed verification does not create `approve_publish`.
-- [ ] `is_approved_for_publish` is False when only pending/reject/needs_more_evidence exist.
+- [x] `enqueue_story_for_review` with failed verification does not create `approve_publish`.
+- [x] `is_approved_for_publish` is False when only pending/reject/needs_more_evidence exist.
 
 ## 6. Risks & mitigations
 

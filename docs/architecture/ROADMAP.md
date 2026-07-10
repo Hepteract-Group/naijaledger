@@ -59,8 +59,8 @@ Legend: `[H]` = likely needs a human decision (`needs-human`), `[S]` = spec requ
 
 ## E8 — Intelligence / Agents
 - E8.1 Agent runtime + tool interfaces (retrieval over search/vector/graph). `[S]` ✓
-- E8.2 Narrative agent (drafts cited stories) + Verification agent (claim→evidence check). `[S]`
-- E8.3 Human-review queue (`review_decisions`) gating publication (P3). `[S]`
+- E8.2 Narrative agent (drafts cited stories) + Verification agent (claim→evidence check). `[S]` ✓
+- E8.3 Human-review queue (`review_decisions`) gating publication (P3). `[S]` ✓
 
 ## E9 — Public API
 - E9.1 FastAPI read API over canonical + derived stores. `[S]`
