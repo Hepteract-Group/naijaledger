@@ -28,15 +28,23 @@ E9.1 delivered GET `/v1/*` with FastAPI’s default OpenAPI. Partners and the we
     - Document deprecation approach: announce → `Deprecation`/`Sunset` headers → remove in
       next major (no sunset yet).
   - In-process rate limiter middleware (functional):
-    - Key: client IP (`X-Forwarded-For` first hop if present, else `request.client.host`).
-    - Default: **60 requests / 60 seconds** per IP for `/v1/*` (configurable).
+    - Key: `request.client.host` by default.
+    - Honor `X-Forwarded-For` **only when** `api_trust_forwarded_for=true` (default **false**);
+      when trusted, use the **leftmost** hop (edge-set client IP after the proxy rewrites XFF).
+    - Default: **60 requests / 60 seconds** per key for `/v1/*` (configurable).
     - `/health` and `/docs` / `/openapi.json` / `/redoc` exempt.
     - On exceed: `429` with `Retry-After` (seconds until window reset).
+    - Bounded store: expire idle keys; hard cap on tracked keys (evict oldest) to prevent
+      memory exhaustion from key churn.
   - Settings: `api_rate_limit_per_minute` (int, default 60), `api_rate_limit_enabled` (bool,
-    default true). Tests can disable via override/env.
+    default true), `api_trust_forwarded_for` (bool, default false),
+    `api_rate_limit_max_keys` (int, default 10_000).
   - Set CORS `allow_credentials=False` (public unauthenticated API; closes E9.1 review nit).
+  - Middleware order: **CORS outermost**, then rate limit, then versioning header (so `429`
+    responses still carry CORS headers for browser clients).
   - Tests: OpenAPI contains expected description/tags; rate limit returns 429 after burst;
-    `/health` never rate-limited; `API-Version` present on `/v1` responses.
+    `/health` never rate-limited; `API-Version` present on `/v1` responses; spoofed XFF does
+    not bypass when trust is off.
 - **Out of scope**
   - API keys / partner auth (E9.3 may add export tokens).
   - Redis / shared multi-replica limiter (follow-up when horizontal scale needs it).
@@ -52,6 +60,7 @@ E9.1 delivered GET `/v1/*` with FastAPI’s default OpenAPI. Partners and the we
 /v1 = stable contract (additive-only)
 Rate limit = best-effort per process (not a security boundary alone)
 Flags remain hypotheses in OpenAPI text
+XFF trusted only when explicitly configured
 ```
 
 ### 3.2 OpenAPI
@@ -59,12 +68,15 @@ Flags remain hypotheses in OpenAPI text
 ```python
 app = FastAPI(
     title="NaijaLedger Public API",
-    version=__version__,
-    description=PUBLIC_API_DESCRIPTION,  # includes flag hypothesis warning
+    version=__version__,  # package/semver — NOT the API contract major
+    description=PUBLIC_API_DESCRIPTION,  # includes flag hypothesis warning + versioning note
     license_info={"name": "See repository LICENSE"},
     openapi_tags=[...],
 )
 ```
+
+`FastAPI(version=...)` / OpenAPI `info.version` = **engine package version**. The public
+**contract** major is signaled separately via path `/v1` and header `API-Version: 1`.
 
 Keep `/docs` and `/redoc` enabled in v1 (public civic API). Optional later: gate behind env.
 
@@ -82,27 +94,32 @@ humans want one).
 
 ### 3.4 Rate limiter
 
-Functional middleware (no classes beyond what Starlette requires for `BaseHTTPMiddleware` —
-prefer pure ASGI middleware function if practical):
+Functional middleware (prefer pure ASGI callable over `BaseHTTPMiddleware` if practical):
 
 ```text
 request → if path exempt → next
-       → bucket = take(ip)
-       → if denied → 429 + Retry-After
-       → else next (+ API-Version if /v1)
+       → key = client_host  (or leftmost XFF iff api_trust_forwarded_for)
+       → bucket = take(key)  # fixed window; prune expired; cap max keys
+       → if denied → 429 + Retry-After (+ CORS already applied outer)
+       → else next
 ```
-
-Token bucket or fixed window is fine; **fixed window per IP** is enough for v1.
 
 Document: with N uvicorn workers, effective capacity ≈ `N × limit`. Acceptable until Redis.
 
-### 3.5 Wiring
+### 3.5 Wiring / middleware order
 
 ```text
-api/app.py → OpenAPI metadata, CORS credentials=False, middleware order
-api/versioning.py → API-Version header helper / middleware
-api/rate_limit.py → fixed-window limiter + middleware
-config.py → api_rate_limit_* settings
+outermost → CORSMiddleware (allow_credentials=False)
+         → rate_limit_middleware
+         → api_version_middleware   # sets API-Version on /v1*
+         → routes
+```
+
+```text
+api/app.py → OpenAPI metadata, wire middleware in order above
+api/versioning.py → API-Version header middleware
+api/rate_limit.py → fixed-window limiter + middleware + key resolution
+config.py → api_rate_limit_*, api_trust_forwarded_for
 ```
 
 ## 4. Data contracts / schemas
@@ -111,6 +128,8 @@ config.py → api_rate_limit_* settings
 # Settings
 api_rate_limit_enabled: bool = True
 api_rate_limit_per_minute: int = 60  # >= 1
+api_trust_forwarded_for: bool = False
+api_rate_limit_max_keys: int = 10_000
 
 # 429 body (JSON)
 {"detail": "rate limit exceeded"}
@@ -127,15 +146,19 @@ No DB migrations.
 - [ ] `GET /v1/parties` response includes header `API-Version: 1`.
 - [ ] With `api_rate_limit_per_minute=5`, the 6th `/v1/parties` from same client within the
       window returns `429` and `Retry-After`.
+- [ ] A `429` response still includes `access-control-allow-origin` when requested with a
+      configured CORS `Origin`.
 - [ ] `/health` remains `200` after a rate-limit burst on `/v1`.
 - [ ] Rate limiting can be disabled via `API_RATE_LIMIT_ENABLED=false` (or settings) for tests.
+- [ ] With default `api_trust_forwarded_for=false`, rotating `X-Forwarded-For` does **not**
+      bypass the limit (same underlying client still 429s).
 - [ ] CORS middleware uses `allow_credentials=False`.
 
 ## 6. Risks & mitigations
 
 - **Per-process limits undercount/overcount** — document; Redis follow-up when multi-replica.
-- **X-Forwarded-For spoofing** — trust only behind a known reverse proxy; document that prod
-  must strip/overwrite client-supplied XFF at the edge (same as most apps).
+- **X-Forwarded-For spoofing** — default off; enable only behind a proxy that overwrites XFF.
+- **Unbounded key map** — `api_rate_limit_max_keys` + expiry of idle windows.
 - **Docs scraping** — `/docs` exempt so humans can read; abuse of docs is low cost vs DB.
 
 ## 7. Open questions
