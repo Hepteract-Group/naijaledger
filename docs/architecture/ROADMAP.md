@@ -41,10 +41,10 @@ Legend: `[H]` = likely needs a human decision (`needs-human`), `[S]` = spec requ
 - E4.x Magika router + quarantine (#87) ✓; `extractions` derivation/confidence schema (#88) ✓.
 
 ## E5 — Normalize & Canonical Store
-- E5.1 Postgres core schema + migrations (parties/tenders/awards/contracts/payments/budget_lines). `[S]`
-- E5.2 OCDS normalizer mapping. `[S]`
-- E5.3 Provenance edges wired end-to-end (every datum → document+region).
-- E5.4 Idempotent load/upsert with re-run safety.
+- E5.1 Postgres core schema + migrations (parties/tenders/awards/contracts/payments/budget_lines). `[S]` ✓
+- E5.2 OCDS normalizer mapping. `[S]` ✓
+- E5.3 Provenance edges wired end-to-end (every datum → document+region). ✓
+- E5.4 Idempotent load/upsert with re-run safety. ✓ (OCDS path; awards/contracts via `meta.ocds_*_id`)
 
 ## E6 — Entity Resolution & Graph
 - E6.1 Deterministic + probabilistic party matching; `merged_into` handling. `[S]`
