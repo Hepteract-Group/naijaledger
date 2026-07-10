@@ -1,7 +1,7 @@
 # Spec 0011 — Canonical public-finance schema (E5.1)
 
 - **Epic / Issue**: E5.1 / #32
-- **Status**: Draft
+- **Status**: Implemented
 - **Author**: agent
 - **Needs human decision?**: no — columns derive from `docs/architecture/data-model.md`; money as
   integer minor units + `currency` (default `NGN`) per conventions.
@@ -196,12 +196,12 @@ budget_lines(
 
 ## 5. Acceptance criteria (testable)
 
-- [ ] Migration creates all seven tables with FKs and CHECKs above.
-- [ ] Inserting a `tender` with unknown `agency_id` fails FK.
-- [ ] Duplicate `(party_type, lower(canonical_name))` fails unique index.
-- [ ] Duplicate `payments.source_ref` (non-null) fails unique index.
-- [ ] Duplicate `tenders.ocid` (non-null) fails unique index.
-- [ ] Service can `create_party` / `get_party` round-trip (functional, Connection-passed).
+- [x] Migration creates all seven tables with FKs and CHECKs above.
+- [x] Inserting a `tender` with unknown `agency_id` fails FK.
+- [x] Duplicate `(party_type, lower(canonical_name))` fails unique index.
+- [x] Duplicate `payments.source_ref` (non-null) fails unique index.
+- [x] Duplicate `tenders.ocid` (non-null) fails unique index.
+- [x] Service can `create_party` / `get_party` round-trip (functional, Connection-passed).
 
 ## 6. Risks & mitigations
 
