@@ -18,11 +18,13 @@ cannot measure false-positive rate or catch regressions when thresholds change
   - Labeled fixture corpus under `engine/tests/fixtures/anomaly_backtest/` (Python module or
     JSON) describing a `RuleContext` plus expected open flags
     `(rule, subject_type, subject_key)`.
-  - Pure harness: `run_backtest(ctx, expected, rules) -> BacktestReport` with per-rule and
-    overall precision / recall / F1, plus TP/FP/FN lists.
+  - Pure harness: `run_backtest(case: BacktestCase, rules) -> BacktestReport` with per-rule and
+    overall precision / recall / F1, plus TP/FP/FN lists (set-deduped on
+    `(rule, subject_type, subject_id)`).
   - Pytest gate: overall precision ≥ `MIN_PRECISION` (default **0.80**) and recall ≥
     `MIN_RECALL` (default **0.80**) on the fixture corpus; each rule that has ≥1 expected
-    positive must have precision ≥ **0.50** (avoid total washout).
+    positive must have precision ≥ **0.50** **and** recall ≥ **0.50** (so a silently dead
+    rule cannot hide behind overall floors).
   - Optional CLI: `naijaledger-anomaly-backtest` prints the report as JSON to stdout (no DB
     required when using the fixture loader).
 - **Out of scope**
@@ -48,8 +50,10 @@ class BacktestCase(BaseModel):
     subject_keys: dict[str, UUID]  # key → uuid used in context
 ```
 
-Matching: a predicted `FlagDraft` matches an expected label when
-`(rule, subject_type, subject_id)` equals `(rule, subject_type, subject_keys[subject_key])`.
+Matching: predictions and expectations are reduced to sets of
+`(rule, subject_type, subject_id)` triples (duplicate drafts do not inflate counts). A
+predicted draft matches when its triple equals
+`(rule, subject_type, case.subject_keys[subject_key])` for some expected label.
 
 ### 3.2 Metrics
 
@@ -59,11 +63,14 @@ For each rule (and overall):
 TP = |predicted ∩ expected|
 FP = |predicted − expected|
 FN = |expected − predicted|
-precision = TP / (TP + FP)   # 1.0 if both zero
-recall    = TP / (TP + FN)   # 1.0 if both zero
-f1        = harmonic mean    # 1.0 if both zero
+precision = TP / (TP + FP)   # 1.0 if TP=FP=FN=0 (empty rule)
+recall    = TP / (TP + FN)   # 1.0 if TP=FP=FN=0
+f1        = 2pr/(p+r) when p+r>0; else 1.0 if empty, else 0.0
 ```
 
+`run_backtest(case, rules)` evaluates each rule against `case.context`, scores against
+`case.expected` using `case.subject_keys`, and sets `passed` when overall floors and
+per-rule precision/recall floors (for rules with ≥1 expected positive) all hold.
 ### 3.3 Corpus requirements (v1)
 
 The fixture MUST include, for each of the seven production rules:
