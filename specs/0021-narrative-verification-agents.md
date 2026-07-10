@@ -1,7 +1,7 @@
 # Spec 0021 — Narrative + Verification agents (E8.2)
 
 - **Epic / Issue**: E8.2 / #44
-- **Status**: Draft
+- **Status**: Implemented
 - **Author**: agent
 - **Needs human decision?**: no — v1 agents are **deterministic / template-based** (no live LLM
   required for CI). They **propose** story drafts only (P3); enqueue to `review_decisions` is
@@ -127,16 +127,16 @@ class ProposeResult(BaseModel):
 
 ## 5. Acceptance criteria (testable)
 
-- [ ] `draft_story_from_flags` with ≥1 flag yields a story with matching claim count and
+- [x] `draft_story_from_flags` with ≥1 flag yields a story with matching claim count and
       non-empty citations.
-- [ ] `draft_story_from_flags([])` yields a story with zero claims (or empty body) and
+- [x] `draft_story_from_flags([])` yields a story with zero claims (or empty body) and
       verification fails.
-- [ ] `verify_story` fails a claim with empty citations; passes a well-formed claim.
-- [ ] `NarrativeAgent` via `run_agent` finishes with a `StoryDraft` in `drafts`.
-- [ ] `VerificationAgent` / `propose_verified_story` returns `verified=True` for a seeded
+- [x] `verify_story` fails a claim with empty citations; passes a well-formed claim.
+- [x] `NarrativeAgent` via `run_agent` finishes with a `StoryDraft` in `drafts`.
+- [x] `VerificationAgent` / `propose_verified_story` returns `verified=True` for a seeded
       open flag with summary evidence.
-- [ ] No writes to `review_decisions` (table may not exist).
-- [ ] Functional code (pure draft/verify; Protocol agents).
+- [x] No writes to `review_decisions` (table may not exist).
+- [x] Functional code (pure draft/verify; Protocol agents).
 
 ## 6. Risks & mitigations
 
