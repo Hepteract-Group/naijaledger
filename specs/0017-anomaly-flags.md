@@ -48,7 +48,12 @@ load RuleContext (read PG)
 ```
 
 Dedupe key for v1: unique partial index on `(rule, subject_type, subject_id) WHERE status = 'open'`.
-Re-runs refresh `evidence` / `severity` / `updated_at` on conflict.
+Re-runs refresh `evidence` / `severity` / `updated_at` on conflict for **open** rows.
+
+**Sticky dismissal:** if a `(rule, subject_type, subject_id)` row exists with `status = 'dismissed'`,
+re-runs **do not** insert a new open flag (suppress). Humans can clear sticky state later by
+deleting/archiving dismissed rows (out of scope) or a future “reopen” action. `confirmed` flags
+likewise suppress re-open (same check: any non-open prior flag for the key blocks insert).
 
 ### 3.3 Severity
 
@@ -66,7 +71,7 @@ flags(
   subject_id uuid not null,
   rule text not null,           -- see CHECK list below
   severity text not null,       -- low|medium|high
-  evidence jsonb not null,      -- structured; must include "summary" text
+  evidence jsonb not null CHECK (evidence ? 'summary'),  -- app also validates non-empty string
   status text not null,         -- open|dismissed|confirmed
   created_by text not null,     -- rule id or agent id
   reviewed_by text null,
@@ -75,6 +80,8 @@ flags(
   created_at, updated_at
 )
 ```
+
+`subject_type` is polymorphic text (no FK) for v1 — typo risk accepted; tighten with CHECK later if needed.
 
 Rule CHECK (finance v1 + reserved):
 `single_bidder|short_window|threshold_hugging|repeat_winner|shared_address|price_outlier|budget_payment_mismatch|overvote|smoke`
@@ -109,14 +116,14 @@ required for E7.1 (E7.2 may add optional Memgraph reads later).
 
 ## 5. Acceptance criteria (testable)
 
-- [ ] Migration creates `flags` with CHECKs and open-dedupe unique index.
+- [ ] Migration creates `flags` with CHECKs (incl. `evidence ? 'summary'`) and open-dedupe unique index.
 - [ ] Inserting invalid `rule` / `status` / `severity` fails CHECK.
-- [ ] `create_flag` round-trips; duplicate open (rule, subject) upserts evidence.
+- [ ] Inserting evidence without `summary` key fails CHECK.
+- [ ] `create_flag` / upsert round-trips; duplicate open (rule, subject) upserts evidence.
+- [ ] After `dismiss_flag`, a re-run upsert for the same (rule, subject) is suppressed (sticky).
 - [ ] `dismiss_flag` / `confirm_flag` set status + `reviewed_by` / `reviewed_at`.
-- [ ] `run_anomaly_rules` with empty registry or smoke rule returns without error and
-      does not write public claims.
-- [ ] Package is functional (Protocol + functions; no framework-required classes beyond
-      Pydantic).
+- [ ] `run_anomaly_rules` with smoke rule returns without error and does not insert into
+      `review_decisions` (table may not exist yet — assert zero writes outside `flags`).
 
 ## 6. Risks & mitigations
 
