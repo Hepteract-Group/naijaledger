@@ -63,8 +63,8 @@ def test_plan_emits_agency_company_and_edges() -> None:
     )
 
     labels = {tuple(node.labels) for node in plan.nodes}
-    assert ("Agency", "Party") in labels
-    assert ("Company", "Party") in labels
+    assert ("Agency", "FinanceParty") in labels
+    assert ("Company", "FinanceParty") in labels
     assert ("Tender",) in labels
     rel_types = {rel.rel_type for rel in plan.relationships}
     assert {"ISSUED", "RESULTED_IN", "AWARDED_TO", "CONTRACTED", "SUPPLIED", "FROM_AWARD"} <= (
@@ -104,7 +104,7 @@ def test_plan_skips_merged_party_nodes_and_resolves_fk() -> None:
         },
     )
 
-    party_ids = {node.properties["id"] for node in plan.nodes if "Party" in node.labels}
+    party_ids = {node.properties["id"] for node in plan.nodes if "FinanceParty" in node.labels}
     assert str(survivor.id) in party_ids
     assert str(merged.id) not in party_ids
 

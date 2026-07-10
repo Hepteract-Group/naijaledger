@@ -38,9 +38,9 @@ Derives from `SYSTEM_DESIGN.md` §4.8 and ROADMAP E6.4.
 
 | Postgres | Graph |
 |---|---|
-| `parties` (`agency`) | `(:Agency {id, name, party_type})` |
-| `parties` (`company`) | `(:Company {id, name, party_type})` |
-| `parties` (`person`) | `(:Person {id, name, party_type})` |
+| `parties` (`agency`) | `(:Agency:FinanceParty {id, name, party_type})` |
+| `parties` (`company`) | `(:Company:FinanceParty {id, name, party_type})` |
+| `parties` (`person`) | `(:Person:FinanceParty {id, name, party_type})` |
 | `tenders` | `(:Tender {id, ocid, title})` |
 | `awards` | `(:Award {id})` |
 | `contracts` | `(:Contract {id, status})` |

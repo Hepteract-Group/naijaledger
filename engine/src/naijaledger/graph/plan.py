@@ -66,7 +66,7 @@ def plan_finance_projection(
         label_by_party[party.id] = label
         nodes.append(
             _node(
-                [label, "Party"],
+                [label, "FinanceParty"],
                 id=party.id,
                 name=party.canonical_name,
                 party_type=party.party_type,

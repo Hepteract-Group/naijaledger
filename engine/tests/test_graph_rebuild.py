@@ -49,6 +49,6 @@ def test_rebuild_finance_graph_idempotent(db_connection) -> None:
         second = rebuild_finance_graph(db_connection, client)
         assert first.nodes == second.nodes
         assert first.relationships == second.relationships
-        assert client.count_nodes(("Party", "Tender", "Award")) >= 3
+        assert client.count_nodes(("FinanceParty", "Tender", "Award")) >= 3
     finally:
         client.close()

@@ -11,13 +11,23 @@ from neo4j import Driver, GraphDatabase
 from naijaledger.graph.plan import GraphNode, GraphPlan, GraphRel
 
 DEFAULT_MEMGRAPH_URL = "bolt://localhost:7687"
-_FINANCE_LABELS = ("Agency", "Company", "Person", "Party", "Tender", "Award", "Contract")
+_FINANCE_LABELS = (
+    "Agency",
+    "Company",
+    "Person",
+    "FinanceParty",
+    "Tender",
+    "Award",
+    "Contract",
+)
 
 
 class GraphClient(Protocol):
     def wipe_finance_projection(self) -> None: ...
 
     def apply_plan(self, plan: GraphPlan) -> None: ...
+
+    def rebuild_from_plan(self, plan: GraphPlan) -> None: ...
 
     def count_nodes(self, labels: Sequence[str] | None = None) -> int: ...
 
@@ -43,6 +53,7 @@ class MemgraphClient:
         self._driver.close()
 
     def wipe_finance_projection(self) -> None:
+        # Labels are code constants only — never interpolate user/DB strings into Cypher.
         with self._driver.session() as session:
             for label in _FINANCE_LABELS:
                 session.run(f"MATCH (n:{label}) DETACH DELETE n")
@@ -54,8 +65,37 @@ class MemgraphClient:
             for rel in plan.relationships:
                 _create_rel(session, rel)
 
+    def rebuild_from_plan(self, plan: GraphPlan) -> None:
+        """Wipe + apply in one write transaction so a mid-failure rolls back."""
+
+        def _work(tx: Any) -> None:
+            for label in _FINANCE_LABELS:
+                tx.run(f"MATCH (n:{label}) DETACH DELETE n")
+            for node in plan.nodes:
+                labels = ":".join(node.labels)
+                tx.run(
+                    f"MERGE (n:{labels} {{id: $id}}) SET n += $props",
+                    id=node.properties["id"],
+                    props=node.properties,
+                )
+            for rel in plan.relationships:
+                tx.run(
+                    f"""
+                    MATCH (a:{rel.start_label} {{id: $start_id}})
+                    MATCH (b:{rel.end_label} {{id: $end_id}})
+                    MERGE (a)-[r:{rel.rel_type}]->(b)
+                    SET r += $props
+                    """,
+                    start_id=str(rel.start_id),
+                    end_id=str(rel.end_id),
+                    props=rel.properties,
+                )
+
+        with self._driver.session() as session:
+            session.execute_write(_work)
+
     def count_nodes(self, labels: Sequence[str] | None = None) -> int:
-        target = labels or ("Party", "Tender", "Award", "Contract")
+        target = labels or ("FinanceParty", "Tender", "Award", "Contract")
         total = 0
         with self._driver.session() as session:
             for label in target:

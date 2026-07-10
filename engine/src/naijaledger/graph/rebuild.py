@@ -82,6 +82,10 @@ def build_finance_plan(connection: Connection) -> GraphPlan:
 
 def rebuild_finance_graph(connection: Connection, graph: GraphClient) -> RebuildStats:
     plan = build_finance_plan(connection)
-    graph.wipe_finance_projection()
-    graph.apply_plan(plan)
+    rebuild = getattr(graph, "rebuild_from_plan", None)
+    if callable(rebuild):
+        rebuild(plan)
+    else:
+        graph.wipe_finance_projection()
+        graph.apply_plan(plan)
     return RebuildStats(nodes=len(plan.nodes), relationships=len(plan.relationships))
