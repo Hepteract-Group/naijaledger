@@ -12,9 +12,7 @@ from naijaledger.api.schemas import Page, PublicFlag
 
 router = APIRouter(tags=["flags"])
 
-_FLAG_DESCRIPTION = (
-    "Anomaly flag hypothesis — not a verified claim. Only open flags are exposed."
-)
+_FLAG_DESCRIPTION = "Anomaly flag hypothesis — not a verified claim. Only open flags are exposed."
 
 
 @router.get(
