@@ -19,9 +19,10 @@ How to revert this safely if needed.
 - Reviewer model: <!-- e.g. claude-opus-4-8-thinking-medium -->
 - Implementer model: <!-- e.g. composer / session -->
 - Verdict: <!-- approve | approve-with-fixes (fixed in <sha>) | block → needs-human -->
-- Notes / link: <!-- short summary or comment URL -->
+- Review comment: <!-- required: URL of PR comment with the full structured report -->
 
-Trivial docs/typo (under ~20 lines): write `merge-review: skipped (trivial)` instead.
+Trivial skip only if ≤20 lines, docs/comments only, and no `.cursor/rules` / `AGENTS.md` /
+workflow / code changes — then write `merge-review: skipped (trivial)` instead.
 
 ## Merge eligibility (per AGENTS.md)
 - [ ] CI green

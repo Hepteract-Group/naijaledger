@@ -5,18 +5,24 @@ alwaysApply: true
 
 # Merge review (cross-model)
 
-Before any agent self-merge, a **merge review** MUST run on a **stronger model** than the one
-that wrote the code. Same-model or weaker-model “review” does not satisfy this gate.
+Before any agent self-merge, a **merge review** MUST run on a model that is **stronger than**,
+or (for top-tier implementers) a **peer-tier different family from**, the model that wrote the
+code. Same-model or weaker-model “review” does not satisfy this gate.
 
 ## When
 
-After: implementation + self-review clean + PR open + CI green (or about to be).
+After: implementation + self-review clean + PR open + **CI green**.
 Before: `gh pr merge` / self-merge under `loop-workflow.mdc`.
 
-Spec-only PRs still get a merge review (lighter checklist), unless the change is a typo/docs
-nit under ~20 lines — then note `merge-review: skipped (trivial)` in the PR and proceed.
+Spec-only / docs PRs still get a merge review (lighter checklist), unless **all** of:
+- ≤20 changed lines total, and
+- changes are docs/comments only, and
+- **no** edits to `.cursor/rules/**`, `AGENTS.md`, workflow YAML, or executable code
 
-## Reviewer model (must be stronger)
+Then note `merge-review: skipped (trivial)` in the PR and proceed. Process-rule changes like
+this file never qualify for the skip.
+
+## Reviewer model (stronger, or peer cross-family)
 
 Prefer, in order, the strongest available that is **not** the implementer’s model family:
 
@@ -29,10 +35,12 @@ Prefer, in order, the strongest available that is **not** the implementer’s mo
 | Composer / Auto / `composer-*` | Opus (preferred) or GPT-5.6 tier |
 | Sonnet / `claude-sonnet-*` / `claude-4.6-sonnet-*` | Opus |
 | GPT-5.x medium | Opus (preferred) or a different GPT high-tier if Opus unavailable |
-| Opus (rare: Opus wrote the code) | GPT-5.6 tier (different family) |
+| Opus (Opus wrote the code) | GPT-5.6 tier — **peer cross-family** (satisfies the gate) |
+| Gemini / Grok / any other family | Opus (preferred), else GPT-5.6 tier |
+| Unknown / unlisted | Opus (preferred), else GPT-5.6 tier |
 
-If no stronger model can be launched (tooling failure), **do not self-merge**: label `needs-human`,
-comment that merge-review could not run, and wait.
+If no eligible reviewer model can be launched (tooling failure), **do not self-merge**: label
+`needs-human`, comment that merge-review could not run, and wait.
 
 Launch via the Task tool (`subagent_type: generalPurpose`, `readonly: true` for the review pass)
 with an explicit `model:` slug from the list above. Do not “review yourself” in the same turn and
@@ -78,21 +86,25 @@ rewrites unless they hide a bug.
 5. After non-trivial fixes, run **one** follow-up merge review (same stronger model). Cap at
    two review rounds; if still contested → `needs-human`.
 
-## PR attestation
+## Durable trail + PR attestation
 
-PR body (or a follow-up comment before merge) MUST include:
+1. Post the reviewer’s **full structured report** as a **PR comment** (auditable; not only a
+   private chat). Prefer attributing the comment to the review (model slug in the comment body).
+2. PR body (or a follow-up comment before merge) MUST include:
 
 ```markdown
 ## Merge review
 - Reviewer model: `<slug>`
 - Implementer model: `<slug or "session/auto">`
 - Verdict: approve | approve-with-fixes (then fixed) | block → needs-human
-- Link/summary: <comment URL or paste short summary>
+- Review comment: <required URL of the PR comment that contains the structured report>
 ```
 
-Self-merge is forbidden without this attestation (except the trivial skip note above).
+`Review comment` MUST be a GitHub comment URL on this PR. A pasted summary alone is **not**
+enough. Self-merge is forbidden without this attestation (except the trivial skip note above).
 
 ## Relationship to self-review
 
 Self-review (same agent, up to 3 passes) remains required and is **not** a substitute for
-merge review. Order: implement → self-review → PR → CI → **merge review** → fix/escalate → merge.
+merge review. Order: implement → self-review → PR → CI green → **merge review** → fix/escalate →
+merge.
