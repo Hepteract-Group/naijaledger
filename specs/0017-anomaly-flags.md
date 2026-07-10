@@ -105,10 +105,14 @@ class AnomalyRule(Protocol):
 
 def run_anomaly_rules(
     connection: Connection,
+    rules: list[AnomalyRule],
     *,
     rule_ids: list[str] | None = None,
 ) -> RunResult: ...
 ```
+
+Callers pass an explicit `rules` list (tests use smoke; production uses `production_rules()`).
+No module-level mutable registry.
 
 `RuleContext` holds in-memory snapshots (tenders, awards, contracts, parties, payments,
 budget_lines, relationships) loaded once per run — keep v1 simple; no graph dependency

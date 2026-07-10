@@ -42,6 +42,42 @@ def test_invalid_rule_fails_check(db_connection) -> None:
             )
 
 
+def test_invalid_severity_fails_check(db_connection) -> None:
+    with pytest.raises(IntegrityError):
+        with db_connection.begin_nested():
+            db_connection.execute(
+                text(
+                    """
+                    INSERT INTO flags (
+                        subject_type, subject_id, rule, severity, evidence, status, created_by
+                    ) VALUES (
+                        'tender', :sid, 'smoke', 'critical', '{"summary":"x"}'::jsonb,
+                        'open', 'test'
+                    )
+                    """
+                ),
+                {"sid": uuid4()},
+            )
+
+
+def test_invalid_status_fails_check(db_connection) -> None:
+    with pytest.raises(IntegrityError):
+        with db_connection.begin_nested():
+            db_connection.execute(
+                text(
+                    """
+                    INSERT INTO flags (
+                        subject_type, subject_id, rule, severity, evidence, status, created_by
+                    ) VALUES (
+                        'tender', :sid, 'smoke', 'low', '{"summary":"x"}'::jsonb,
+                        'published', 'test'
+                    )
+                    """
+                ),
+                {"sid": uuid4()},
+            )
+
+
 def test_evidence_without_summary_fails_check(db_connection) -> None:
     with pytest.raises(IntegrityError):
         with db_connection.begin_nested():

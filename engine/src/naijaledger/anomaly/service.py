@@ -62,7 +62,7 @@ def upsert_open_flag(connection: Connection, draft: FlagDraft) -> Flag | None:
     Returns the open flag after insert/update, or ``None`` when a dismissed/confirmed
     row for the same (rule, subject) blocks re-open (spec 0017 sticky dismissal).
     """
-    existing = connection.execute(
+    sticky = connection.execute(
         text(
             f"""
             SELECT {_FLAG_COLUMNS}
@@ -70,12 +70,9 @@ def upsert_open_flag(connection: Connection, draft: FlagDraft) -> Flag | None:
             WHERE rule = :rule
               AND subject_type = :subject_type
               AND subject_id = :subject_id
-            ORDER BY CASE status
-                WHEN 'open' THEN 0
-                WHEN 'dismissed' THEN 1
-                WHEN 'confirmed' THEN 2
-                ELSE 3
-            END, updated_at DESC
+              AND status IN ('dismissed', 'confirmed')
+            ORDER BY updated_at DESC
+            LIMIT 1
             FOR UPDATE
             """
         ),
@@ -85,28 +82,8 @@ def upsert_open_flag(connection: Connection, draft: FlagDraft) -> Flag | None:
             "subject_id": draft.subject_id,
         },
     ).first()
-    if existing is not None:
-        if existing.status != "open":
-            return None
-        connection.execute(
-            text(
-                """
-                UPDATE flags
-                SET severity = :severity,
-                    evidence = CAST(:evidence AS jsonb),
-                    created_by = :created_by,
-                    updated_at = now()
-                WHERE id = :id
-                """
-            ),
-            {
-                "id": existing.id,
-                "severity": draft.severity,
-                "evidence": json.dumps(draft.evidence),
-                "created_by": draft.created_by,
-            },
-        )
-        return get_flag(connection, existing.id)
+    if sticky is not None:
+        return None
 
     row = connection.execute(
         text(
@@ -117,6 +94,12 @@ def upsert_open_flag(connection: Connection, draft: FlagDraft) -> Flag | None:
                 :subject_type, :subject_id, :rule, :severity, CAST(:evidence AS jsonb),
                 'open', :created_by
             )
+            ON CONFLICT (rule, subject_type, subject_id) WHERE (status = 'open')
+            DO UPDATE SET
+                severity = EXCLUDED.severity,
+                evidence = EXCLUDED.evidence,
+                created_by = EXCLUDED.created_by,
+                updated_at = now()
             RETURNING {_FLAG_COLUMNS}
             """
         ),
