@@ -43,6 +43,17 @@ describe("theme", () => {
   });
 });
 
+function stubIntersectionObserver(): void {
+  vi.stubGlobal(
+    "IntersectionObserver",
+    class {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    },
+  );
+}
+
 describe("App routes", () => {
   it("renders brand-first home and navigates to explore", async () => {
     stubMatchMedia(false);
@@ -61,5 +72,34 @@ describe("App routes", () => {
     fireEvent.click(screen.getByRole("link", { name: "Explore" }));
     expect(await screen.findByRole("heading", { name: "Explore" })).toBeTruthy();
     expect(await screen.findByText(/no parties yet/i)).toBeTruthy();
+  });
+
+  it("lists stories and opens the demo scrollytelling narrative", async () => {
+    stubMatchMedia(false);
+    stubIntersectionObserver();
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("link", { name: "Stories" }));
+    expect(await screen.findByRole("heading", { name: "Stories" })).toBeTruthy();
+    expect(screen.getByText("Follow the ledger")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("link", { name: /follow the ledger/i }));
+    expect(await screen.findByRole("heading", { name: "Follow the ledger" })).toBeTruthy();
+    expect(screen.getByText(/illustrative demo — not a published claim/i)).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /start from a public source/i })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Browse sources" })).toBeTruthy();
+    expect(screen.getAllByRole("link", { name: "Explore parties" }).length).toBeGreaterThanOrEqual(
+      1,
+    );
+  });
+
+  it("shows not-found for unknown story slugs", async () => {
+    stubMatchMedia(false);
+    stubIntersectionObserver();
+    window.history.pushState({}, "", "/stories/does-not-exist");
+
+    render(<App />);
+    expect(await screen.findByRole("heading", { name: "Story not found" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Back to stories" })).toBeTruthy();
   });
 });
