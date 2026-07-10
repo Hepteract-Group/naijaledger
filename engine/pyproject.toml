@@ -39,6 +39,7 @@ naijaledger-health-monitor = "naijaledger.sources.health_cli:run"
 naijaledger-archive-init = "naijaledger.archive.cli:run"
 naijaledger-fetch = "naijaledger.fetch.cli:run"
 naijaledger-jobs = "naijaledger.jobs.cli:run"
+naijaledger-anomaly-backtest = "naijaledger.anomaly.backtest_cli:run"
 
 [build-system]
 requires = ["hatchling"]

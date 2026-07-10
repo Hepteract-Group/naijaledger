@@ -1,7 +1,7 @@
 # Spec 0019 — Anomaly backtest / precision harness (E7.3)
 
 - **Epic / Issue**: E7.3 / #42
-- **Status**: Draft
+- **Status**: Implemented
 - **Author**: agent
 - **Needs human decision?**: no — v1 uses a **labeled synthetic corpus** (not live portal scrapes).
   Precision floors are engineering gates; product can raise them later.
@@ -15,8 +15,8 @@ cannot measure false-positive rate or catch regressions when thresholds change
 ## 2. Scope & non-scope
 
 - **In scope**
-  - Labeled fixture corpus under `engine/tests/fixtures/anomaly_backtest/` (Python module or
-    JSON) describing a `RuleContext` plus expected open flags
+  - Labeled fixture corpus as `naijaledger.anomaly.corpus` (scenarios documented in the
+    module docstring) describing a `RuleContext` plus expected open flags
     `(rule, subject_type, subject_key)`.
   - Pure harness: `run_backtest(case: BacktestCase, rules) -> BacktestReport` with per-rule and
     overall precision / recall / F1, plus TP/FP/FN lists (set-deduped on
@@ -78,7 +78,9 @@ The fixture MUST include, for each of the seven production rules:
 - ≥1 **true positive** scenario (rule should fire).
 - ≥1 **true negative** near-miss (similar data; rule should **not** fire).
 
-Overall expected positives ≥ 7. Document scenarios in a short README beside the fixture.
+Overall expected positives ≥ 7. Scenarios are documented in the
+`naijaledger.anomaly.corpus` module docstring (package module so the CLI can import it
+without a separate fixtures path).
 
 ### 3.4 CLI
 
@@ -109,12 +111,12 @@ class BacktestReport(BaseModel):
 
 ## 5. Acceptance criteria (testable)
 
-- [ ] `run_backtest` on the fixture corpus returns a report with per-rule scores.
-- [ ] Pytest asserts `report.passed` (overall precision/recall floors).
-- [ ] Corpus covers all seven production rule ids with ≥1 expected positive each.
-- [ ] A deliberate FP in a unit test of the scorer increments `fp` and lowers precision.
-- [ ] CLI (if shipped) exits 0 on the fixture corpus.
-- [ ] Harness does not write to `flags` / `review_decisions`.
+- [x] `run_backtest` on the fixture corpus returns a report with per-rule scores.
+- [x] Pytest asserts `report.passed` (overall precision/recall floors).
+- [x] Corpus covers all seven production rule ids with ≥1 expected positive each.
+- [x] A deliberate FP in a unit test of the scorer increments `fp` and lowers precision.
+- [x] CLI (if shipped) exits 0 on the fixture corpus.
+- [x] Harness does not write to `flags` / `review_decisions`.
 
 ## 6. Risks & mitigations
 
