@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     magika_min_confidence: float = 0.5
     ocr_max_pages: int = 20
     vision_llm_enabled: bool = False
+    job_lock_timeout_seconds: int = 1800
+    job_max_attempts: int = 3
 
     @field_validator("api_cors_origins", mode="before")
     @classmethod
