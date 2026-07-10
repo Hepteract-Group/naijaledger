@@ -127,6 +127,17 @@ def test_sources_default_approved(
     assert "approved_by" not in item
     assert "last_success_hash" not in item
 
+    all_statuses = api_client.get("/v1/sources", params={"status": "all"})
+    assert all_statuses.status_code == 200
+    all_ids = {row["id"] for row in all_statuses.json()["items"]}
+    assert str(approved.id) in all_ids
+    assert str(proposed.id) in all_ids
+
+    assert api_client.get(f"/v1/sources/{uuid4()}").status_code == 404
+    got = api_client.get(f"/v1/sources/{approved.id}")
+    assert got.status_code == 200
+    assert got.json()["name"] == "Approved Portal"
+
 
 def test_flags_open_only(
     api_client: TestClient,

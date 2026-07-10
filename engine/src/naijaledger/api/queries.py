@@ -26,9 +26,8 @@ from naijaledger.sources.models import SourceRecord
 from naijaledger.sources.service import get_source
 from naijaledger.sources.types import SourceStatus
 
-_PARTY_COLUMNS = """
-    id, party_type, canonical_name, aliases, identifiers, address, merged_into_id,
-    meta, created_at, updated_at
+_PARTY_PUBLIC_COLUMNS = """
+    id, party_type, canonical_name, aliases, merged_into_id, created_at, updated_at
 """
 
 _TENDER_COLUMNS = """
@@ -45,11 +44,9 @@ _CONTRACT_COLUMNS = """
     created_at, updated_at
 """
 
-_SOURCE_COLUMNS = """
+_SOURCE_PUBLIC_COLUMNS = """
     id, name, jurisdiction, region, category, url, fetch_method, format,
-    expected_cadence, last_fetched_at, last_success_hash, schema_fingerprint,
-    health_status, reliability_score, status, added_by, approved_by,
-    created_at, updated_at
+    expected_cadence, health_status, status, created_at, updated_at
 """
 
 
@@ -115,6 +112,38 @@ def to_public_flag(flag: Flag) -> PublicFlag:
     )
 
 
+def _row_to_public_source(row: Row[Any]) -> PublicSource:
+    mapping = row._mapping
+    return PublicSource(
+        id=mapping["id"],
+        name=mapping["name"],
+        url=mapping["url"],
+        jurisdiction=mapping["jurisdiction"],
+        region=mapping["region"],
+        category=mapping["category"],
+        format=mapping["format"],
+        fetch_method=mapping["fetch_method"],
+        status=mapping["status"],
+        health_status=mapping["health_status"],
+        expected_cadence=_cadence_seconds(mapping["expected_cadence"]),
+        created_at=mapping["created_at"],
+        updated_at=mapping["updated_at"],
+    )
+
+
+def _row_to_public_party(row: Row[Any]) -> PublicParty:
+    mapping = row._mapping
+    return PublicParty(
+        id=mapping["id"],
+        party_type=mapping["party_type"],
+        canonical_name=mapping["canonical_name"],
+        aliases=list(mapping["aliases"] or []),
+        merged_into_id=mapping["merged_into_id"],
+        created_at=mapping["created_at"],
+        updated_at=mapping["updated_at"],
+    )
+
+
 def _row_to_tender(row: Row[Any]) -> PublicTender:
     m = row._mapping
     return PublicTender(
@@ -162,51 +191,6 @@ def _row_to_contract(row: Row[Any]) -> PublicContract:
     )
 
 
-def _row_to_source(row: Row[Any]) -> SourceRecord:
-    """Map a sources SELECT row without importing private service helpers."""
-    from decimal import Decimal
-
-    mapping = row._mapping
-    reliability = mapping["reliability_score"]
-    return SourceRecord(
-        id=mapping["id"],
-        name=mapping["name"],
-        jurisdiction=mapping["jurisdiction"],
-        region=mapping["region"],
-        category=mapping["category"],
-        url=mapping["url"],
-        fetch_method=mapping["fetch_method"],
-        format=mapping["format"],
-        expected_cadence=mapping["expected_cadence"],
-        last_fetched_at=mapping["last_fetched_at"],
-        last_success_hash=mapping["last_success_hash"],
-        schema_fingerprint=mapping["schema_fingerprint"],
-        health_status=mapping["health_status"],
-        reliability_score=Decimal(str(reliability)),
-        status=mapping["status"],
-        added_by=mapping["added_by"],
-        approved_by=mapping["approved_by"],
-        created_at=mapping["created_at"],
-        updated_at=mapping["updated_at"],
-    )
-
-
-def _row_to_party(row: Row[Any]) -> Party:
-    mapping = row._mapping
-    return Party(
-        id=mapping["id"],
-        party_type=mapping["party_type"],
-        canonical_name=mapping["canonical_name"],
-        aliases=list(mapping["aliases"] or []),
-        identifiers=mapping["identifiers"] or {},
-        address=mapping["address"],
-        merged_into_id=mapping["merged_into_id"],
-        meta=mapping["meta"],
-        created_at=mapping["created_at"],
-        updated_at=mapping["updated_at"],
-    )
-
-
 def list_public_sources(
     connection: Connection,
     *,
@@ -223,7 +207,7 @@ def list_public_sources(
     rows = connection.execute(
         text(
             f"""
-            SELECT {_SOURCE_COLUMNS}
+            SELECT {_SOURCE_PUBLIC_COLUMNS}
             FROM sources
             WHERE {where_sql}
             ORDER BY created_at DESC
@@ -232,7 +216,7 @@ def list_public_sources(
         ),
         params,
     ).all()
-    return [to_public_source(_row_to_source(row)) for row in rows]
+    return [_row_to_public_source(row) for row in rows]
 
 
 def get_public_source(connection: Connection, source_id: UUID) -> PublicSource:
@@ -259,7 +243,7 @@ def list_public_parties(
     rows = connection.execute(
         text(
             f"""
-            SELECT {_PARTY_COLUMNS}
+            SELECT {_PARTY_PUBLIC_COLUMNS}
             FROM parties
             WHERE {where_sql}
             ORDER BY created_at ASC
@@ -268,7 +252,7 @@ def list_public_parties(
         ),
         params,
     ).all()
-    return [to_public_party(_row_to_party(row)) for row in rows]
+    return [_row_to_public_party(row) for row in rows]
 
 
 def get_public_party(connection: Connection, party_id: UUID) -> PublicParty:
