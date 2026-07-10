@@ -20,6 +20,8 @@ style indicators listed in `SYSTEM_DESIGN.md` §4.9 and ROADMAP E7.2.
     `price_outlier`, `budget_payment_mismatch`.
   - Pure evaluate functions over `RuleContext` → `list[FlagDraft]` (compact evidence + `summary`).
   - Tunable constants module (`anomaly/thresholds.py`).
+  - Extend `load_rule_context` to include `tenders.meta` (and other entity `meta` where
+    already selected is fine) so rules can read `numberOfTenderers`.
   - OCDS tender meta: persist `numberOfTenderers` when present (helps `single_bidder`).
   - Unit tests with synthetic `RuleContext` (no DB) + one DB integration run of
     `production_rules()` on empty/seeded fixtures.
@@ -56,15 +58,17 @@ at evaluate time (`* 100`).
 
 | Rule | Subject | Trigger | Severity |
 |------|---------|---------|----------|
-| `single_bidder` | `tender` | `meta.numberOfTenderers == 1`, **or** competitive method (`open`/`selective`) with exactly one award and no `numberOfTenderers` | medium |
+| `single_bidder` | `tender` | `meta.numberOfTenderers == 1`, **or** competitive method (`open`/`selective`) with exactly one award and `numberOfTenderers` absent | medium |
 | `short_window` | `tender` | both bid dates present and `(closes - opens) < SHORT_WINDOW_DAYS` (default **7**) | medium; **high** if `< 3` days |
-| `threshold_hugging` | `award` | `value_amount` in `(T - hug_band, T]` for any configured approval threshold `T` | medium |
-| `repeat_winner` | `party` (supplier) | same supplier has ≥ `REPEAT_MIN_AWARDS` (default **3**) awards with the same agency within `REPEAT_WINDOW_DAYS` (default **365**) | medium |
+| `threshold_hugging` | `award` | NGN award `value_amount` in `(T - hug_band, T]` for any configured approval threshold `T` | medium |
+| `repeat_winner` | `party` (supplier) | same supplier has ≥ `REPEAT_MIN_AWARDS` (default **3**) awards whose tender’s `agency_id` is the same, within `REPEAT_WINDOW_DAYS` (default **365**) of each other (max−min `awarded_at`, or all undated count as one window) | medium |
 | `shared_address` | `party` | ≥2 distinct non-merged companies share the same normalized address key | medium |
-| `price_outlier` | `contract` | among contracts for the same `agency_id` with non-null value and sample size ≥ `OUTLIER_MIN_N` (default **5**), value is a MAD outlier (`\|x - median\| / MAD > OUTLIER_MAD_K`, default **3**) | medium |
-| `budget_payment_mismatch` | `budget_line` | for matching `agency_id` + `fiscal_year` (from `paid_at`), sum(payments) > `utilised_amount * (1 + MISMATCH_TOLERANCE)` when utilised set; else > `allocated_amount * (1 + MISMATCH_TOLERANCE)` when allocated set (default tolerance **0.10**) | high |
+| `price_outlier` | `contract` | among **NGN** contracts for the same `agency_id` with non-null value and sample size ≥ `OUTLIER_MIN_N` (default **5**), value is a MAD outlier (`\|x - median\| / MAD > OUTLIER_MAD_K`, default **3**). If MAD == 0, emit **no** outliers for that agency sample | medium |
+| `budget_payment_mismatch` | `budget_line` | for matching `agency_id` + `fiscal_year` (from NGN payment `paid_at`), sum(payments) > `utilised_amount * (1 + MISMATCH_TOLERANCE)` when utilised set; else > `allocated_amount * (1 + MISMATCH_TOLERANCE)` when allocated set (default tolerance **0.10**) | high |
 
-Skip subjects missing required fields (no flag).
+Skip subjects missing required fields (no flag). **v1 currency:** amount comparisons filter to `currency = 'NGN'` (or missing currency treated as NGN only if the column default is NGN — prefer explicit `'NGN'`).
+
+**`repeat_winner` agency path:** `award.tender_id → tenders.agency_id` (awards have no `agency_id` column).
 
 ### 3.3 Evidence shape
 
@@ -118,9 +122,12 @@ MISMATCH_TOLERANCE = 0.10
 - [ ] Each of the seven rules emits expected drafts on a crafted `RuleContext` fixture.
 - [ ] Each rule emits **zero** drafts when inputs are empty / missing required fields.
 - [ ] `production_rules()` returns exactly those seven ids (no `smoke`).
+- [ ] `load_rule_context` includes `tenders.meta`; `single_bidder` fires on
+      `meta.numberOfTenderers == 1` in a context/DB fixture.
 - [ ] `run_anomaly_rules(connection, production_rules())` succeeds on a migrated DB (empty ok).
 - [ ] OCDS tender with `numberOfTenderers: 1` lands in tender `meta` after normalize.
 - [ ] Evidence always includes non-empty `summary`; subjects use correct `subject_type`.
+- [ ] `price_outlier` emits nothing for an agency sample whose MAD is 0.
 
 ## 6. Risks & mitigations
 
