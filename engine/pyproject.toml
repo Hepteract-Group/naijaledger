@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "alembic>=1.14",
+    "docling>=2.111.0",
     "fastapi>=0.115",
     "httpx>=0.28",
     "magika>=1.0.3",
@@ -50,10 +51,18 @@ src = ["src", "tests"]
 select = ["E", "F", "I", "UP", "B"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 strict = true
 packages = ["naijaledger"]
 mypy_path = "src"
+
+[[tool.mypy.overrides]]
+module = [
+    "docling.*",
+    "docling_core.*",
+    "magika.*",
+]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
