@@ -60,10 +60,7 @@ def get_match_proposal(
     lock = " FOR UPDATE" if for_update else ""
     try:
         row = connection.execute(
-            text(
-                f"SELECT {_PROPOSAL_COLUMNS} FROM party_match_proposals "
-                f"WHERE id = :id{lock}"
-            ),
+            text(f"SELECT {_PROPOSAL_COLUMNS} FROM party_match_proposals WHERE id = :id{lock}"),
             {"id": proposal_id},
         ).one()
     except NoResultFound as exc:
