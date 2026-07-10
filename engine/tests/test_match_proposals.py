@@ -9,6 +9,7 @@ from naijaledger.finance.proposals import (
     ProposalStateError,
     confirm_match_proposal,
     create_match_proposal,
+    get_match_proposal,
     list_pending_match_proposals,
     reject_match_proposal,
 )
@@ -85,6 +86,9 @@ def test_proposal_confirm_merges(db_connection) -> None:
     )
     assert survivor.id == left.id
     assert get_party(db_connection, right.id).merged_into_id == left.id
+    resolved = get_match_proposal(db_connection, proposal.id)
+    assert resolved.status == "confirmed"
+    assert resolved.resolved_by == "tester"
     assert list_pending_match_proposals(db_connection) == []
 
 

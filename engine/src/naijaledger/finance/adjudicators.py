@@ -69,7 +69,6 @@ def get_match_adjudicator(name: str = "stub") -> MatchAdjudicator:
     )
 
 
-# Re-export Field for callers that type-check AdjudicationOpinion construction
 __all__ = [
     "AdjudicationOpinion",
     "MatchAdjudicator",

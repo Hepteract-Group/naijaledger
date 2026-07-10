@@ -51,10 +51,19 @@ def _row_to_proposal(row: Row[Any]) -> PartyMatchProposal:
     )
 
 
-def get_match_proposal(connection: Connection, proposal_id: UUID) -> PartyMatchProposal:
+def get_match_proposal(
+    connection: Connection,
+    proposal_id: UUID,
+    *,
+    for_update: bool = False,
+) -> PartyMatchProposal:
+    lock = " FOR UPDATE" if for_update else ""
     try:
         row = connection.execute(
-            text(f"SELECT {_PROPOSAL_COLUMNS} FROM party_match_proposals WHERE id = :id"),
+            text(
+                f"SELECT {_PROPOSAL_COLUMNS} FROM party_match_proposals "
+                f"WHERE id = :id{lock}"
+            ),
             {"id": proposal_id},
         ).one()
     except NoResultFound as exc:
@@ -132,7 +141,7 @@ def confirm_match_proposal(
     survivor_id: UUID,
     merged_id: UUID,
 ) -> Party:
-    proposal = get_match_proposal(connection, proposal_id)
+    proposal = get_match_proposal(connection, proposal_id, for_update=True)
     if proposal.status != "pending":
         raise ProposalStateError(f"proposal is {proposal.status}, not pending")
     pair = {proposal.left_party_id, proposal.right_party_id}
@@ -143,7 +152,7 @@ def confirm_match_proposal(
         survivor_id=survivor_id,
         merged_id=merged_id,
     )
-    connection.execute(
+    result = connection.execute(
         text(
             """
             UPDATE party_match_proposals
@@ -151,11 +160,13 @@ def confirm_match_proposal(
                 resolved_by = :resolved_by,
                 resolved_at = now(),
                 updated_at = now()
-            WHERE id = :id
+            WHERE id = :id AND status = 'pending'
             """
         ),
         {"id": proposal_id, "resolved_by": confirmed_by},
     )
+    if result.rowcount != 1:
+        raise ProposalStateError("proposal is no longer pending")
     return survivor
 
 
@@ -165,10 +176,10 @@ def reject_match_proposal(
     *,
     rejected_by: str,
 ) -> PartyMatchProposal:
-    proposal = get_match_proposal(connection, proposal_id)
+    proposal = get_match_proposal(connection, proposal_id, for_update=True)
     if proposal.status != "pending":
         raise ProposalStateError(f"proposal is {proposal.status}, not pending")
-    connection.execute(
+    result = connection.execute(
         text(
             """
             UPDATE party_match_proposals
@@ -176,9 +187,11 @@ def reject_match_proposal(
                 resolved_by = :resolved_by,
                 resolved_at = now(),
                 updated_at = now()
-            WHERE id = :id
+            WHERE id = :id AND status = 'pending'
             """
         ),
         {"id": proposal_id, "resolved_by": rejected_by},
     )
+    if result.rowcount != 1:
+        raise ProposalStateError("proposal is no longer pending")
     return get_match_proposal(connection, proposal_id)
