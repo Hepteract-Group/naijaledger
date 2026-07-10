@@ -158,11 +158,12 @@ Each `Block` with a `page`/`region` yields one `provenance_edges` row
 - [x] Magika detection returns `(label, confidence)`; a low-confidence or format-mismatched document
       produces `status="quarantined"` and **no** parsed rows (unit test with a mislabeled fixture)
       — #87.
-- [ ] XLSX and JSON fixtures parse via Pass 1 with `derivation="extracted"`, `confidence=1.0`.
+- [x] XLSX and JSON fixtures parse via Pass 1 with `derivation="extracted"`, `confidence=1.0`
+      (#30).
 - [ ] A text-layer PDF fixture via Docling yields ≥1 table block with `page` + `region` provenance
       and `method`/`method_version` recording the pinned Docling version.
-- [ ] Pass 2 is not invoked when Pass 1 returns usable blocks (assert via spy/mock).
-- [ ] Every emitted block with page/region writes a matching `provenance_edges` row.
+- [x] Pass 2 is not invoked when Pass 1 returns usable blocks (assert via spy/mock) (#28).
+- [x] Every emitted block with page/region writes a matching `provenance_edges` row (#28).
 - [ ] A scanned-PDF fixture (no recoverable layout) routes to Pass 2 and is tagged `inferred`
       (not `extracted`).
 

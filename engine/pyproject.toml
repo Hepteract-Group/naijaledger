@@ -10,6 +10,7 @@ dependencies = [
     "httpx>=0.28",
     "magika>=1.0.3",
     "minio>=7.2",
+    "openpyxl>=3.1.5",
     "psycopg[binary]>=3.2",
     "pydantic-settings>=2.6",
     "scrapling[fetchers]>=0.4",
@@ -59,4 +60,9 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = [
     "integration: tests that require external services (MinIO, etc.)",
+]
+
+[dependency-groups]
+dev = [
+    "types-openpyxl>=3.1.5.20260518",
 ]
