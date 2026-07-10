@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     api_rate_limit_per_minute: int = Field(default=60, ge=1)
     api_rate_limit_max_keys: int = Field(default=10_000, ge=1)
     api_trust_forwarded_for: bool = False
+    api_partner_export_tokens: list[str] = Field(default_factory=list)
+    api_partner_export_per_minute: int = Field(default=300, ge=1)
     minio_endpoint: str = "http://localhost:9000"
     minio_access_key: str = "changeme"
     minio_secret_key: str = "changeme"
@@ -51,4 +53,11 @@ class Settings(BaseSettings):
     def parse_cors_origins(cls, value: object) -> object:
         if isinstance(value, str):
             return [origin.strip() for origin in value.split(",") if origin.strip()]
+        return value
+
+    @field_validator("api_partner_export_tokens", mode="before")
+    @classmethod
+    def parse_partner_tokens(cls, value: object) -> object:
+        if isinstance(value, str):
+            return [token.strip() for token in value.split(",") if token.strip()]
         return value

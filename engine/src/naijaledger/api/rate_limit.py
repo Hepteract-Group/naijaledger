@@ -67,6 +67,8 @@ def is_v1_path(path: str) -> bool:
 def is_rate_limit_exempt(path: str) -> bool:
     if path in EXEMPT_EXACT:
         return True
+    if path.startswith("/v1/export/") or path == "/v1/export":
+        return True
     return any(path.startswith(prefix) for prefix in EXEMPT_PREFIXES)
 
 

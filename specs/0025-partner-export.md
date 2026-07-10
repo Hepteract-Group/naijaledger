@@ -1,7 +1,7 @@
 # Spec 0025 — Partner data-export endpoints (E9.3)
 
 - **Epic / Issue**: E9.3 / #48
-- **Status**: Draft
+- **Status**: Implemented
 - **Author**: agent
 - **Needs human decision?**: no — v1 uses **ops-managed bearer tokens** from settings
   (constant-time plaintext compare), same public DTOs as E9.1 (no extra PII), keyset-paginated
@@ -129,16 +129,16 @@ X-Next-Cursor: eyJ0IjoiLi4uIiwiaSI6Ii4uLiJ9
 
 ## 5. Acceptance criteria (testable)
 
-- [ ] `GET /v1/export/parties` without `Authorization` → `401`.
-- [ ] Invalid bearer → `401` on each export route (parametrize parties/flags at minimum).
-- [ ] Empty `API_PARTNER_EXPORT_TOKENS` → all export routes `401`.
-- [ ] With configured token → `200` and `Content-Type` includes `ndjson` (default).
-- [ ] Each NDJSON line parses as JSON object without `meta` / `identifiers` / `added_by`.
-- [ ] `?format=json` returns `{"items":[...],"next_cursor": ...|null}`.
-- [ ] Two-page cursor walk returns disjoint ids; second page uses cursor / `X-Next-Cursor`.
-- [ ] Tampered/garbage `cursor` → `422`.
-- [ ] `GET /v1/export/flags` never includes non-open flags.
-- [ ] With partner limit=2, third export request in-window → `429`; a parallel public
+- [x] `GET /v1/export/parties` without `Authorization` → `401`.
+- [x] Invalid bearer → `401` on each export route (parametrize parties/flags at minimum).
+- [x] Empty `API_PARTNER_EXPORT_TOKENS` → all export routes `401`.
+- [x] With configured token → `200` and `Content-Type` includes `ndjson` (default).
+- [x] Each NDJSON line parses as JSON object without `meta` / `identifiers` / `added_by`.
+- [x] `?format=json` returns `{"items":[...],"next_cursor": ...|null}`.
+- [x] Two-page cursor walk returns disjoint ids; second page uses cursor / `X-Next-Cursor`.
+- [x] Tampered/garbage `cursor` → `422`.
+- [x] `GET /v1/export/flags` never includes non-open flags.
+- [x] With partner limit=2, third export request in-window → `429`; a parallel public
       `/v1/parties` IP budget is unaffected by export traffic (export exempt from global limiter).
 
 ## 6. Risks & mitigations
