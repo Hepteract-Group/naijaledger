@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ForceGraph2D, { type NodeObject } from "react-force-graph-2d";
 import type { ForceGraphData, ForceGraphNode, GraphNodeKind } from "../graph/types";
+import { useTheme } from "../hooks/useTheme";
 
 type GraphCanvasProps = {
   data: ForceGraphData;
@@ -31,6 +32,7 @@ function colorForKind(kind: GraphNodeKind, tokens: Record<string, string>): stri
 
 export function GraphCanvas({ data, selectedId, onSelect }: GraphCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { theme } = useTheme();
   const [size, setSize] = useState({ width: 640, height: 420 });
   const tokens = useMemo(
     () => ({
@@ -42,8 +44,7 @@ export function GraphCanvas({ data, selectedId, onSelect }: GraphCanvasProps) {
       ink: readToken("--ink", "#14261c"),
       font: readToken("--font-body", "sans-serif"),
     }),
-    // Re-read when selection changes is enough for theme toggles during interaction.
-    [selectedId],
+    [theme],
   );
 
   useEffect(() => {
