@@ -22,10 +22,8 @@ publication gate, nothing enforces P3 (“AI proposes, humans dispose”) before
   - Integration with E8.2: `enqueue_story_for_review(connection, story, report)` enqueues only
     when `report.ok` (verified); otherwise returns error / optional
     `needs_more_evidence` decision without approve path.
-  - Tests for CHECKs, transitions, gate helper; assert agents cannot call decide with
-    machine identity for `approve_publish` without `reviewed_by` human id (require non-empty
-    `reviewer` that is not an agent id prefix — simple rule: `reviewer` must not start with
-    `agent:`).
+    - Tests for CHECKs, transitions, gate helper; assert `approve_publish` rejects
+      `reviewer` values starting with `agent:` or `system:` (human-only P3).
 - **Out of scope**
   - Public API / admin UI for the queue (#102 later).
   - Actual public website publication pipeline (E9/E10).
