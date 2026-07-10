@@ -116,8 +116,11 @@ shared_address|price_outlier|budget_payment_mismatch|overvote|smoke`), `severity
 `(rule, subject_type, subject_id)`; sticky non-open rows suppress re-open on re-run.
 
 ### `review_decisions`
-`subject_type, subject_id, decision enum: approve_publish|reject|needs_more_evidence,
-reviewer, rationale, decided_at` — enforces P3 (human-in-the-loop before publication).
+Human publication gate (P3). See `specs/0022-review-decisions.md`.
+`subject_type, subject_id, decision` (`pending|approve_publish|reject|needs_more_evidence`),
+`reviewer` (null while pending), `rationale`, `decided_at` (null while pending), `meta jsonb`
+(optional story/verification snapshot); unique pending `(subject_type, subject_id)`.
+Latest non-pending decision by `decided_at` wins for the publish gate.
 
 ### `party_match_proposals` (E6.2)
 Pending entity-resolution judgments. See `specs/0015-llm-match-adjudication.md`.
