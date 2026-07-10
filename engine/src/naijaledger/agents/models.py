@@ -58,7 +58,10 @@ class ToolRegistry:
         tool = self._tools.get(name)
         if tool is None:
             return ToolResult(ok=False, tool=name, error=f"unknown tool: {name}")
-        result = tool.run(ctx, args)
+        try:
+            result = tool.run(ctx, args)
+        except Exception as exc:  # noqa: BLE001 — tools must not crash the run loop
+            return ToolResult(ok=False, tool=name, error=str(exc))
         if not isinstance(result, ToolResult):
             return ToolResult(ok=False, tool=name, error="tool returned invalid result")
         return result

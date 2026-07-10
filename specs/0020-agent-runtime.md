@@ -107,16 +107,37 @@ class Tool(Protocol):
     name: str
     def run(self, ctx: AgentContext, args: dict[str, Any]) -> ToolResult: ...
 
-class ToolRegistry(BaseModel):
-    tools: dict[str, Tool]  # name → tool; constructed via register_tools(list[Tool])
+class ToolRegistry:
+    """Name → tool map (plain class; tools are Protocol instances)."""
 
-class AgentContext(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    def __init__(self, tools: dict[str, Tool] | None = None) -> None:
+        self._tools: dict[str, Tool] = dict(tools or {})
+
+    def get(self, name: str) -> Tool | None:
+        return self._tools.get(name)
+
+    def names(self) -> list[str]:
+        return sorted(self._tools)
+
+    def run(self, name: str, ctx: AgentContext, args: dict[str, Any]) -> ToolResult: ...
+
+class AgentContext:
+    """Plain holder for connection, tools, run_id, optional graph_client."""
+
     connection: Connection
     tools: ToolRegistry
     run_id: UUID
     graph_client: GraphClient | None = None
 
+# Constructed via:
+#   register_tools(list[Tool]) -> ToolRegistry
+#   AgentContext(connection=..., tools=..., run_id=..., graph_client=...)
+```
+
+(`ToolRegistry` / `AgentContext` are plain classes in the implementation — not Pydantic —
+so Protocol tool instances and SQLAlchemy `Connection` need no `arbitrary_types_allowed`.)
+
+```python
 class AgentAction(BaseModel):
     type: Literal["call_tool", "finish"]
     tool: str | None = None

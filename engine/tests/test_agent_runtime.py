@@ -117,6 +117,24 @@ def test_list_open_flags_tool(db_connection) -> None:
         assert db_connection.execute(text("SELECT count(*) FROM review_decisions")).scalar() == 0
 
 
+def test_tool_exception_becomes_tool_result() -> None:
+    class BoomTool:
+        name = "list_open_flags"
+
+        def run(self, ctx, args):
+            raise RuntimeError("boom")
+
+    ctx = AgentContext(
+        connection=None,
+        tools=register_tools([BoomTool()]),
+        run_id=uuid4(),
+    )
+    result = run_agent(EchoToolsAgent(), ctx, max_steps=4)
+    assert result.finished is True
+    assert result.steps[0]["result"]["ok"] is False
+    assert "boom" in result.steps[0]["result"]["error"]
+
+
 def test_graph_neighbors_without_client() -> None:
     from naijaledger.agents.tools import GraphNeighborsTool
 

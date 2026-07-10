@@ -12,6 +12,14 @@ from naijaledger.anomaly.service import FlagNotFoundError, get_flag, list_open_f
 from naijaledger.finance.service import PartyNotFoundError, get_party
 
 
+def _as_limit(value: Any, default: int = 20) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return max(1, min(parsed, 200))
+
+
 class LookupPartyTool:
     name = "lookup_party"
 
@@ -59,7 +67,7 @@ class LookupPartyTool:
                 LIMIT :limit
                 """
             ),
-            {"pattern": f"%{name_query.strip()}%", "limit": int(args.get("limit") or 20)},
+            {"pattern": f"%{name_query.strip()}%", "limit": _as_limit(args.get("limit"), 20)},
         ).mappings()
         parties = [dict(row) for row in rows]
         citations = [
@@ -106,7 +114,7 @@ class ListOpenFlagsTool:
     name = "list_open_flags"
 
     def run(self, ctx: AgentContext, args: dict[str, Any]) -> ToolResult:
-        limit = int(args.get("limit") or 100)
+        limit = _as_limit(args.get("limit"), 100)
         flags = list_open_flags(ctx.connection, limit=limit)
         return ToolResult(
             ok=True,
@@ -132,7 +140,7 @@ class SearchDocumentsTool:
         query = args.get("query")
         if not isinstance(query, str) or not query.strip():
             return ToolResult(ok=False, tool=self.name, error="query required")
-        limit = int(args.get("limit") or 20)
+        limit = _as_limit(args.get("limit"), 20)
         q = query.strip()
         rows = ctx.connection.execute(
             text(
