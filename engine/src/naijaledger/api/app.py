@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from naijaledger import __version__
+from naijaledger.api.v1 import router as v1_router
 from naijaledger.config import load_settings
 
 app = FastAPI(
@@ -18,6 +19,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(v1_router, prefix="/v1")
 
 
 @app.get("/health")

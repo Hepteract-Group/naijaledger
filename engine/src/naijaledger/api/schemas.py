@@ -1,0 +1,106 @@
+"""Public response DTOs for the read API (spec 0023)."""
+
+from datetime import datetime
+from typing import Any, Generic, TypeVar
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field
+
+T = TypeVar("T")
+
+
+class Page(BaseModel, Generic[T]):
+    items: list[T]
+    limit: int
+    offset: int
+    count: int
+
+
+class PublicSource(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    name: str
+    url: str
+    jurisdiction: str
+    region: str | None
+    category: str
+    format: str
+    fetch_method: str
+    status: str
+    health_status: str
+    expected_cadence: float | None = Field(
+        description="Cadence in seconds, or null when unset",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+class PublicParty(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    party_type: str
+    canonical_name: str
+    aliases: list[str]
+    merged_into_id: UUID | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class PublicTender(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    ocid: str | None
+    agency_id: UUID
+    title: str
+    method: str | None
+    value_amount: int | None
+    currency: str
+    bidding_opens_at: datetime | None
+    bidding_closes_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class PublicAward(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    tender_id: UUID
+    supplier_id: UUID
+    value_amount: int | None
+    currency: str
+    awarded_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class PublicContract(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    award_id: UUID | None
+    supplier_id: UUID
+    agency_id: UUID
+    value_amount: int | None
+    currency: str
+    signed_at: datetime | None
+    status: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class PublicFlag(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    subject_type: str
+    subject_id: UUID
+    rule: str
+    severity: str
+    evidence: dict[str, Any]
+    status: str
+    created_at: datetime
+    updated_at: datetime
