@@ -68,7 +68,7 @@ Legend: `[H]` = likely needs a human decision (`needs-human`), `[S]` = spec requ
 - E9.3 Partner data-export endpoints (newsrooms). `[S]` ✓
 
 ## E10 — Frontend / Visualization
-- E10.1 Web app skeleton (React + Vite + TS). `[H]` design system.
+- E10.1 Web app skeleton (React + Vite + TS). `[H]` design system. ✓
 - E10.2 Scrollytelling narrative framework.
 - E10.3 Explorable dashboards (filter/sort/compare) with source drill-down.
 - E10.4 Graph viz (Sigma.js / react-force-graph).

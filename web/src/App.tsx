@@ -1,71 +1,41 @@
-import { useEffect, useState } from "react";
-import { fetchEngineHealth, type EngineHealth } from "./api/health";
-
-type LoadState =
-  { kind: "loading" } | { kind: "ok"; health: EngineHealth } | { kind: "error"; message: string };
-
-const initialState: LoadState = { kind: "loading" };
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { AppShell } from "./components/AppShell";
+import { ExplorePage } from "./pages/ExplorePage";
+import { HomePage } from "./pages/HomePage";
+import { PlaceholderPage } from "./pages/PlaceholderPage";
+import { StatusPage } from "./pages/StatusPage";
 
 export function App() {
-  const [state, setState] = useState<LoadState>(initialState);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    fetchEngineHealth()
-      .then((health) => {
-        if (!cancelled) {
-          setState({ kind: "ok", health });
-        }
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) {
-          const message = error instanceof Error ? error.message : "Unknown error";
-          setState({ kind: "error", message });
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   return (
-    <main className="shell">
-      <header>
-        <p className="eyebrow">NaijaLedger</p>
-        <h1>Civic accountability, source-backed</h1>
-        <p className="lede">
-          Preservation-first public finance and election verification for Nigeria.
-        </p>
-      </header>
-
-      <section className="panel" aria-live="polite">
-        <h2>Engine health</h2>
-        {state.kind === "loading" && <p>Checking API…</p>}
-        {state.kind === "error" && (
-          <p className="status error">
-            Engine unreachable: {state.message}. Run <code>make dev-engine</code> in another
-            terminal.
-          </p>
-        )}
-        {state.kind === "ok" && (
-          <dl className="health">
-            <div>
-              <dt>Status</dt>
-              <dd>{state.health.status}</dd>
-            </div>
-            <div>
-              <dt>Service</dt>
-              <dd>{state.health.service}</dd>
-            </div>
-            <div>
-              <dt>Version</dt>
-              <dd>{state.health.version}</dd>
-            </div>
-          </dl>
-        )}
-      </section>
-    </main>
+    <BrowserRouter>
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route index element={<HomePage />} />
+          <Route path="explore" element={<ExplorePage />} />
+          <Route
+            path="stories"
+            element={
+              <PlaceholderPage
+                title="Stories"
+                lede="Cited narrative investigations will land here after human review."
+                next="E10.2"
+              />
+            }
+          />
+          <Route
+            path="sources"
+            element={
+              <PlaceholderPage
+                title="Sources"
+                lede="Browse the public source registry and drill into archived documents."
+                next="E10.3 / E10.6"
+              />
+            }
+          />
+          <Route path="status" element={<StatusPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }

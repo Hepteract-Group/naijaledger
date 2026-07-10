@@ -1,7 +1,11 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
-import "./index.css";
+import "./styles/base.css";
+import "./styles/layout.css";
+import { applyTheme, resolveInitialTheme } from "./theme";
+
+applyTheme(resolveInitialTheme());
 
 const root = document.getElementById("root");
 if (!root) {
