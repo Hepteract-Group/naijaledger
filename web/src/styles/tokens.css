@@ -1,0 +1,57 @@
+/* Design tokens — African-inspired (forest green, adire indigo, cowrie gold) */
+
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f3f6f1;
+  --bg-elevated: #ffffff;
+  --ink: #14261c;
+  --ink-muted: #4a6354;
+  --accent: #0b6e4f;
+  --accent-hover: #095c42;
+  --gold: #b8892d;
+  --gold-soft: #e8d5a3;
+  --indigo: #243b6b;
+  --line: #c5d4c8;
+  --danger: #a33b2d;
+  --focus: #0b6e4f;
+  --hero-glow: rgba(11, 110, 79, 0.14);
+  --pattern: rgba(36, 59, 107, 0.06);
+  --shadow: 0 18px 50px rgba(20, 38, 28, 0.08);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0e1712;
+  --bg-elevated: #162019;
+  --ink: #e7f0e9;
+  --ink-muted: #9bb5a4;
+  --accent: #3fbf8a;
+  --accent-hover: #5fd4a2;
+  --gold: #e0c36a;
+  --gold-soft: #3d3420;
+  --indigo: #8fa4d4;
+  --line: #2a3d32;
+  --danger: #f07167;
+  --focus: #3fbf8a;
+  --hero-glow: rgba(63, 191, 138, 0.16);
+  --pattern: rgba(224, 195, 106, 0.05);
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+}
+
+:root {
+  --font-display: "Fraunces", "Iowan Old Style", "Palatino Linotype", serif;
+  --font-body: "Source Sans 3", "Source Sans Pro", "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4.5rem;
+  --radius: 0.35rem;
+  --max: 72rem;
+  --header-h: 4rem;
+}
