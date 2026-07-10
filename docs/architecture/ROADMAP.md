@@ -29,7 +29,8 @@ Legend: `[H]` = likely needs a human decision (`needs-human`), `[S]` = spec requ
 - E3.2 Fetch layer: `httpx` static fetcher + `fetch_records` writer (hash-before-parse).
 - E3.3 Scrapling integration for dynamic/brittle portals (adaptive, pause/resume).
 - E3.4 `documents` dedup by content hash + archive linkage.
-- E3.5 Scheduler wiring (cadence-driven, idempotent, resumable). `[H]` orchestrator choice.
+- E3.5 Scheduler wiring (cadence-driven, idempotent, resumable) — **decided:** Postgres `jobs` +
+  worker + cron/Make (`specs/0010-scheduler-jobs.md`). `#26`
 
 ## E4 — Extraction
 - E4.1 **Extraction contract** spec: dual-pass + Magika quarantine + Docling tables — `specs/0009`. `[S]` ✓

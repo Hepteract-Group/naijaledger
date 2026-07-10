@@ -252,7 +252,7 @@ to what, extracted by which method/version, verified by whom.* Stored as first-c
 | Graph | **Neo4j** (Community) | Relationship analysis. (ADR to confirm.) |
 | Object store | **MinIO** | Self-hosted WORM archive. |
 | Search | OpenSearch / Postgres FTS | Query + retrieval. |
-| Orchestration | (ADR) e.g. Prefect/Dagster or lightweight cron+queue | Scheduling idempotent pipelines. |
+| Orchestration | **Postgres `jobs` + worker + cron/Make** (v1) | Decided #26; Prefect/Dagster later if needed. |
 | API | FastAPI | Typed Python API. |
 | Frontend | **TypeScript + React (Vite)** | Rich viz; consistent with PeaDF conventions. |
 | Maps/Viz | MapLibre GL, deck.gl, ECharts, Sigma.js | Open, no lock-in, 3D-capable. |
@@ -309,8 +309,8 @@ Detailed epic/issue breakdown lives in `ROADMAP.md`. Summary:
 ---
 
 ## 11. Open questions (need human decision — flag with `needs-human`)
-1. Graph engine final choice (Neo4j vs Memgraph vs Postgres+AGE)?
-2. Orchestrator choice (Prefect vs Dagster vs minimal)?
+1. Graph engine final choice — **Memgraph** decided (see docker-compose / #14); confirm AGE not needed.
+2. Orchestrator choice — **minimal Postgres `jobs` + worker + cron/Make** decided (#26 / `specs/0010`).
 3. Repo/product name: keep **NaijaLedger**?
 4. Hosting/infra budget & provider for prod?
 5. Which state's procurement portal is the first end-to-end vertical slice?
