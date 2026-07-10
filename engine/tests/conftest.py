@@ -8,6 +8,9 @@ from sqlalchemy.engine import Connection, Engine
 
 from naijaledger.db.connection import create_db_engine, normalize_database_url
 
+# Keep suite traffic under the default limiter; dedicated tests enable it via create_app.
+os.environ.setdefault("API_RATE_LIMIT_ENABLED", "false")
+
 
 def _database_url() -> str | None:
     return os.environ.get("DATABASE_URL")
