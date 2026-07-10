@@ -163,9 +163,9 @@ Layered, deterministic-first (see `specs/0009-extraction-contract.md`):
   polling_unit_results, provenance edges, review/verification state.
 
 ### 4.8 Derived indexes (rebuildable from Postgres)
-- **Neo4j** (Community, self-hosted) — relationship graph: `(:Company)-[:OWNED_BY]->(:Person)`,
-  `(:Company)-[:WON]->(:Contract)-[:AWARDED_BY]->(:Agency)`, shared-address/director edges.
-  Consider Memgraph or Postgres+Apache AGE as alternatives (ADR to record the choice).
+- **Neo4j / Memgraph** (self-hosted) — relationship graph projection rebuildable from Postgres.
+  **v1 choice: Memgraph** (docker-compose; Cypher/Bolt). See `specs/0016-graph-projection.md`.
+  Example patterns: `(:Company)-[:SUPPLIED]->(:Contract)<-[:CONTRACTED]-(:Agency)`.
 - **Search** — OpenSearch or Postgres FTS.
 - **Vector** — pgvector/Qdrant for semantic search + agent retrieval.
 
