@@ -2,13 +2,14 @@ from pathlib import Path
 
 from sqlalchemy import text
 
+from naijaledger.finance.adapters import EKITI_URL, adapter_for_source
 from naijaledger.finance.html_portal import (
     ekiti_html_to_ocds_package,
     parse_naira_amount,
     parse_portal_date,
 )
+from naijaledger.finance.normalize_load import run_normalize_load_for_document
 from naijaledger.finance.ocds import normalize_ocds_document
-from naijaledger.finance.portal_load_cli import load_ekiti_html
 from naijaledger.seeds.catalog import SEED_ADDED_BY
 from naijaledger.sources.models import SourceCreate
 from naijaledger.sources.service import create_source
@@ -36,6 +37,13 @@ def test_ekiti_html_to_ocds_package_fixture() -> None:
     assert all(release.awards for release in releases)
 
 
+def test_adapter_for_ekiti_html() -> None:
+    adapter = adapter_for_source(source_url=EKITI_URL, document_format="html")
+    assert adapter is not None
+    assert adapter.adapter_id == "ekiti-html-table"
+    assert adapter_for_source(source_url="https://example.com/x", document_format="html") is None
+
+
 def test_load_ekiti_html_persists_parties_and_tenders(db_connection) -> None:
     source = create_source(
         db_connection,
@@ -44,7 +52,7 @@ def test_load_ekiti_html_persists_parties_and_tenders(db_connection) -> None:
             jurisdiction="state",
             region="Ekiti",
             category="procurement",
-            url="https://ocdsportal.azurewebsites.net/Home/Procurements",
+            url=EKITI_URL,
             fetch_method="scrapling",
             format="html",
             added_by=SEED_ADDED_BY,
@@ -79,7 +87,15 @@ def test_load_ekiti_html_persists_parties_and_tenders(db_connection) -> None:
     ).scalar_one()
 
     html = (_FIXTURES / "ekiti_procurements.html").read_bytes()
-    summary = load_ekiti_html(db_connection, html, document_id=document_id, max_rows=10)
+    summary = run_normalize_load_for_document(
+        db_connection,
+        document_id,
+        minio_client=object(),  # unused when data_override set
+        bucket="unused",
+        max_rows=10,
+        data_override=html,
+    )
+    assert summary["skipped"] is False
     assert summary["release_count"] == 2
     assert summary["tenders_upserted"] == 2
     assert summary["parties_upserted"] >= 2
@@ -89,7 +105,13 @@ def test_load_ekiti_html_persists_parties_and_tenders(db_connection) -> None:
     assert tender_count >= 2
     assert party_count >= 2
 
-    # Idempotent re-load
-    second = load_ekiti_html(db_connection, html, document_id=document_id, max_rows=10)
+    second = run_normalize_load_for_document(
+        db_connection,
+        document_id,
+        minio_client=object(),
+        bucket="unused",
+        max_rows=10,
+        data_override=html,
+    )
     assert second["release_count"] == 2
     assert db_connection.execute(text("SELECT count(*) FROM tenders")).scalar_one() == tender_count

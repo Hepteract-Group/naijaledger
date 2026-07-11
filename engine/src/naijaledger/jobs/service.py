@@ -62,6 +62,56 @@ def fetch_source_idempotency_key(source: SourceRecord, *, now: datetime) -> str:
     return f"fetch_source:{source.id}:{due_bucket_for_source(source, now=now)}"
 
 
+def normalize_load_idempotency_key(
+    *,
+    document_id: UUID,
+    adapter_id: str,
+    method_version: str,
+) -> str:
+    return f"normalize_load:{document_id}:{adapter_id}:{method_version}"
+
+
+def enqueue_normalize_load_job(
+    connection: Connection,
+    *,
+    document_id: UUID,
+    adapter_id: str,
+    method_version: str,
+    max_attempts: int = DEFAULT_MAX_ATTEMPTS,
+    now: datetime | None = None,
+) -> Job | None:
+    """Insert normalize_load job; returns None if idempotency key already exists."""
+    when = now or _now_utc()
+    key = normalize_load_idempotency_key(
+        document_id=document_id,
+        adapter_id=adapter_id,
+        method_version=method_version,
+    )
+    row = connection.execute(
+        text(
+            f"""
+            INSERT INTO jobs (
+                kind, subject_id, status, idempotency_key, run_after, max_attempts
+            ) VALUES (
+                'normalize_load', :subject_id, 'queued', :idempotency_key,
+                :run_after, :max_attempts
+            )
+            ON CONFLICT (idempotency_key) DO NOTHING
+            RETURNING {_JOB_COLUMNS}
+            """
+        ),
+        {
+            "subject_id": document_id,
+            "idempotency_key": key,
+            "run_after": when,
+            "max_attempts": max_attempts,
+        },
+    ).first()
+    if row is None:
+        return None
+    return _row_to_job(row)
+
+
 def is_source_due(source: SourceRecord, *, now: datetime) -> bool:
     if source.status != "approved":
         return False

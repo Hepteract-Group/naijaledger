@@ -28,7 +28,7 @@ Postgres job queue + worker process + host cron invoking Make/CLI.
 - **Out of scope**
   - Prefect / Dagster / Make.com / cloud workflow SaaS.
   - Extract / normalize job kinds (follow-up once E5 needs scheduled extract; schema allows
-    `kind` extension).
+    `kind` extension). → **Done** for `normalize_load` — see `specs/0033-normalize-load-jobs.md`.
   - Distributed multi-region workers beyond a single-process worker + Postgres locking.
   - Changing `expected_cadence` seed values (already on `sources`).
 
@@ -95,7 +95,8 @@ due again.
 
 | `kind` | `subject_id` | Action |
 |--------|--------------|--------|
-| `fetch_source` | `sources.id` | Run the same fetch path as today’s CLI for **that one** source (http / scrapling / playwright + catalog children as already implemented). |
+| `fetch_source` | `sources.id` | Run the same fetch path as today’s CLI for **that one** source (http / scrapling / playwright + catalog children as already implemented). On success, enqueue `normalize_load` when an adapter matches. |
+| `normalize_load` | `documents.id` | Adapter → OCDS package → extraction + finance upsert (`specs/0033`). |
 
 Do **not** reimplement fetch; call into existing `static_fetch_source` /
 `scrapling_fetch_source` / `playwright_fetch_source` (or a thin `fetch_source_by_id` wrapper).

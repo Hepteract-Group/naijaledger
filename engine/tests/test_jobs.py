@@ -170,7 +170,7 @@ def test_work_once_with_mock_fetch(db_connection) -> None:
             ok=True,
             archive_key="sha256/abc",
             content_hash="abc",
-            document_id=uuid4(),
+            document_id=None,
         )
 
     minio = MagicMock()
@@ -211,3 +211,155 @@ def test_process_claimed_job_records_failure(db_connection) -> None:
     assert finished.attempts == 1
     assert finished.last_error is not None
     assert "network down" in finished.last_error
+
+
+def test_fetch_success_enqueues_normalize_load_for_ekiti(db_connection) -> None:
+    from naijaledger.finance.adapters import EKITI_URL
+
+    now = datetime(2026, 7, 11, 12, 0, tzinfo=UTC)
+    source = create_source(
+        db_connection,
+        SourceCreate(
+            name="Ekiti Jobs",
+            jurisdiction="state",
+            region="Ekiti",
+            category="procurement",
+            url=EKITI_URL,
+            fetch_method="scrapling",
+            format="html",
+            expected_cadence=timedelta(days=7),
+            added_by=SEED_ADDED_BY,
+        ),
+    )
+    approve_source(db_connection, source.id, approved_by="test")
+    enqueue_due_fetch_jobs(db_connection, now=now)
+
+    fetch_row_id = db_connection.execute(
+        text(
+            """
+            INSERT INTO fetch_records (
+                source_id, url, requested_at, status_code, ok, sha256, archive_key
+            ) VALUES (
+                :source_id, :url, now(), 200, true, 'ekiti-job-hash', 'sha256/ekiti-job-hash'
+            )
+            RETURNING id
+            """
+        ),
+        {"source_id": source.id, "url": source.url},
+    ).scalar_one()
+    doc_id = db_connection.execute(
+        text(
+            """
+            INSERT INTO documents (
+                source_id, first_fetch_id, sha256, format, archive_key, title
+            ) VALUES (
+                :source_id, :fetch_id, 'ekiti-job-hash', 'html',
+                'sha256/ekiti-job-hash', 'Ekiti'
+            )
+            RETURNING id
+            """
+        ),
+        {"source_id": source.id, "fetch_id": fetch_row_id},
+    ).scalar_one()
+
+    def fake_fetch(_connection, _source, **_kwargs) -> FetchCaptureResult:
+        return FetchCaptureResult(
+            fetch_record_id=fetch_row_id,
+            ok=True,
+            archive_key="sha256/ekiti-job-hash",
+            content_hash="ekiti-job-hash",
+            document_id=doc_id,
+        )
+
+    job_id = work_once(
+        db_connection,
+        worker_id="worker-ekiti",
+        minio_client=MagicMock(),
+        bucket="test",
+        fetch_fn=fake_fetch,
+    )
+    assert job_id is not None
+    fetch_job = get_job(db_connection, job_id)
+    assert fetch_job is not None
+    assert fetch_job.result is not None
+    assert fetch_job.result["normalize_load_job_id"] is not None
+
+    normalize_job = claim_next_job(db_connection, worker_id="worker-norm")
+    assert normalize_job is not None
+    assert normalize_job.kind == "normalize_load"
+    assert normalize_job.subject_id == doc_id
+
+
+def test_normalize_load_job_loads_fixture(db_connection) -> None:
+    from pathlib import Path
+
+    from naijaledger.finance.adapters import EKITI_URL
+    from naijaledger.jobs.service import enqueue_normalize_load_job
+
+    source = create_source(
+        db_connection,
+        SourceCreate(
+            name="Ekiti Normalize",
+            jurisdiction="state",
+            region="Ekiti",
+            category="procurement",
+            url=EKITI_URL,
+            fetch_method="scrapling",
+            format="html",
+            added_by=SEED_ADDED_BY,
+        ),
+    )
+    fetch_row = db_connection.execute(
+        text(
+            """
+            INSERT INTO fetch_records (
+                source_id, url, requested_at, status_code, ok, sha256, archive_key
+            ) VALUES (
+                :source_id, :url, now(), 200, true, 'ekiti-nl', 'sha256/ekiti-nl'
+            )
+            RETURNING id
+            """
+        ),
+        {"source_id": source.id, "url": source.url},
+    ).scalar_one()
+    doc_id = db_connection.execute(
+        text(
+            """
+            INSERT INTO documents (
+                source_id, first_fetch_id, sha256, format, archive_key, title
+            ) VALUES (
+                :source_id, :fetch_id, 'ekiti-nl', 'html', 'sha256/ekiti-nl', 'Ekiti'
+            )
+            RETURNING id
+            """
+        ),
+        {"source_id": source.id, "fetch_id": fetch_row},
+    ).scalar_one()
+
+    job = enqueue_normalize_load_job(
+        db_connection,
+        document_id=doc_id,
+        adapter_id="ekiti-html-table",
+        method_version="ekiti-html-table-1",
+    )
+    assert job is not None
+    claimed = claim_next_job(db_connection, worker_id="nl-worker")
+    assert claimed is not None
+
+    html = (Path(__file__).parent / "fixtures" / "ekiti_procurements.html").read_bytes()
+    minio = MagicMock()
+    response = MagicMock()
+    response.read.return_value = html
+    minio.get_object.return_value = response
+
+    finished = process_claimed_job(
+        db_connection,
+        claimed,
+        minio_client=minio,
+        bucket="test",
+    )
+    assert finished.status == "succeeded"
+    assert finished.result is not None
+    assert finished.result["skipped"] is False
+    assert finished.result["release_count"] == 2
+    assert db_connection.execute(text("SELECT count(*) FROM tenders")).scalar_one() >= 2

@@ -1,4 +1,4 @@
-"""Load Ekiti-style portal HTML into canonical finance tables (vertical slice)."""
+"""Ops wrapper: fetch Ekiti (optional) then normalize_load via shared pipeline."""
 
 from __future__ import annotations
 
@@ -11,26 +11,19 @@ from uuid import UUID
 from sqlalchemy import text
 from sqlalchemy.engine import Connection, Engine
 
-from naijaledger.archive.storage import create_minio_client, fetch_raw_bytes
+from naijaledger.archive.storage import create_minio_client
 from naijaledger.config import load_settings
 from naijaledger.db.connection import create_db_engine
 from naijaledger.documents.models import Document
 from naijaledger.documents.service import get_document
-from naijaledger.extractions.models import ExtractionCreate
-from naijaledger.extractions.service import create_extraction
 from naijaledger.fetch.scrapling_fetch import scrapling_fetch_source
-from naijaledger.finance.html_portal import ekiti_html_to_ocds_package
-from naijaledger.finance.ocds import normalize_ocds_document
-from naijaledger.finance.ocds_load import load_normalized_release
-from naijaledger.finance.ocds_models import ProvenanceContext
+from naijaledger.finance.adapters import EKITI_URL
+from naijaledger.finance.normalize_load import run_normalize_load_for_document
 from naijaledger.http.client import create_http_client
 from naijaledger.sources.models import SourceRecord
 from naijaledger.sources.service import list_sources
 
 logger = logging.getLogger("naijaledger.finance.portal_load")
-
-EKITI_URL = "https://ocdsportal.azurewebsites.net/Home/Procurements"
-METHOD_VERSION = "ekiti-html-table-1"
 
 
 def _latest_html_document(connection: Connection, source_id: UUID) -> Document | None:
@@ -59,54 +52,6 @@ def find_ekiti_source(connection: Connection) -> SourceRecord:
     raise RuntimeError(msg)
 
 
-def load_ekiti_html(
-    connection: Connection,
-    html: bytes,
-    *,
-    document_id: UUID,
-    max_rows: int | None = 100,
-) -> dict[str, Any]:
-    package = ekiti_html_to_ocds_package(html, max_rows=max_rows)
-    extraction = create_extraction(
-        connection,
-        ExtractionCreate(
-            document_id=document_id,
-            method="json",
-            method_version=METHOD_VERSION,
-            derivation="extracted",
-            confidence=1.0,
-            ok=True,
-            payload=package,
-            content_type="text/html",
-            content_type_conf=1.0,
-            status="parsed",
-        ),
-    )
-    provenance = ProvenanceContext(
-        document_id=document_id,
-        extraction_id=extraction.id,
-        method="json",
-        derivation="extracted",
-        confidence=1.0,
-    )
-    releases = normalize_ocds_document(package)
-    tenders = 0
-    parties = 0
-    awards = 0
-    for release in releases:
-        result = load_normalized_release(connection, release, provenance=provenance)
-        tenders += result.tenders_upserted
-        parties += result.parties_upserted
-        awards += len(result.award_ids)
-    return {
-        "extraction_id": str(extraction.id),
-        "release_count": len(releases),
-        "tenders_upserted": tenders,
-        "parties_upserted": parties,
-        "awards_upserted": awards,
-    }
-
-
 def run_ekiti_vertical_slice(
     engine: Engine,
     *,
@@ -114,6 +59,7 @@ def run_ekiti_vertical_slice(
     max_rows: int = 100,
     html_path: Path | None = None,
 ) -> dict[str, Any]:
+    """Thin ops path — prefer jobs worker in production."""
     settings = load_settings()
     with engine.begin() as connection:
         source = find_ekiti_source(connection)
@@ -141,25 +87,23 @@ def run_ekiti_vertical_slice(
             msg = "no HTML document archived for Ekiti source"
             raise RuntimeError(msg)
 
-        if html_path is not None:
-            html = html_path.read_bytes()
-        else:
-            minio = create_minio_client(settings)
-            html = fetch_raw_bytes(minio, settings.minio_bucket, document.archive_key)
-
-        summary = load_ekiti_html(
+        minio = create_minio_client(settings)
+        summary = run_normalize_load_for_document(
             connection,
-            html,
-            document_id=document.id,
+            document.id,
+            minio_client=minio,
+            bucket=settings.minio_bucket,
+            settings=settings,
             max_rows=max_rows,
+            data_override=html_path.read_bytes() if html_path is not None else None,
         )
-        summary["source_id"] = str(source.id)
-        summary["document_id"] = str(document.id)
         return summary
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Load Ekiti portal HTML into finance tables")
+    parser = argparse.ArgumentParser(
+        description="Ops wrapper: Ekiti fetch + normalize_load (prefer naijaledger-jobs)",
+    )
     parser.add_argument("--max-rows", type=int, default=100, help="Cap releases loaded")
     parser.add_argument(
         "--no-fetch",
@@ -184,7 +128,7 @@ def run(argv: list[str] | None = None) -> None:
         max_rows=args.max_rows,
         html_path=args.html_path,
     )
-    logger.info("Ekiti vertical slice complete: %s", summary)
+    logger.info("Ekiti portal-load wrapper complete: %s", summary)
     print(summary)
 
 
