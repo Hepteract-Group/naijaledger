@@ -10,15 +10,10 @@ _DEFAULT_LIMIT = 80
 _MAX_LIMIT = 200
 
 _SEED_LABEL_FILTER = (
-    "seed:Agency OR seed:Company OR seed:Person OR seed:Tender "
-    "OR seed:Award OR seed:Contract"
+    "seed:Agency OR seed:Company OR seed:Person OR seed:Tender OR seed:Award OR seed:Contract"
 )
-_NODE_LABEL_FILTER = (
-    "n:Agency OR n:Company OR n:Person OR n:Tender OR n:Award OR n:Contract"
-)
-_NEIGHBOR_LABEL_FILTER = (
-    "m:Agency OR m:Company OR m:Person OR m:Tender OR m:Award OR m:Contract"
-)
+_NODE_LABEL_FILTER = "n:Agency OR n:Company OR n:Person OR n:Tender OR n:Award OR n:Contract"
+_NEIGHBOR_LABEL_FILTER = "m:Agency OR m:Company OR m:Person OR m:Tender OR m:Award OR m:Contract"
 
 
 class BoltDriver(Protocol):
