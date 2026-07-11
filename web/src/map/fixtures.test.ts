@@ -23,8 +23,11 @@ describe("map fixtures", () => {
     if (!lagos) {
       return;
     }
-    expect(elevationForMetric(lagos, "contract_volume")).toBe(lagos.contract_volume * 1200);
-    expect(elevationForMetric(lagos, "anomaly_density")).toBe(lagos.anomaly_density * 80000);
+    const max = maxMetric(listStateMetrics(), "contract_volume");
+    expect(elevationForMetric(lagos, "contract_volume", max)).toBe(60_000);
+    expect(elevationForMetric(lagos, "anomaly_density", 1)).toBeCloseTo(
+      lagos.anomaly_density * 80_000,
+    );
     expect(maxMetric(listStateMetrics(), "contract_volume")).toBeGreaterThan(0);
   });
 

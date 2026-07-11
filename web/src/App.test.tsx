@@ -247,10 +247,11 @@ describe("App routes", () => {
 
   it("opens the demo map page from nav", async () => {
     stubMatchMedia(false);
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
     render(<App />);
     fireEvent.click(screen.getByRole("link", { name: "Map" }));
     expect(await screen.findByRole("heading", { name: "Map" })).toBeTruthy();
-    expect(screen.getByText(/illustrative demo — not live totals/i)).toBeTruthy();
+    expect(await screen.findByText(/illustrative demo — not live totals/i)).toBeTruthy();
     expect(screen.getByTestId("nigeria-map")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Contract volume" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Anomaly density" })).toBeTruthy();
@@ -259,13 +260,51 @@ describe("App routes", () => {
 
   it("focuses the map from the state facet URL", async () => {
     stubMatchMedia(false);
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
     window.history.pushState({}, "", "/map?state=BY");
     render(<App />);
     expect(await screen.findByRole("heading", { name: "Map" })).toBeTruthy();
+    expect(await screen.findByText(/illustrative demo — not live totals/i)).toBeTruthy();
     const canvas = screen.getByTestId("nigeria-map");
     expect(canvas.getAttribute("data-focus-id")).toBe("BY");
     expect(canvas.getAttribute("data-selected-id")).toBe("BY");
     expect(screen.getByDisplayValue("Bayelsa")).toBeTruthy();
-    expect(screen.getByText(/1 jurisdictions|1 jurisdiction/i)).toBeTruthy();
+  });
+
+  it("uses live map aggregates when the API responds", async () => {
+    stubMatchMedia(false);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (input: RequestInfo) => {
+        const url = String(input);
+        if (url.includes("/v1/map/states")) {
+          return {
+            ok: true,
+            json: async () => ({
+              items: [
+                {
+                  id: "LA",
+                  name: "Lagos",
+                  lat: 6.5,
+                  lng: 3.3,
+                  contract_volume: 100000,
+                  tender_count: 2,
+                  open_flag_count: 1,
+                  anomaly_density: 0.5,
+                },
+              ],
+              limit: 1,
+              offset: 0,
+              count: 1,
+            }),
+          };
+        }
+        return { ok: true, json: async () => ({ items: [], limit: 50, offset: 0, count: 0 }) };
+      }),
+    );
+    render(<App />);
+    fireEvent.click(screen.getByRole("link", { name: "Map" }));
+    expect(await screen.findByText(/live from public api/i)).toBeTruthy();
+    expect(screen.getByTestId("nigeria-map").getAttribute("data-focus-id")).toBe("");
   });
 });

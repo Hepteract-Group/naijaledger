@@ -9,6 +9,9 @@ export type StateMetric = {
   lng: number;
   contract_volume: number;
   anomaly_density: number;
+  tender_count?: number;
+  open_flag_count?: number;
+  source?: "live" | "demo";
 };
 
 /** Approximate centroids — illustrative only, not survey-grade. */
@@ -130,14 +133,13 @@ export const STATE_METRICS: StateMetric[] = [
 ];
 
 export function listStateMetrics(): StateMetric[] {
-  return STATE_METRICS;
+  return STATE_METRICS.map((row) => ({ ...row, source: "demo" as const }));
 }
 
-export function elevationForMetric(row: StateMetric, metric: MapMetric): number {
-  if (metric === "contract_volume") {
-    return row.contract_volume * 1200;
-  }
-  return row.anomaly_density * 80000;
+/** Height scaled to national max so demo ints and live kobo both fit the stage. */
+export function elevationForMetric(row: StateMetric, metric: MapMetric, ceiling: number): number {
+  const maxHeight = metric === "contract_volume" ? 60_000 : 80_000;
+  return metricIntensity(row, metric, ceiling) * maxHeight;
 }
 
 export function maxMetric(rows: readonly StateMetric[], metric: MapMetric): number {
@@ -150,6 +152,10 @@ export function metricLabel(metric: MapMetric): string {
 
 export function formatMetricValue(row: StateMetric, metric: MapMetric): string {
   if (metric === "contract_volume") {
+    if (row.source === "live") {
+      const naira = row.contract_volume / 100;
+      return `₦${naira.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+    }
     return String(row.contract_volume);
   }
   return row.anomaly_density.toFixed(2);

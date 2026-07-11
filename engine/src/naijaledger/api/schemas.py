@@ -75,6 +75,19 @@ class PublicFacets(BaseModel):
     lgas: list[str]
 
 
+class PublicMapState(BaseModel):
+    """Per-state map aggregates (spec 0035). contract_volume is tender value sum in kobo."""
+
+    id: str
+    name: str
+    lat: float
+    lng: float
+    contract_volume: int
+    tender_count: int
+    open_flag_count: int
+    anomaly_density: float
+
+
 class PublicAward(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

@@ -16,6 +16,7 @@ from naijaledger.api.schemas import (
     PublicAward,
     PublicContract,
     PublicFlag,
+    PublicMapState,
     PublicParty,
     PublicSource,
     PublicTender,
@@ -360,6 +361,81 @@ def list_public_facets(connection: Connection) -> dict[str, Any]:
     ]
     states = [{"code": code, "name": STATE_CODE_TO_NAME[code]} for code in ordered]
     return {"states": states, "years": years, "lgas": lgas}
+
+
+def list_public_map_states(
+    connection: Connection,
+    *,
+    year: int | None = None,
+) -> list[PublicMapState]:
+    """Centroid rows for all known states with tender/flag aggregates (spec 0035)."""
+    from naijaledger.finance.centroids import STATE_CENTROIDS
+    from naijaledger.finance.geo import list_known_state_codes
+
+    year_clause = ""
+    params: dict[str, Any] = {}
+    if year is not None:
+        year_clause = " AND fiscal_year = :year"
+        params["year"] = year
+
+    tender_rows = connection.execute(
+        text(
+            f"""
+            SELECT state_code,
+                   COALESCE(SUM(value_amount), 0) AS contract_volume,
+                   COUNT(*) AS tender_count
+            FROM tenders
+            WHERE state_code IS NOT NULL{year_clause}
+            GROUP BY state_code
+            """
+        ),
+        params,
+    ).all()
+    by_code: dict[str, tuple[int, int]] = {
+        str(row.state_code): (int(row.contract_volume), int(row.tender_count))
+        for row in tender_rows
+    }
+
+    flag_params: dict[str, Any] = {}
+    flag_year = ""
+    if year is not None:
+        flag_year = " AND t.fiscal_year = :year"
+        flag_params["year"] = year
+    flag_rows = connection.execute(
+        text(
+            f"""
+            SELECT t.state_code, COUNT(*) AS open_flag_count
+            FROM flags f
+            JOIN tenders t ON t.id = f.subject_id
+            WHERE f.status = 'open'
+              AND f.subject_type = 'tender'
+              AND t.state_code IS NOT NULL{flag_year}
+            GROUP BY t.state_code
+            """
+        ),
+        flag_params,
+    ).all()
+    flags_by_code = {str(row.state_code): int(row.open_flag_count) for row in flag_rows}
+
+    states: list[PublicMapState] = []
+    for code in list_known_state_codes():
+        name, lat, lng = STATE_CENTROIDS[code]
+        volume, tender_count = by_code.get(code, (0, 0))
+        open_flags = flags_by_code.get(code, 0)
+        density = (open_flags / tender_count) if tender_count > 0 else 0.0
+        states.append(
+            PublicMapState(
+                id=code,
+                name=name,
+                lat=lat,
+                lng=lng,
+                contract_volume=volume,
+                tender_count=tender_count,
+                open_flag_count=open_flags,
+                anomaly_density=round(density, 4),
+            )
+        )
+    return states
 
 
 def get_public_tender(connection: Connection, tender_id: UUID) -> PublicTender:
