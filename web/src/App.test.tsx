@@ -314,6 +314,12 @@ describe("App routes", () => {
       "fetch",
       vi.fn().mockImplementation(async (input: RequestInfo) => {
         const url = String(input);
+        if (url.includes("/v1/facets")) {
+          return {
+            ok: true,
+            json: async () => ({ states: [], years: [2025, 2026], lgas: [] }),
+          };
+        }
         if (url.includes("/v1/map/states")) {
           return {
             ok: true,
@@ -339,9 +345,11 @@ describe("App routes", () => {
         return { ok: true, json: async () => ({ items: [], limit: 50, offset: 0, count: 0 }) };
       }),
     );
+    window.history.pushState({}, "", "/map?year=2026");
     render(<App />);
-    fireEvent.click(screen.getByRole("link", { name: "Map" }));
     expect(await screen.findByText(/live from public api/i)).toBeTruthy();
+    expect(screen.getByText(/fiscal year 2026/i)).toBeTruthy();
+    expect(screen.getByDisplayValue("2026")).toBeTruthy();
     expect(screen.getByTestId("nigeria-map").getAttribute("data-focus-id")).toBe("");
   });
 });

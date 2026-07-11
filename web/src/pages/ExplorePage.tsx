@@ -7,7 +7,7 @@ import { fetchTenders, type PublicTender } from "../api/tenders";
 import { CitedSource } from "../components/CitedSource";
 import { DistributionChart } from "../components/DistributionChart";
 import { FacetBar } from "../components/FacetBar";
-import { geoYearFacetPatch, parseGeoYearFacets } from "../explore/facets";
+import { geoYearFacetPatch, parseFacetYear, parseGeoYearFacets } from "../explore/facets";
 import {
   countBy,
   filterByText,
@@ -61,7 +61,7 @@ export function ExplorePage() {
 
   useEffect(() => {
     let cancelled = false;
-    void fetchFacets()
+    void fetchFacets(facetState ? { state: facetState } : {})
       .then((data) => {
         if (!cancelled && Array.isArray(data.states)) {
           setFacets(data);
@@ -73,7 +73,7 @@ export function ExplorePage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [facetState]);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,12 +95,12 @@ export function ExplorePage() {
           return;
         }
         if (resource === "tenders") {
-          const yearNum = facetYear ? Number(facetYear) : undefined;
+          const yearNum = parseFacetYear(facetYear);
           const page = await fetchTenders({
             limit: 50,
             state: facetState || undefined,
             lga: facetLga || undefined,
-            year: Number.isFinite(yearNum) ? yearNum : undefined,
+            year: yearNum,
           });
           if (!cancelled) {
             setState({ kind: "ok", parties: [], tenders: page.items, flags: [] });
@@ -260,7 +260,13 @@ export function ExplorePage() {
             states={facets.states}
             years={facets.years}
             lgas={facets.lgas}
-            onChange={(patch) => patchParams(geoYearFacetPatch(patch))}
+            onChange={(patch) => {
+              const next = { ...patch };
+              if (patch.state !== undefined && patch.state !== facetState) {
+                next.lga = "";
+              }
+              patchParams(geoYearFacetPatch(next));
+            }}
           />
         ) : null}
         {resource === "parties" ? (

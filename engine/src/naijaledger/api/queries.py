@@ -315,8 +315,14 @@ def list_public_tenders(
     return [_row_to_tender(row) for row in rows]
 
 
-def list_public_facets(connection: Connection) -> dict[str, Any]:
+def list_public_facets(
+    connection: Connection,
+    *,
+    state: str | None = None,
+) -> dict[str, Any]:
     from naijaledger.finance.geo import STATE_CODE_TO_NAME, list_known_state_codes
+
+    state_code = state.strip().upper() if state and state.strip() else None
 
     used_states = {
         row[0]
@@ -342,19 +348,16 @@ def list_public_facets(connection: Connection) -> dict[str, Any]:
             )
         ).all()
     ]
-    lgas = [
-        str(row[0])
-        for row in connection.execute(
-            text(
-                """
-                SELECT DISTINCT lga FROM tenders
-                WHERE lga IS NOT NULL
-                ORDER BY lga
-                LIMIT 200
-                """
-            )
-        ).all()
-    ]
+    lga_sql = """
+        SELECT DISTINCT lga FROM tenders
+        WHERE lga IS NOT NULL
+    """
+    lga_params: dict[str, Any] = {}
+    if state_code is not None:
+        lga_sql += " AND state_code = :state"
+        lga_params["state"] = state_code
+    lga_sql += " ORDER BY lga LIMIT 200"
+    lgas = [str(row[0]) for row in connection.execute(text(lga_sql), lga_params).all()]
     # Prefer known list; put states that appear in data first.
     ordered = [code for code in list_known_state_codes() if code in used_states] + [
         code for code in list_known_state_codes() if code not in used_states

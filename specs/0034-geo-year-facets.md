@@ -63,7 +63,9 @@ ALTER TABLE tenders ADD fiscal_year integer NULL;
 - [x] Ekiti adapter populates state_code/lga/fiscal_year on load.
 - [x] `/v1/tenders` filters by state, lga, year; `/v1/sources` by state (region).
 - [x] `/v1/facets` returns states + years (+ lgas when present).
+- [x] Optional `?state=` scopes `lgas` to that `state_code` (#158).
 - [x] Explore tenders + Sources use FacetBar; Map filters ranking by state; URL round-trips.
+- [x] Map year facet refetches live aggregates (complete 4-digit years only).
 - [x] Tests cover API filters + Ekiti year/location parse.
 
 ## 6. Risks

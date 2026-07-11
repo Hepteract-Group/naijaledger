@@ -25,3 +25,16 @@ export function geoYearFacetPatch(facets: Partial<GeoYearFacets>): Record<string
   }
   return out;
 }
+
+/** Parse a fiscal year for API calls; ignore partial/invalid typing. */
+export function parseFacetYear(raw: string): number | undefined {
+  const trimmed = raw.trim();
+  if (!/^\d{4}$/.test(trimmed)) {
+    return undefined;
+  }
+  const year = Number(trimmed);
+  if (!Number.isFinite(year) || year < 1900 || year > 2100) {
+    return undefined;
+  }
+  return year;
+}
