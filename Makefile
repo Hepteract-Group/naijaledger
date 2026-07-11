@@ -1,4 +1,4 @@
-.PHONY: install install-engine install-web lint typecheck test format dev-engine dev-web generate-api docker-up docker-down docker-ps docker-config migrate seed-sources health-monitor archive-init fetch-sources jobs-enqueue jobs-work
+.PHONY: install install-engine install-web lint typecheck test format dev-engine dev-web generate-api docker-up docker-down docker-ps docker-config migrate seed-sources health-monitor archive-init fetch-sources jobs-enqueue jobs-work portal-load-ekiti
 
 DATABASE_URL ?= postgresql+psycopg://naijaledger:naijaledger@localhost:5432/naijaledger
 export DATABASE_URL
@@ -86,3 +86,7 @@ jobs-enqueue: migrate
 
 jobs-work: archive-init
 	cd engine && uv run naijaledger-jobs work --once
+
+# Vertical slice: seed → fetch Ekiti HTML → OCDS-ish normalize → parties/tenders.
+portal-load-ekiti: seed-sources archive-init
+	cd engine && uv run naijaledger-portal-load --max-rows $${MAX_ROWS:-100}
