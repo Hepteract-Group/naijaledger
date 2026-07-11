@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { fetchFacets, type PublicFacets } from "../api/facets";
 import { fetchFlags, type PublicFlag } from "../api/flags";
 import { fetchParties, type PublicParty } from "../api/parties";
 import { fetchTenders, type PublicTender } from "../api/tenders";
 import { CitedSource } from "../components/CitedSource";
 import { DistributionChart } from "../components/DistributionChart";
+import { FacetBar } from "../components/FacetBar";
+import { geoYearFacetPatch, parseGeoYearFacets } from "../explore/facets";
 import {
   countBy,
   filterByText,
@@ -45,13 +48,32 @@ export function ExplorePage() {
   const partyType = params.get("party_type") ?? "";
   const sortKey = params.get("sort") ?? "name";
   const sortDir = (params.get("dir") === "desc" ? "desc" : "asc") as SortDir;
+  const { state: facetState, lga: facetLga, year: facetYear } = parseGeoYearFacets(params);
 
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  const [facets, setFacets] = useState<PublicFacets>({ states: [], years: [], lgas: [] });
   const [selected, setSelected] = useState<string[]>([]);
   const [detail, setDetail] = useState<Detail | null>(null);
 
-  // Parties: server filter on type/q. Tenders/flags: refetch only when resource changes.
+  // Parties: server filter on type/q. Tenders: also facets.
   const partyQuery = resource === "parties" ? `${partyType}|${q}` : "";
+  const tenderQuery = resource === "tenders" ? `${facetState}|${facetLga}|${facetYear}` : "";
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchFacets()
+      .then((data) => {
+        if (!cancelled && Array.isArray(data.states)) {
+          setFacets(data);
+        }
+      })
+      .catch(() => {
+        /* facets are optional chrome */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,7 +95,13 @@ export function ExplorePage() {
           return;
         }
         if (resource === "tenders") {
-          const page = await fetchTenders(50);
+          const yearNum = facetYear ? Number(facetYear) : undefined;
+          const page = await fetchTenders({
+            limit: 50,
+            state: facetState || undefined,
+            lga: facetLga || undefined,
+            year: Number.isFinite(yearNum) ? yearNum : undefined,
+          });
           if (!cancelled) {
             setState({ kind: "ok", parties: [], tenders: page.items, flags: [] });
           }
@@ -95,8 +123,7 @@ export function ExplorePage() {
     return () => {
       cancelled = true;
     };
-    // partyQuery encodes partyType+q only while resource === "parties"
-  }, [resource, partyQuery, partyType, q]);
+  }, [resource, partyQuery, partyType, q, tenderQuery, facetState, facetLga, facetYear]);
 
   const patchParams = (patch: Record<string, string | null>) => {
     const next = new URLSearchParams(params);
@@ -209,6 +236,7 @@ export function ExplorePage() {
                 q: null,
                 sort: "name",
                 dir: "asc",
+                ...(id === "tenders" ? {} : { state: null, lga: null, year: null }),
               })
             }
           >
@@ -224,6 +252,17 @@ export function ExplorePage() {
       ) : null}
 
       <div className="explore-controls">
+        {resource === "tenders" ? (
+          <FacetBar
+            state={facetState}
+            lga={facetLga}
+            year={facetYear}
+            states={facets.states}
+            years={facets.years}
+            lgas={facets.lgas}
+            onChange={(patch) => patchParams(geoYearFacetPatch(patch))}
+          />
+        ) : null}
         {resource === "parties" ? (
           <label className="explore-field">
             <span>Type</span>
@@ -301,7 +340,8 @@ export function ExplorePage() {
                       {resource === "tenders" ? (
                         <>
                           <th scope="col">Title</th>
-                          <th scope="col">Method</th>
+                          <th scope="col">Place</th>
+                          <th scope="col">Year</th>
                           <th scope="col">Value</th>
                         </>
                       ) : null}
@@ -376,7 +416,8 @@ export function ExplorePage() {
                               {row.title}
                             </button>
                           </td>
-                          <td>{row.method ?? "—"}</td>
+                          <td>{[row.state_code, row.lga].filter(Boolean).join(" · ") || "—"}</td>
+                          <td>{row.fiscal_year ?? "—"}</td>
                           <td>{formatAmount(row.value_amount, row.currency)}</td>
                         </tr>
                       ))}
@@ -493,6 +534,16 @@ export function ExplorePage() {
                     <div>
                       <dt>Value</dt>
                       <dd>{formatAmount(detail.row.value_amount, detail.row.currency)}</dd>
+                    </div>
+                    <div>
+                      <dt>State / LGA</dt>
+                      <dd>
+                        {[detail.row.state_code, detail.row.lga].filter(Boolean).join(" · ") || "—"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Year</dt>
+                      <dd>{detail.row.fiscal_year ?? "—"}</dd>
                     </div>
                     <div>
                       <dt>Agency</dt>

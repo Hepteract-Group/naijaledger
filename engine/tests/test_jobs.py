@@ -340,7 +340,7 @@ def test_normalize_load_job_loads_fixture(db_connection) -> None:
         db_connection,
         document_id=doc_id,
         adapter_id="ekiti-html-table",
-        method_version="ekiti-html-table-1",
+        method_version="ekiti-html-table-2",
     )
     assert job is not None
     claimed = claim_next_job(db_connection, worker_id="nl-worker")

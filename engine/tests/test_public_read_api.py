@@ -258,6 +258,47 @@ def test_tenders_awards_contracts(
     assert api_client.get(f"/v1/contracts/{uuid4()}").status_code == 404
 
 
+def test_tender_geo_year_filters_and_facets(
+    api_client: TestClient,
+    db_connection: Connection,
+) -> None:
+    agency = create_party(
+        db_connection,
+        PartyCreate(party_type="agency", canonical_name="Ekiti Agency"),
+    )
+    db_connection.execute(
+        text(
+            """
+            INSERT INTO tenders (
+                ocid, agency_id, title, method, value_amount,
+                state_code, lga, fiscal_year
+            ) VALUES
+            ('ocds-ek-1', :agency_id, 'Ekiti road', 'open', 100,
+             'EK', 'ADO-EKITI', 2026),
+            ('ocds-la-1', :agency_id, 'Lagos bridge', 'open', 200,
+             'LA', 'IKEJA', 2025)
+            """
+        ),
+        {"agency_id": agency.id},
+    )
+    ekiti = api_client.get("/v1/tenders", params={"state": "EK", "year": 2026})
+    assert ekiti.status_code == 200
+    assert ekiti.json()["count"] == 1
+    assert ekiti.json()["items"][0]["lga"] == "ADO-EKITI"
+    assert ekiti.json()["items"][0]["state_code"] == "EK"
+
+    lga = api_client.get("/v1/tenders", params={"lga": "IKEJA"})
+    assert lga.json()["count"] == 1
+    assert lga.json()["items"][0]["title"] == "Lagos bridge"
+
+    facets = api_client.get("/v1/facets")
+    assert facets.status_code == 200
+    body = facets.json()
+    assert "EK" in {row["code"] for row in body["states"]}
+    assert 2026 in body["years"]
+    assert "ADO-EKITI" in body["lgas"]
+
+
 def test_v1_is_get_only(api_client: TestClient) -> None:
     for method in ("post", "put", "patch", "delete"):
         response = getattr(api_client, method)("/v1/parties")

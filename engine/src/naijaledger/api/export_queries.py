@@ -32,7 +32,8 @@ _PARTY_PUBLIC_COLUMNS = """
 """
 _TENDER_COLUMNS = """
     id, ocid, agency_id, title, method, value_amount, currency,
-    bidding_opens_at, bidding_closes_at, created_at, updated_at
+    bidding_opens_at, bidding_closes_at, state_code, lga, fiscal_year,
+    created_at, updated_at
 """
 _AWARD_COLUMNS = """
     id, tender_id, supplier_id, value_amount, currency, awarded_at, created_at, updated_at

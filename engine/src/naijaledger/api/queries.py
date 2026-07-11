@@ -32,7 +32,8 @@ _PARTY_PUBLIC_COLUMNS = """
 
 _TENDER_COLUMNS = """
     id, ocid, agency_id, title, method, value_amount, currency,
-    bidding_opens_at, bidding_closes_at, created_at, updated_at
+    bidding_opens_at, bidding_closes_at, state_code, lga, fiscal_year,
+    created_at, updated_at
 """
 
 _AWARD_COLUMNS = """
@@ -156,6 +157,9 @@ def _row_to_tender(row: Row[Any]) -> PublicTender:
         currency=m["currency"],
         bidding_opens_at=m["bidding_opens_at"],
         bidding_closes_at=m["bidding_closes_at"],
+        state_code=m.get("state_code"),
+        lga=m.get("lga"),
+        fiscal_year=m.get("fiscal_year"),
         created_at=m["created_at"],
         updated_at=m["updated_at"],
     )
@@ -197,12 +201,29 @@ def list_public_sources(
     status: SourceStatus | None,
     limit: int,
     offset: int,
+    state: str | None = None,
 ) -> list[PublicSource]:
+    from naijaledger.finance.geo import normalize_state_code, state_name_for_code
+
     clauses = ["1 = 1"]
     params: dict[str, Any] = {"limit": limit, "offset": offset}
     if status is not None:
         clauses.append("status = :status")
         params["status"] = status
+    if state is not None and state.strip():
+        code = normalize_state_code(state.strip())
+        if code is not None:
+            name = state_name_for_code(code) or code
+            clauses.append(
+                "("
+                "upper(region) = :state_code OR "
+                "region ILIKE :state_name OR "
+                "region ILIKE :state_name_pct"
+                ")"
+            )
+            params["state_code"] = code
+            params["state_name"] = name
+            params["state_name_pct"] = f"%{name}%"
     where_sql = " AND ".join(clauses)
     rows = connection.execute(
         text(
@@ -264,19 +285,87 @@ def list_public_tenders(
     *,
     limit: int,
     offset: int,
+    state: str | None = None,
+    lga: str | None = None,
+    year: int | None = None,
 ) -> list[PublicTender]:
+    from naijaledger.finance.geo import normalize_state_code
+
+    clauses = ["1 = 1"]
+    params: dict[str, Any] = {"limit": limit, "offset": offset}
+    if state is not None and state.strip():
+        code = normalize_state_code(state.strip())
+        if code is not None:
+            clauses.append("state_code = :state_code")
+            params["state_code"] = code
+    if lga is not None and lga.strip():
+        clauses.append("lga ILIKE :lga")
+        params["lga"] = f"%{lga.strip()}%"
+    if year is not None:
+        clauses.append("fiscal_year = :year")
+        params["year"] = year
+    where_sql = " AND ".join(clauses)
     rows = connection.execute(
         text(
             f"""
             SELECT {_TENDER_COLUMNS}
             FROM tenders
+            WHERE {where_sql}
             ORDER BY created_at ASC
             LIMIT :limit OFFSET :offset
             """
         ),
-        {"limit": limit, "offset": offset},
+        params,
     ).all()
     return [_row_to_tender(row) for row in rows]
+
+
+def list_public_facets(connection: Connection) -> dict[str, Any]:
+    from naijaledger.finance.geo import STATE_CODE_TO_NAME, list_known_state_codes
+
+    used_states = {
+        row[0]
+        for row in connection.execute(
+            text(
+                """
+                SELECT DISTINCT state_code FROM tenders
+                WHERE state_code IS NOT NULL
+                ORDER BY state_code
+                """
+            )
+        ).all()
+    }
+    years = [
+        int(row[0])
+        for row in connection.execute(
+            text(
+                """
+                SELECT DISTINCT fiscal_year FROM tenders
+                WHERE fiscal_year IS NOT NULL
+                ORDER BY fiscal_year DESC
+                """
+            )
+        ).all()
+    ]
+    lgas = [
+        str(row[0])
+        for row in connection.execute(
+            text(
+                """
+                SELECT DISTINCT lga FROM tenders
+                WHERE lga IS NOT NULL
+                ORDER BY lga
+                LIMIT 200
+                """
+            )
+        ).all()
+    ]
+    # Prefer known list; put states that appear in data first.
+    ordered = [code for code in list_known_state_codes() if code in used_states] + [
+        code for code in list_known_state_codes() if code not in used_states
+    ]
+    states = [{"code": code, "name": STATE_CODE_TO_NAME[code]} for code in ordered]
+    return {"states": states, "years": years, "lgas": lgas}
 
 
 def get_public_tender(connection: Connection, tender_id: UUID) -> PublicTender:

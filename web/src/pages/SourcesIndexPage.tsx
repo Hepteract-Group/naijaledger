@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { fetchFacets, type PublicFacets } from "../api/facets";
 import { fetchSources, type PublicSource } from "../api/sources";
+import { FacetBar } from "../components/FacetBar";
+import { geoYearFacetPatch, parseGeoYearFacets } from "../explore/facets";
 
 type LoadState =
   | { kind: "loading" }
@@ -8,11 +11,29 @@ type LoadState =
   | { kind: "error"; message: string };
 
 export function SourcesIndexPage() {
+  const [params, setParams] = useSearchParams();
+  const { state: facetState } = parseGeoYearFacets(params);
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  const [facets, setFacets] = useState<PublicFacets>({ states: [], years: [], lgas: [] });
 
   useEffect(() => {
     let cancelled = false;
-    fetchSources({ status: "approved", limit: 50 })
+    void fetchFacets()
+      .then((data) => {
+        if (!cancelled && Array.isArray(data.states)) {
+          setFacets(data);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setState({ kind: "loading" });
+    fetchSources({ status: "approved", state: facetState || undefined, limit: 50 })
       .then((page) => {
         if (!cancelled) {
           setState({ kind: "ok", sources: page.items });
@@ -27,15 +48,42 @@ export function SourcesIndexPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [facetState]);
+
+  const patchParams = (patch: Record<string, string | null>) => {
+    const next = new URLSearchParams(params);
+    for (const [key, value] of Object.entries(patch)) {
+      if (value == null || value === "") {
+        next.delete(key);
+      } else {
+        next.set(key, value);
+      }
+    }
+    setParams(next, { replace: true });
+  };
 
   return (
     <div className="page">
       <h1 className="page__title">Sources</h1>
       <p className="page__lede">
-        Approved entries in the public source registry. Archive document bytes arrive in a later
-        story — this is the catalog drill-down.
+        Approved entries in the public source registry. Filter by state when region is set on the
+        source.
       </p>
+
+      <div className="explore-controls">
+        <FacetBar
+          state={facetState}
+          lga=""
+          year=""
+          states={facets.states}
+          years={[]}
+          lgas={[]}
+          showLga={false}
+          showYear={false}
+          onChange={(patch) => patchParams(geoYearFacetPatch(patch))}
+        />
+      </div>
+
       {state.kind === "loading" && <p>Loading sources…</p>}
       {state.kind === "error" && (
         <p className="banner-error">
@@ -45,7 +93,7 @@ export function SourcesIndexPage() {
       )}
       {state.kind === "ok" && state.sources.length === 0 && (
         <p className="placeholder">
-          No approved sources yet. Register and approve sources, then refresh.
+          No approved sources match. Widen the state filter or register sources, then refresh.
         </p>
       )}
       {state.kind === "ok" && state.sources.length > 0 && (
@@ -55,7 +103,8 @@ export function SourcesIndexPage() {
               <Link className="source-list__link" to={`/sources/${source.id}`}>
                 <span className="source-list__name">{source.name}</span>
                 <span className="source-list__meta">
-                  {source.category} · {source.jurisdiction} · {source.health_status}
+                  {source.category} · {source.region ?? source.jurisdiction} ·{" "}
+                  {source.health_status}
                 </span>
               </Link>
             </li>

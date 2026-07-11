@@ -4,6 +4,7 @@ from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any
 
+from naijaledger.finance.geo import normalize_lga, normalize_state_code, parse_fiscal_year
 from naijaledger.finance.ocds_models import (
     NormalizedAward,
     NormalizedContract,
@@ -221,6 +222,18 @@ def _normalize_tender(
     elif isinstance(raw_tenderers, float) and raw_tenderers >= 0 and raw_tenderers.is_integer():
         meta["numberOfTenderers"] = int(raw_tenderers)
 
+    state_raw = tender.get("nlStateCode")
+    state_code = normalize_state_code(state_raw if isinstance(state_raw, str) else None)
+    lga_raw = tender.get("nlLga")
+    lga = normalize_lga(lga_raw if isinstance(lga_raw, str) else None)
+    year_raw = tender.get("nlFiscalYear")
+    if isinstance(year_raw, int):
+        fiscal_year = year_raw if 1900 <= year_raw <= 2100 else None
+    elif isinstance(year_raw, str):
+        fiscal_year = parse_fiscal_year(year_raw)
+    else:
+        fiscal_year = None
+
     return NormalizedTender(
         ocid=ocid,
         agency_ref=agency_ref,
@@ -230,6 +243,9 @@ def _normalize_tender(
         currency=currency,
         bidding_opens_at=opens_at,
         bidding_closes_at=closes_at,
+        state_code=state_code,
+        lga=lga,
+        fiscal_year=fiscal_year,
         meta=meta or None,
     )
 

@@ -35,12 +35,23 @@ def test_ekiti_html_to_ocds_package_fixture() -> None:
     assert all(release.tender is not None for release in releases)
     assert all(release.tender is not None and release.tender.method is None for release in releases)
     assert all(release.awards for release in releases)
+    first = next(r for r in releases if "BSP" in r.ocid)
+    assert first.tender is not None
+    assert first.tender.state_code == "EK"
+    assert first.tender.lga == "ADO-EKITI"
+    assert first.tender.fiscal_year == 2026
+    second = next(r for r in releases if "MIPU" in r.ocid)
+    assert second.tender is not None
+    assert second.tender.state_code == "EK"
+    assert second.tender.lga is None  # "EKITI- STATE" is not an LGA
+    assert second.tender.fiscal_year == 2026
 
 
 def test_adapter_for_ekiti_html() -> None:
     adapter = adapter_for_source(source_url=EKITI_URL, document_format="html")
     assert adapter is not None
     assert adapter.adapter_id == "ekiti-html-table"
+    assert adapter.method_version == "ekiti-html-table-2"
     assert adapter_for_source(source_url="https://example.com/x", document_format="html") is None
 
 
@@ -104,6 +115,18 @@ def test_load_ekiti_html_persists_parties_and_tenders(db_connection) -> None:
     party_count = db_connection.execute(text("SELECT count(*) FROM parties")).scalar_one()
     assert tender_count >= 2
     assert party_count >= 2
+
+    geo = db_connection.execute(
+        text(
+            """
+            SELECT state_code, lga, fiscal_year FROM tenders
+            WHERE ocid LIKE '%BSP%'
+            """
+        )
+    ).one()
+    assert geo.state_code == "EK"
+    assert geo.lga == "ADO-EKITI"
+    assert geo.fiscal_year == 2026
 
     second = run_normalize_load_for_document(
         db_connection,

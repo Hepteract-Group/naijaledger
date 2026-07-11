@@ -20,6 +20,7 @@ SourceStatusFilter = Literal["approved", "proposed", "retired", "all"]
 def list_sources_endpoint(
     connection: Annotated[Connection, Depends(get_connection)],
     status: Annotated[SourceStatusFilter, Query()] = "approved",
+    state: Annotated[str | None, Query(description="State code or name matched to region")] = None,
     limit: LimitQuery = DEFAULT_LIMIT,
     offset: OffsetQuery = 0,
 ) -> Page[PublicSource]:
@@ -27,6 +28,7 @@ def list_sources_endpoint(
     items = list_public_sources(
         connection,
         status=status_filter,
+        state=state,
         limit=limit,
         offset=offset,
     )

@@ -20,7 +20,7 @@ export type PublicSource = {
 export type SourcesPage = Page<PublicSource>;
 
 export function fetchSources(
-  params: { status?: string; limit?: number; offset?: number } = {},
+  params: { status?: string; state?: string; limit?: number; offset?: number } = {},
 ): Promise<SourcesPage> {
   return apiGet<SourcesPage>(`/v1/sources${buildQuery(params)}`);
 }

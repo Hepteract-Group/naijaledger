@@ -1,9 +1,14 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { CitedSource } from "../components/CitedSource";
+import { FacetBar } from "../components/FacetBar";
 import { GraphCanvas } from "../components/GraphCanvas";
+import { geoYearFacetPatch, parseGeoYearFacets } from "../explore/facets";
 import { getDemoGraph } from "../graph/fixtures";
 import { toForceGraphData, type ForceGraphNode, type GraphNodeKind } from "../graph/types";
+import { listStateMetrics } from "../map/fixtures";
+
+const KNOWN_STATES = listStateMetrics().map((row) => ({ code: row.id, name: row.name }));
 
 const KIND_OPTIONS: { kind: GraphNodeKind; label: string }[] = [
   { kind: "party", label: "Parties" },
@@ -20,6 +25,8 @@ const KIND_BLURB: Record<GraphNodeKind, string> = {
 };
 
 export function GraphPage() {
+  const [params, setParams] = useSearchParams();
+  const { state: facetState } = parseGeoYearFacets(params);
   const doc = useMemo(() => getDemoGraph(), []);
   const data = useMemo(() => toForceGraphData(doc), [doc]);
   const [selected, setSelected] = useState<ForceGraphNode | null>(null);
@@ -32,6 +39,19 @@ export function GraphPage() {
   ]);
 
   const focusKinds = useMemo(() => new Set(enabledKinds), [enabledKinds]);
+  const stateName = KNOWN_STATES.find((row) => row.code === facetState.toUpperCase())?.name ?? "";
+
+  const patchParams = (patch: Record<string, string | null>) => {
+    const next = new URLSearchParams(params);
+    for (const [key, value] of Object.entries(patch)) {
+      if (value == null || value === "") {
+        next.delete(key);
+      } else {
+        next.set(key, value);
+      }
+    }
+    setParams(next, { replace: true });
+  };
 
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -92,6 +112,37 @@ export function GraphPage() {
           </p>
         ) : null}
       </header>
+
+      <div className="explore-controls">
+        <FacetBar
+          state={facetState}
+          lga=""
+          year=""
+          states={KNOWN_STATES}
+          years={[]}
+          lgas={[]}
+          showLga={false}
+          showYear={false}
+          onChange={(patch) => {
+            patchParams(geoYearFacetPatch(patch));
+            if (patch.state) {
+              const name =
+                KNOWN_STATES.find((row) => row.code === patch.state?.toUpperCase())?.name ?? "";
+              if (name) {
+                setQuery(name);
+              }
+            }
+          }}
+        />
+      </div>
+
+      {facetState ? (
+        <p className="explore-hint">
+          Shared state facet with Explore/Map. Live graph geo filter lands with #141
+          {stateName ? ` — search seeded with ${stateName}` : ""}.{" "}
+          <Link to={`/explore?resource=tenders&state=${facetState}`}>Open Explore</Link>
+        </p>
+      ) : null}
 
       <div className="graph-toolbar">
         <label className="graph-search">
@@ -189,11 +240,14 @@ export function GraphPage() {
               citation={{
                 id: "graph-sources",
                 label: "Source registry",
-                href: "/sources",
+                href: facetState ? `/sources?state=${facetState}` : "/sources",
                 kind: "registry",
               }}
             />
-            <Link className="btn btn--ghost" to="/explore">
+            <Link
+              className="btn btn--ghost"
+              to={facetState ? `/explore?resource=tenders&state=${facetState}` : "/explore"}
+            >
               Open explore
             </Link>
           </div>
