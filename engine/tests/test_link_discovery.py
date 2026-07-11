@@ -6,11 +6,14 @@ import httpx
 import pytest
 
 from naijaledger.archive.types import ArchiveStoreResult
+from naijaledger.config import Settings
 from naijaledger.documents.service import get_document_by_sha256
 from naijaledger.fetch.link_discovery import (
     discover_and_fetch_catalog_children,
     extract_artifact_links,
+    extract_subdir_catalog_links,
     has_successful_fetch_for_url,
+    is_budget_year_catalog_url,
     is_catalog_source,
 )
 from naijaledger.fetch.service import create_fetch_record
@@ -28,7 +31,36 @@ def _load_catalog_fixture(name: str) -> bytes:
 def test_is_catalog_source_recognizes_lagos_and_jigawa() -> None:
     assert is_catalog_source("https://www.lagosppa.gov.ng/registered-awards/")
     assert is_catalog_source("https://dueprocess.jigawastate.gov.ng/contracts")
+    assert is_catalog_source(
+        "https://budgetoffice.gov.ng/index.php/resources/internal-resources/budget-documents"
+    )
     assert not is_catalog_source("https://example.com/awards")
+
+
+def test_extract_subdir_catalog_links_budget_office_index() -> None:
+    html = _load_catalog_fixture("budget_office_index.html")
+    base = "https://budgetoffice.gov.ng/index.php/resources/internal-resources/budget-documents"
+    years = extract_subdir_catalog_links(html, base_url=base)
+    assert years[0].endswith("/2026-budget")
+    assert any(link.endswith("/2025-budget") for link in years)
+    assert any(link.endswith("/2017-approved-budget") for link in years)
+    assert any(link.endswith("/2024-appropriation-amendment-act") for link in years)
+    assert all(is_budget_year_catalog_url(link) for link in years)
+    assert all("evil.example" not in link for link in years)
+
+
+def test_extract_artifact_links_budget_office_year_page() -> None:
+    html = _load_catalog_fixture("budget_office_2025.html")
+    links = extract_artifact_links(
+        html,
+        base_url=(
+            "https://budgetoffice.gov.ng/index.php/resources/"
+            "internal-resources/budget-documents/2025-budget"
+        ),
+    )
+    assert any(link.endswith("/download") for link in links)
+    assert any("/viewdocument/" in link for link in links)
+    assert all(link.startswith("https://budgetoffice.gov.ng/") for link in links)
 
 
 def test_extract_artifact_links_lagos_fixture() -> None:
@@ -259,3 +291,113 @@ def test_discover_skips_child_url_already_fetched(
 
     assert http_called["count"] == 0
     assert summary["attempted"] == 0
+
+
+def test_discover_budget_office_expands_year_pages(
+    db_connection,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    index_url = (
+        "https://budgetoffice.gov.ng/index.php/resources/internal-resources/budget-documents"
+    )
+    source = create_source(
+        db_connection,
+        SourceCreate(
+            name="Budget Office of the Federation — Budget Documents",
+            jurisdiction="federal",
+            region=None,
+            category="budget",
+            url=index_url,
+            fetch_method="http",
+            format="html",
+            added_by=SEED_ADDED_BY,
+        ),
+    )
+    approved = approve_source(db_connection, source.id, approved_by="test")
+    catalog_html = _load_catalog_fixture("budget_office_index.html")
+    year_html = _load_catalog_fixture("budget_office_2025.html")
+    pdf_bytes = b"%PDF-1.4 appropriation act"
+
+    catalog_fetch = create_fetch_record(
+        db_connection,
+        source_id=approved.id,
+        url=approved.url,
+        requested_at=datetime(2026, 7, 11, 12, 0, tzinfo=UTC),
+        status_code=200,
+        ok=True,
+        byte_count=len(catalog_html),
+        sha256="budgetindex",
+        headers={"content-type": "text/html"},
+        error=None,
+        archive_key="sha256/budgetindex",
+    )
+    from naijaledger.documents.service import upsert_document_from_fetch
+
+    catalog_doc = upsert_document_from_fetch(
+        db_connection,
+        source_id=approved.id,
+        first_fetch_id=catalog_fetch.id,
+        sha256="budgetindex",
+        archive_key="sha256/budgetindex",
+        format="html",
+    )
+
+    fetched_urls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        url = str(request.url)
+        fetched_urls.append(url)
+        if url.rstrip("/").endswith("-budget") or "appropriation-amendment" in url:
+            return httpx.Response(
+                200,
+                content=year_html,
+                headers={"content-type": "text/html"},
+            )
+        if url.rstrip("/").endswith("/download"):
+            return httpx.Response(
+                200,
+                content=pdf_bytes,
+                headers={"content-type": "application/pdf"},
+            )
+        raise AssertionError(f"unexpected URL {url}")
+
+    http_client = httpx.Client(transport=httpx.MockTransport(handler))
+    monkeypatch.setattr(
+        "naijaledger.fetch.capture.store_raw_bytes",
+        lambda _client, _bucket, data, **_kwargs: ArchiveStoreResult(
+            archive_key="sha256/budgetpdf",
+            content_hash="budgetpdf",
+            byte_count=len(data),
+            created=True,
+        ),
+    )
+
+    summary = discover_and_fetch_catalog_children(
+        db_connection,
+        approved,
+        catalog_result={
+            "fetch_record_id": catalog_fetch.id,
+            "ok": True,
+            "archive_key": "sha256/budgetindex",
+            "content_hash": "budgetindex",
+            "document_id": catalog_doc["document_id"],
+        },
+        catalog_html=catalog_html,
+        catalog_url=index_url,
+        http_client=http_client,
+        minio_client=MagicMock(),
+        bucket="test-bucket",
+        requested_at=datetime(2026, 7, 11, 12, 1, tzinfo=UTC),
+        settings=Settings(catalog_subdir_max=1, catalog_discovery_max_children=5),
+    )
+
+    assert any("/2026-budget" in url for url in fetched_urls)
+    assert any(url.rstrip("/").endswith("/download") for url in fetched_urls)
+    assert not any("/viewdocument/" in url for url in fetched_urls)
+    assert summary["attempted"] >= 1
+    assert summary["succeeded"] >= 1
+    child_document = get_document_by_sha256(db_connection, "budgetpdf")
+    assert child_document is not None
+    assert child_document.format == "pdf"
+    assert child_document.meta is not None
+    assert child_document.meta["discovery"]["parent_document_id"] == str(catalog_doc["document_id"])
