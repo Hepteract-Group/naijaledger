@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     playwright_post_wait_ms: int = 1000
     catalog_discovery_max_children: int = 50
     catalog_subdir_max: int = 3
+    normalize_load_max_rows: int = 100
     magika_min_confidence: float = 0.5
     ocr_max_pages: int = 20
     vision_llm_enabled: bool = False

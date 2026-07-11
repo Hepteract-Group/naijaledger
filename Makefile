@@ -87,6 +87,6 @@ jobs-enqueue: migrate
 jobs-work: archive-init
 	cd engine && uv run naijaledger-jobs work --once
 
-# Vertical slice: seed → fetch Ekiti HTML → OCDS-ish normalize → parties/tenders.
+# Vertical slice ops wrapper (prefer jobs: fetch_source → normalize_load).
 portal-load-ekiti: seed-sources archive-init
 	cd engine && uv run naijaledger-portal-load --max-rows $${MAX_ROWS:-100}
