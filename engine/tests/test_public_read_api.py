@@ -299,6 +299,56 @@ def test_tender_geo_year_filters_and_facets(
     assert "ADO-EKITI" in body["lgas"]
 
 
+def test_map_states_aggregates(
+    api_client: TestClient,
+    db_connection: Connection,
+) -> None:
+    agency = create_party(
+        db_connection,
+        PartyCreate(party_type="agency", canonical_name="Map Agency"),
+    )
+    tender_id = db_connection.execute(
+        text(
+            """
+            INSERT INTO tenders (
+                ocid, agency_id, title, method, value_amount, state_code, fiscal_year
+            ) VALUES (
+                'ocds-map-la', :agency_id, 'Lagos works', 'open', 50000, 'LA', 2026
+            )
+            RETURNING id
+            """
+        ),
+        {"agency_id": agency.id},
+    ).scalar_one()
+    upsert_open_flag(
+        db_connection,
+        FlagDraft(
+            subject_type="tender",
+            subject_id=tender_id,
+            rule="single_bidder",
+            severity="medium",
+            evidence={"summary": "map aggregate test"},
+            created_by="test",
+        ),
+    )
+
+    response = api_client.get("/v1/map/states")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["count"] >= 37
+    by_id = {item["id"]: item for item in body["items"]}
+    assert "LA" in by_id
+    assert by_id["LA"]["contract_volume"] == 50000
+    assert by_id["LA"]["tender_count"] == 1
+    assert by_id["LA"]["open_flag_count"] == 1
+    assert by_id["LA"]["anomaly_density"] == 1.0
+    assert by_id["EK"]["contract_volume"] == 0
+
+    filtered = api_client.get("/v1/map/states", params={"year": 2025})
+    assert filtered.status_code == 200
+    assert {item["id"]: item for item in filtered.json()["items"]}["LA"]["tender_count"] == 0
+
+
 def test_sources_state_filter_exact_region(
     api_client: TestClient,
     db_connection: Connection,
