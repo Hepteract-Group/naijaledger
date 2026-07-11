@@ -35,6 +35,10 @@ OPENAPI_TAGS = [
         "description": "Distinct state / LGA / year values for Explore drill-down",
     },
     {
+        "name": "map",
+        "description": "State-level map aggregates (tender value + open flag density)",
+    },
+    {
         "name": "export",
         "description": ("Partner bulk export (bearer token required). Flags remain hypotheses."),
     },

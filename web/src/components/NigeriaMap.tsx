@@ -8,7 +8,6 @@ import {
   columnFillColor,
   elevationForMetric,
   formatMetricValue,
-  listStateMetrics,
   maxMetric,
   metricIntensity,
   metricLabel,
@@ -20,6 +19,8 @@ import { useTheme } from "../hooks/useTheme";
 type NigeriaMapProps = {
   metric: MapMetric;
   selectedId: string | null;
+  /** Full national series (live or demo); focus filters the layer. */
+  data: StateMetric[];
   /** State code from the shared facet bar — filters columns + flies camera. */
   focusId?: string | null;
   onSelect: (row: StateMetric | null) => void;
@@ -63,10 +64,16 @@ function viewForFocus(row: StateMetric | null) {
   };
 }
 
-export function NigeriaMap({ metric, selectedId, focusId = null, onSelect }: NigeriaMapProps) {
+export function NigeriaMap({
+  metric,
+  selectedId,
+  data,
+  focusId = null,
+  onSelect,
+}: NigeriaMapProps) {
   const { theme } = useTheme();
   const mapRef = useRef<MapRef>(null);
-  const allRows = useMemo(() => listStateMetrics(), []);
+  const allRows = data;
   const focusCode = focusId?.trim().toUpperCase() || null;
   const rows = useMemo(() => {
     if (!focusCode) {
@@ -112,11 +119,11 @@ export function NigeriaMap({ metric, selectedId, focusId = null, onSelect }: Nig
           specularColor: [40, 40, 40],
         },
         getPosition: (d) => [d.lng, d.lat],
-        getElevation: (d) => elevationForMetric(d, metric),
+        getElevation: (d) => elevationForMetric(d, metric, ceiling),
         getFillColor: (d) =>
           columnFillColor(metricIntensity(d, metric, ceiling), metric, d.id === selectedId),
         updateTriggers: {
-          getElevation: metric,
+          getElevation: [metric, ceiling],
           getFillColor: [metric, selectedId, ceiling],
         },
       }),
