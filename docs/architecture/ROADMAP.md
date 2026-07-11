@@ -72,7 +72,7 @@ Legend: `[H]` = likely needs a human decision (`needs-human`), `[S]` = spec requ
 - E10.2 Scrollytelling narrative framework. ✓
 - E10.3 Explorable dashboards (filter/sort/compare) with source drill-down. ✓
 - E10.4 Graph viz (Sigma.js / react-force-graph). ✓
-- E10.5 3D map (MapLibre + deck.gl): state extrusions by contract volume / anomaly density.
+- E10.5 3D map (MapLibre + deck.gl): state extrusions by contract volume / anomaly density. ✓
 - E10.6 Cited-source component + dossier export.
 - E10.x **Internal admin portal** (ops: jobs queue, sources, quarantine, review) — `#102` `[S]` later.
 

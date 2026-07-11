@@ -4,6 +4,7 @@ import { useTheme } from "../hooks/useTheme";
 const links = [
   { to: "/explore", label: "Explore" },
   { to: "/graph", label: "Graph" },
+  { to: "/map", label: "Map" },
   { to: "/stories", label: "Stories" },
   { to: "/sources", label: "Sources" },
 ] as const;

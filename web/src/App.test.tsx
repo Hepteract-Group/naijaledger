@@ -7,6 +7,10 @@ vi.mock("react-force-graph-2d", () => ({
   default: () => <div data-testid="graph-canvas-mock">graph canvas</div>,
 }));
 
+vi.mock("./components/NigeriaMap", () => ({
+  NigeriaMap: () => <div data-testid="nigeria-map">map canvas</div>,
+}));
+
 afterEach(() => {
   cleanup();
   localStorage.clear();
@@ -220,5 +224,15 @@ describe("App routes", () => {
     expect(await screen.findByRole("heading", { name: "Graph" })).toBeTruthy();
     expect(screen.getByText(/illustrative demo — not a live memgraph/i)).toBeTruthy();
     expect(screen.getByTestId("graph-canvas")).toBeTruthy();
+  });
+
+  it("opens the demo map page from nav", async () => {
+    stubMatchMedia(false);
+    render(<App />);
+    fireEvent.click(screen.getByRole("link", { name: "Map" }));
+    expect(await screen.findByRole("heading", { name: "Map" })).toBeTruthy();
+    expect(screen.getByText(/illustrative demo — not live contract/i)).toBeTruthy();
+    expect(screen.getByTestId("nigeria-map")).toBeTruthy();
+    expect(screen.getByRole("combobox")).toBeTruthy();
   });
 });

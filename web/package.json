@@ -14,11 +14,17 @@
     "generate-api": "openapi-typescript ${VITE_API_BASE_URL:-http://localhost:8000}/openapi.json -o src/api/schema.d.ts"
   },
   "dependencies": {
+    "@deck.gl/core": "^9.3.6",
+    "@deck.gl/layers": "^9.3.6",
+    "@deck.gl/mapbox": "^9.3.6",
+    "@deck.gl/react": "^9.3.6",
     "@fontsource/fraunces": "^5.2.9",
     "@fontsource/source-sans-3": "^5.2.9",
+    "maplibre-gl": "^5.24.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-force-graph-2d": "^1.29.1",
+    "react-map-gl": "^8.1.1",
     "react-router-dom": "^7.18.1"
   },
   "devDependencies": {
