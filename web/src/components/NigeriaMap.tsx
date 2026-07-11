@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Map, NavigationControl, useControl } from "react-map-gl/maplibre";
 import { MapboxOverlay, type MapboxOverlayProps } from "@deck.gl/mapbox";
 import { ColumnLayer } from "@deck.gl/layers";
@@ -20,11 +20,21 @@ import { useTheme } from "../hooks/useTheme";
 type NigeriaMapProps = {
   metric: MapMetric;
   selectedId: string | null;
+  /** State code from the shared facet bar — filters columns + flies camera. */
+  focusId?: string | null;
   onSelect: (row: StateMetric | null) => void;
 };
 
 const LIGHT_STYLE = "https://basemaps.cartocdn.com/gl/positron-nolabels-gl-style/style.json";
 const DARK_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json";
+
+const NATIONAL_VIEW = {
+  longitude: 8.1,
+  latitude: 9.2,
+  zoom: 5.15,
+  pitch: 38,
+  bearing: -8,
+};
 
 function escapeHtml(value: string): string {
   return value
@@ -40,17 +50,37 @@ function DeckGLOverlay(props: MapboxOverlayProps) {
   return null;
 }
 
-export function NigeriaMap({ metric, selectedId, onSelect }: NigeriaMapProps) {
+function viewForFocus(row: StateMetric | null) {
+  if (row === null) {
+    return NATIONAL_VIEW;
+  }
+  return {
+    longitude: row.lng,
+    latitude: row.lat,
+    zoom: 7.2,
+    pitch: 42,
+    bearing: -12,
+  };
+}
+
+export function NigeriaMap({ metric, selectedId, focusId = null, onSelect }: NigeriaMapProps) {
   const { theme } = useTheme();
-  const rows = useMemo(() => listStateMetrics(), []);
-  const ceiling = useMemo(() => maxMetric(rows, metric), [rows, metric]);
-  const [viewState, setViewState] = useState({
-    longitude: 8.1,
-    latitude: 9.2,
-    zoom: 5.15,
-    pitch: 38,
-    bearing: -8,
-  });
+  const allRows = useMemo(() => listStateMetrics(), []);
+  const focusCode = focusId?.trim().toUpperCase() || null;
+  const rows = useMemo(() => {
+    if (!focusCode) {
+      return allRows;
+    }
+    return allRows.filter((row) => row.id === focusCode);
+  }, [allRows, focusCode]);
+  // Keep national scale so a single focused column keeps relative intensity.
+  const ceiling = useMemo(() => maxMetric(allRows, metric), [allRows, metric]);
+  const [viewState, setViewState] = useState(NATIONAL_VIEW);
+
+  useEffect(() => {
+    const focused = focusCode ? (allRows.find((row) => row.id === focusCode) ?? null) : null;
+    setViewState(viewForFocus(focused));
+  }, [focusCode, allRows]);
 
   const layers = useMemo(() => {
     return [
@@ -58,7 +88,7 @@ export function NigeriaMap({ metric, selectedId, onSelect }: NigeriaMapProps) {
         id: "state-columns",
         data: rows,
         diskResolution: 24,
-        radius: 16_000,
+        radius: focusCode ? 22_000 : 16_000,
         extruded: true,
         pickable: true,
         elevationScale: 1,
@@ -78,7 +108,7 @@ export function NigeriaMap({ metric, selectedId, onSelect }: NigeriaMapProps) {
         },
       }),
     ];
-  }, [rows, metric, selectedId, ceiling]);
+  }, [rows, metric, selectedId, ceiling, focusCode]);
 
   const onClick = useCallback(
     (info: PickingInfo) => {
