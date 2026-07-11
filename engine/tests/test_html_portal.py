@@ -32,6 +32,7 @@ def test_ekiti_html_to_ocds_package_fixture() -> None:
     releases = normalize_ocds_document(package)
     assert len(releases) == 2
     assert all(release.tender is not None for release in releases)
+    assert all(release.tender is not None and release.tender.method is None for release in releases)
     assert all(release.awards for release in releases)
 
 

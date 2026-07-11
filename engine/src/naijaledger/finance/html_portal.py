@@ -83,6 +83,11 @@ def extract_table_rows(html: bytes) -> list[list[str]]:
     return parser.rows
 
 
+def _looks_like_header_row(row: list[str]) -> bool:
+    joined = " ".join(cell.lower() for cell in row)
+    return "ocid" in joined and "project" in joined
+
+
 def _party_id(prefix: str, name: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:48] or "unknown"
     return f"{prefix}-{slug}"
@@ -113,7 +118,6 @@ def row_to_ocds_release(row: list[str]) -> dict[str, Any] | None:
     tender: dict[str, Any] = {
         "id": ocid,
         "title": title or ocid,
-        "procurementMethod": "limited",
         "procuringEntity": {"id": buyer_id, "name": entity} if entity else None,
     }
     if amount is not None:
@@ -152,6 +156,8 @@ def ekiti_html_to_ocds_package(
     releases: list[dict[str, Any]] = []
     seen: set[str] = set()
     for row in extract_table_rows(html):
+        if _looks_like_header_row(row):
+            continue
         release = row_to_ocds_release(row)
         if release is None:
             continue
