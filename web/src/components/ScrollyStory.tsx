@@ -1,6 +1,9 @@
 import { Link } from "react-router-dom";
+import type { Citation } from "../dossier/types";
 import { useActiveStep } from "../hooks/useActiveStep";
 import type { NarrativeStory, StoryStep, StoryVisual } from "../stories/types";
+import { CitedSource } from "./CitedSource";
+import { DossierExport } from "./DossierExport";
 
 type ScrollyStoryProps = {
   story: NarrativeStory;
@@ -44,15 +47,15 @@ function StepCitations({ step }: { step: StoryStep }) {
     <ul className="scrolly__citations" aria-label="Citations">
       {step.citations.map((citation) => (
         <li key={citation.id}>
-          {citation.href ? (
-            <Link to={citation.href}>{citation.label}</Link>
-          ) : (
-            <span>{citation.label}</span>
-          )}
+          <CitedSource citation={citation} />
         </li>
       ))}
     </ul>
   );
+}
+
+function collectCitations(story: NarrativeStory): Citation[] {
+  return story.steps.flatMap((step) => step.citations);
 }
 
 export function ScrollyStory({ story }: ScrollyStoryProps) {
@@ -123,6 +126,12 @@ export function ScrollyStory({ story }: ScrollyStoryProps) {
         <Link className="btn btn--ghost" to="/sources">
           Browse sources
         </Link>
+        <DossierExport
+          title={story.title}
+          items={collectCitations(story)}
+          demo={story.demo}
+          slug={story.slug}
+        />
       </footer>
     </article>
   );

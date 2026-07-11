@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { CitedSource } from "../components/CitedSource";
 import { NigeriaMap } from "../components/NigeriaMap";
 import { listStateMetrics, type MapMetric, type StateMetric } from "../map/fixtures";
 
@@ -55,6 +56,15 @@ export function MapPage() {
           ) : (
             <p className="map-side__hint">Click a column to inspect a state.</p>
           )}
+          <CitedSource
+            citation={{
+              id: "map-sources",
+              label: "Source registry",
+              href: "/sources",
+              kind: "registry",
+              note: "Drill to catalogued sources",
+            }}
+          />
           <Link className="btn btn--ghost" to="/explore">
             Open explore
           </Link>

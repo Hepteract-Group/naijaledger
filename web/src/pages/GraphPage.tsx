@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { CitedSource } from "../components/CitedSource";
 import { GraphCanvas } from "../components/GraphCanvas";
 import { getDemoGraph } from "../graph/fixtures";
 import { toForceGraphData, type ForceGraphNode } from "../graph/types";
@@ -52,6 +53,14 @@ export function GraphPage() {
           ) : (
             <p className="graph-side__hint">Click a node to inspect labels and id.</p>
           )}
+          <CitedSource
+            citation={{
+              id: "graph-sources",
+              label: "Source registry",
+              href: "/sources",
+              kind: "registry",
+            }}
+          />
           <Link className="btn btn--ghost" to="/explore">
             Open explore
           </Link>
