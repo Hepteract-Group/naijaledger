@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { elevationForMetric, listStateMetrics, maxMetric } from "./fixtures";
+import {
+  columnFillColor,
+  elevationForMetric,
+  listStateMetrics,
+  maxMetric,
+  metricIntensity,
+  rankForMetric,
+  topStates,
+} from "./fixtures";
 
 describe("map fixtures", () => {
   it("covers 36 states + FCT", () => {
@@ -18,5 +26,20 @@ describe("map fixtures", () => {
     expect(elevationForMetric(lagos, "contract_volume")).toBe(lagos.contract_volume * 1200);
     expect(elevationForMetric(lagos, "anomaly_density")).toBe(lagos.anomaly_density * 80000);
     expect(maxMetric(listStateMetrics(), "contract_volume")).toBeGreaterThan(0);
+  });
+
+  it("ranks and colours by metric intensity", () => {
+    const rows = listStateMetrics();
+    const leaders = topStates(rows, "contract_volume", 3);
+    expect(leaders[0]?.id).toBe("LA");
+    expect(rankForMetric(rows, "contract_volume", "LA")).toBe(1);
+    const max = maxMetric(rows, "contract_volume");
+    const lagos = rows.find((row) => row.id === "LA");
+    expect(lagos).toBeTruthy();
+    if (!lagos) {
+      return;
+    }
+    expect(metricIntensity(lagos, "contract_volume", max)).toBe(1);
+    expect(columnFillColor(1, "contract_volume", true)[0]).toBe(184);
   });
 });

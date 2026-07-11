@@ -1,73 +1,145 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { CitedSource } from "../components/CitedSource";
 import { NigeriaMap } from "../components/NigeriaMap";
-import { listStateMetrics, type MapMetric, type StateMetric } from "../map/fixtures";
+import {
+  formatMetricValue,
+  listStateMetrics,
+  maxMetric,
+  metricLabel,
+  rankForMetric,
+  topStates,
+  type MapMetric,
+  type StateMetric,
+} from "../map/fixtures";
 
 export function MapPage() {
   const [metric, setMetric] = useState<MapMetric>("contract_volume");
   const [selected, setSelected] = useState<StateMetric | null>(null);
-  const count = listStateMetrics().length;
+  const rows = useMemo(() => listStateMetrics(), []);
+  const leaders = useMemo(() => topStates(rows, metric, 5), [rows, metric]);
+  const ceiling = useMemo(() => maxMetric(rows, metric), [rows, metric]);
+  const rank = selected ? rankForMetric(rows, metric, selected.id) : null;
 
   return (
     <div className="page page--map">
-      <h1 className="page__title">Map</h1>
-      <p className="page__lede">
-        3D extrusions by Nigerian state — contract volume or anomaly density. Live aggregates are
-        not wired yet; this view uses a labelled demo fixture.
-      </p>
-      <p className="map-demo-banner" role="status">
-        Illustrative demo — not live contract or anomaly totals ({count} jurisdictions).
-      </p>
+      <header className="map-hero">
+        <div className="map-hero__copy">
+          <h1 className="page__title">Map</h1>
+          <p className="page__lede">
+            Compare Nigerian states by contract volume or anomaly density. Select a column or a name
+            in the ranking to inspect.
+          </p>
+        </div>
+        <p className="map-demo-banner" role="status">
+          Illustrative demo — not live totals ({rows.length} jurisdictions)
+        </p>
+      </header>
 
-      <div className="map-controls">
-        <label className="explore-field">
-          <span>Metric</span>
-          <select value={metric} onChange={(event) => setMetric(event.target.value as MapMetric)}>
-            <option value="contract_volume">Contract volume</option>
-            <option value="anomaly_density">Anomaly density</option>
-          </select>
-        </label>
+      <div className="map-toolbar" role="toolbar" aria-label="Map metrics">
+        <div className="map-metric-toggle" role="group" aria-label="Metric">
+          {(
+            [
+              ["contract_volume", "Contract volume"],
+              ["anomaly_density", "Anomaly density"],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              className={`map-metric-toggle__btn${metric === value ? " is-active" : ""}`}
+              aria-pressed={metric === value}
+              onClick={() => setMetric(value)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="map-toolbar__hint">
+          Height and colour encode <strong>{metricLabel(metric).toLowerCase()}</strong> (demo
+          scale).
+        </p>
       </div>
 
       <div className="map-layout">
         <section className="map-stage" aria-label="Nigeria state map">
           <NigeriaMap metric={metric} selectedId={selected?.id ?? null} onSelect={setSelected} />
+          <div className="map-legend" aria-hidden="true">
+            <span className="map-legend__label">Low</span>
+            <span className={`map-legend__ramp map-legend__ramp--${metric}`} />
+            <span className="map-legend__label">
+              High · max {metric === "contract_volume" ? String(ceiling) : ceiling.toFixed(2)}
+            </span>
+          </div>
         </section>
+
         <aside className="map-side">
-          <h2 className="map-side__title">Detail</h2>
-          {selected ? (
-            <dl className="detail-panel__dl">
-              <div>
-                <dt>State</dt>
-                <dd>
-                  {selected.name} ({selected.id})
-                </dd>
+          <section className="map-panel">
+            <h2 className="map-side__title">Selected</h2>
+            {selected ? (
+              <div className="map-fact">
+                <p className="map-fact__place">
+                  {selected.name}
+                  <span className="map-fact__code">{selected.id}</span>
+                </p>
+                <p className="map-fact__value">{formatMetricValue(selected, metric)}</p>
+                <p className="map-fact__label">{metricLabel(metric)} (demo)</p>
+                {rank !== null ? (
+                  <p className="map-fact__rank">
+                    Rank {rank} of {rows.length}
+                  </p>
+                ) : null}
+                <dl className="map-fact__secondary">
+                  <div>
+                    <dt>Contract volume</dt>
+                    <dd>{selected.contract_volume}</dd>
+                  </div>
+                  <div>
+                    <dt>Anomaly density</dt>
+                    <dd>{selected.anomaly_density.toFixed(2)}</dd>
+                  </div>
+                </dl>
               </div>
-              <div>
-                <dt>Contract volume (demo)</dt>
-                <dd>{selected.contract_volume}</dd>
-              </div>
-              <div>
-                <dt>Anomaly density (demo)</dt>
-                <dd>{selected.anomaly_density.toFixed(2)}</dd>
-              </div>
-            </dl>
-          ) : (
-            <p className="map-side__hint">Click a column to inspect a state.</p>
-          )}
-          <CitedSource
-            citation={{
-              id: "map-sources",
-              label: "Source registry",
-              href: "/sources",
-              kind: "registry",
-              note: "Drill to catalogued sources",
-            }}
-          />
-          <Link className="btn btn--ghost" to="/explore">
-            Open explore
-          </Link>
+            ) : (
+              <p className="map-side__hint">
+                Hover a column for a quick read, or click to pin detail here.
+              </p>
+            )}
+          </section>
+
+          <section className="map-panel">
+            <h2 className="map-side__title">Top {leaders.length}</h2>
+            <ol className="map-rank">
+              {leaders.map((row, index) => (
+                <li key={row.id}>
+                  <button
+                    type="button"
+                    className={`map-rank__btn${selected?.id === row.id ? " is-active" : ""}`}
+                    onClick={() => setSelected(row)}
+                  >
+                    <span className="map-rank__n">{index + 1}</span>
+                    <span className="map-rank__name">{row.name}</span>
+                    <span className="map-rank__val">{formatMetricValue(row, metric)}</span>
+                  </button>
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          <div className="map-side__actions">
+            <CitedSource
+              citation={{
+                id: "map-sources",
+                label: "Source registry",
+                href: "/sources",
+                kind: "registry",
+                note: "Drill to catalogued sources",
+              }}
+            />
+            <Link className="btn btn--ghost" to="/explore">
+              Open explore
+            </Link>
+          </div>
         </aside>
       </div>
     </div>
