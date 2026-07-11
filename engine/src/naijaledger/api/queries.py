@@ -214,16 +214,10 @@ def list_public_sources(
         code = normalize_state_code(state.strip())
         if code is not None:
             name = state_name_for_code(code) or code
-            clauses.append(
-                "("
-                "upper(region) = :state_code OR "
-                "region ILIKE :state_name OR "
-                "region ILIKE :state_name_pct"
-                ")"
-            )
+            # Exact code or exact region name only — avoid "Niger" matching "Nigeria".
+            clauses.append("(upper(region) = :state_code OR lower(region) = lower(:state_name))")
             params["state_code"] = code
             params["state_name"] = name
-            params["state_name_pct"] = f"%{name}%"
     where_sql = " AND ".join(clauses)
     rows = connection.execute(
         text(

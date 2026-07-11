@@ -299,6 +299,66 @@ def test_tender_geo_year_filters_and_facets(
     assert "ADO-EKITI" in body["lgas"]
 
 
+def test_sources_state_filter_exact_region(
+    api_client: TestClient,
+    db_connection: Connection,
+) -> None:
+    ekiti = create_source(
+        db_connection,
+        SourceCreate(
+            name="Ekiti portal",
+            jurisdiction="state",
+            region="Ekiti",
+            category="procurement",
+            url=f"https://example.test/ekiti/{uuid4().hex}",
+            fetch_method="http",
+            format="html",
+            added_by="test",
+        ),
+    )
+    approve_source(db_connection, ekiti.id, approved_by="human:test")
+    niger = create_source(
+        db_connection,
+        SourceCreate(
+            name="Niger state portal",
+            jurisdiction="state",
+            region="Niger",
+            category="procurement",
+            url=f"https://example.test/niger/{uuid4().hex}",
+            fetch_method="http",
+            format="html",
+            added_by="test",
+        ),
+    )
+    approve_source(db_connection, niger.id, approved_by="human:test")
+    nigeria_wide = create_source(
+        db_connection,
+        SourceCreate(
+            name="Federal Nigeria catalog",
+            jurisdiction="federal",
+            region="Federal Republic of Nigeria",
+            category="other",
+            url=f"https://example.test/nigeria/{uuid4().hex}",
+            fetch_method="http",
+            format="html",
+            added_by="test",
+        ),
+    )
+    approve_source(db_connection, nigeria_wide.id, approved_by="human:test")
+
+    by_ek = api_client.get("/v1/sources", params={"state": "EK"})
+    assert by_ek.status_code == 200
+    names = {item["name"] for item in by_ek.json()["items"]}
+    assert "Ekiti portal" in names
+    assert "Niger state portal" not in names
+
+    by_ni = api_client.get("/v1/sources", params={"state": "NI"})
+    ni_names = {item["name"] for item in by_ni.json()["items"]}
+    assert "Niger state portal" in ni_names
+    # Must not substring-match "Nigeria".
+    assert "Federal Nigeria catalog" not in ni_names
+
+
 def test_v1_is_get_only(api_client: TestClient) -> None:
     for method in ("post", "put", "patch", "delete"):
         response = getattr(api_client, method)("/v1/parties")
