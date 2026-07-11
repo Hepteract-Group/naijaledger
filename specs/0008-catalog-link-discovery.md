@@ -33,8 +33,9 @@ Budget Office index has no direct artifact links; year pages under
 `…/budget-documents/{YYYY}-budget` (and approved/amendment variants) expose Joomla `/download`.
 Settings: `catalog_subdir_max` (default 3 year pages), `catalog_discovery_max_children` (default 50).
 When `/download` links exist on a year page, `/viewdocument` viewers are skipped.
-Year-folder HTML is archived (`documents.meta.discovery.kind = budget_office_year_page`) and
-becomes the intermediate parent for PDF children (#149).
+Year-folder HTML is always archived on each discovery run (`documents.meta.discovery.kind =
+budget_office_year_page`; MinIO/document dedup by content hash) and becomes the intermediate
+parent for PDF children (#149).
 
 Child `documents.meta`:
 

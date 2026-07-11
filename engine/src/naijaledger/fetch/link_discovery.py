@@ -290,39 +290,34 @@ def discover_and_fetch_catalog_children(
                 )
                 continue
 
-            # Archive year-folder HTML for provenance (skip if already captured ok).
+            # Archive year-folder HTML for provenance (document dedups by sha256).
+            year_capture = persist_fetch_capture(
+                connection,
+                source,
+                url=year_url,
+                requested_at=requested_at,
+                status_code=year_response.status_code,
+                body=year_response.content,
+                headers=_response_headers(year_response),
+                error=None,
+                minio_client=minio_client,
+                bucket=bucket,
+                document_meta={
+                    "discovery": {
+                        "catalog_url": catalog_url,
+                        "parent_document_id": str(parent_document_id),
+                        "parent_fetch_id": str(parent_fetch_id),
+                        "kind": "budget_office_year_page",
+                    }
+                },
+                document_title=_title_from_url(year_url),
+            )
+            record_batch_result(summary, year_capture)
             year_parent_document_id = parent_document_id
             year_parent_fetch_id = parent_fetch_id
-            if not has_successful_fetch_for_url(
-                connection,
-                source_id=source.id,
-                url=year_url,
-            ):
-                year_capture = persist_fetch_capture(
-                    connection,
-                    source,
-                    url=year_url,
-                    requested_at=requested_at,
-                    status_code=year_response.status_code,
-                    body=year_response.content,
-                    headers=_response_headers(year_response),
-                    error=None,
-                    minio_client=minio_client,
-                    bucket=bucket,
-                    document_meta={
-                        "discovery": {
-                            "catalog_url": catalog_url,
-                            "parent_document_id": str(parent_document_id),
-                            "parent_fetch_id": str(parent_fetch_id),
-                            "kind": "budget_office_year_page",
-                        }
-                    },
-                    document_title=_title_from_url(year_url),
-                )
-                record_batch_result(summary, year_capture)
-                if year_capture["ok"] and year_capture["document_id"] is not None:
-                    year_parent_document_id = year_capture["document_id"]
-                    year_parent_fetch_id = year_capture["fetch_record_id"]
+            if year_capture["ok"] and year_capture["document_id"] is not None:
+                year_parent_document_id = year_capture["document_id"]
+                year_parent_fetch_id = year_capture["fetch_record_id"]
             else:
                 existing = _latest_ok_fetch_document(
                     connection,
