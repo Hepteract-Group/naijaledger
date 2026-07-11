@@ -39,6 +39,15 @@ CATALOG_SOURCE_URLS: frozenset[str] = frozenset(
     }
 )
 
+BUDGET_OFFICE_INDEX = (
+    "https://budgetoffice.gov.ng/index.php/resources/internal-resources/budget-documents"
+)
+_BUDGET_YEAR_PATH = re.compile(
+    r"/budget-documents/(?:\d{4}-budget|\d{4}-approved-budget|"
+    r"\d{4}-appropriation-amendment-act)/?$",
+    re.IGNORECASE,
+)
+
 
 class _HrefExtractor(HTMLParser):
     def __init__(self) -> None:
@@ -60,6 +69,44 @@ def _normalize_host(hostname: str) -> str:
 def is_catalog_source(url: str) -> bool:
     normalized = url.rstrip("/")
     return normalized in {entry.rstrip("/") for entry in CATALOG_SOURCE_URLS}
+
+
+def is_budget_office_index(url: str) -> bool:
+    return url.rstrip("/") == BUDGET_OFFICE_INDEX.rstrip("/")
+
+
+def is_budget_year_catalog_url(url: str, *, index_url: str = BUDGET_OFFICE_INDEX) -> bool:
+    """Year/folder HTML pages under the Budget Office documents index."""
+    if not same_origin(index_url, url):
+        return False
+    path = urlparse(url).path.rstrip("/")
+    return _BUDGET_YEAR_PATH.search(path) is not None
+
+
+def extract_subdir_catalog_links(html: bytes, *, base_url: str) -> list[str]:
+    """Discover same-origin nested catalog HTML pages (Budget Office year folders)."""
+    parser = _HrefExtractor()
+    try:
+        parser.feed(html.decode("utf-8", errors="replace"))
+    except Exception:
+        parser.feed(html.decode("latin-1", errors="replace"))
+
+    seen: set[str] = set()
+    discovered: list[str] = []
+    for href in parser.hrefs:
+        absolute = urljoin(base_url, href)
+        if absolute in seen:
+            continue
+        if not is_budget_year_catalog_url(absolute, index_url=base_url):
+            continue
+        try:
+            validate_probe_url(absolute)
+        except ValueError:
+            continue
+        seen.add(absolute)
+        discovered.append(absolute)
+    # Prefer recent years first (reverse lexical on YYYY-… paths).
+    return sorted(discovered, reverse=True)
 
 
 def same_origin(base_url: str, candidate_url: str) -> bool:
@@ -216,6 +263,38 @@ def discover_and_fetch_catalog_children(
     parent_document_id = catalog_result["document_id"]
     parent_fetch_id = catalog_result["fetch_record_id"]
     links = extract_artifact_links(catalog_html, base_url=catalog_url)
+
+    # Budget Office index has no direct PDFs — descend into year folders first.
+    if is_budget_office_index(catalog_url):
+        year_pages = extract_subdir_catalog_links(catalog_html, base_url=catalog_url)
+        year_pages = year_pages[: max(0, config.catalog_subdir_max)]
+        logger.info(
+            "Budget Office: expanding %d year catalog page(s) from %s",
+            len(year_pages),
+            catalog_url,
+        )
+        for year_url in year_pages:
+            try:
+                validate_probe_url(year_url)
+                year_response = http_client.get(year_url, follow_redirects=True)
+            except (httpx.HTTPError, ValueError) as exc:
+                logger.warning("failed to fetch Budget Office year page %s: %s", year_url, exc)
+                continue
+            if year_response.status_code >= 400:
+                logger.warning(
+                    "Budget Office year page %s returned HTTP %s",
+                    year_url,
+                    year_response.status_code,
+                )
+                continue
+            year_links = extract_artifact_links(year_response.content, base_url=year_url)
+            # Prefer binary /download; skip /viewdocument when downloads exist (same doc).
+            downloads = [link for link in year_links if "/download" in urlparse(link).path.lower()]
+            chosen = downloads if downloads else year_links
+            for link in chosen:
+                if link not in links:
+                    links.append(link)
+
     if not links:
         logger.info("no artifact links discovered for catalog %s", catalog_url)
         return summary
