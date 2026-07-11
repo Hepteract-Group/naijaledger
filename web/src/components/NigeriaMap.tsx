@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Map, NavigationControl, useControl } from "react-map-gl/maplibre";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Map, NavigationControl, useControl, type MapRef } from "react-map-gl/maplibre";
 import { MapboxOverlay, type MapboxOverlayProps } from "@deck.gl/mapbox";
 import { ColumnLayer } from "@deck.gl/layers";
 import type { PickingInfo } from "@deck.gl/core";
@@ -65,6 +65,7 @@ function viewForFocus(row: StateMetric | null) {
 
 export function NigeriaMap({ metric, selectedId, focusId = null, onSelect }: NigeriaMapProps) {
   const { theme } = useTheme();
+  const mapRef = useRef<MapRef>(null);
   const allRows = useMemo(() => listStateMetrics(), []);
   const focusCode = focusId?.trim().toUpperCase() || null;
   const rows = useMemo(() => {
@@ -79,7 +80,19 @@ export function NigeriaMap({ metric, selectedId, focusId = null, onSelect }: Nig
 
   useEffect(() => {
     const focused = focusCode ? (allRows.find((row) => row.id === focusCode) ?? null) : null;
-    setViewState(viewForFocus(focused));
+    const next = viewForFocus(focused);
+    const map = mapRef.current?.getMap();
+    if (map) {
+      map.flyTo({
+        center: [next.longitude, next.latitude],
+        zoom: next.zoom,
+        pitch: next.pitch,
+        bearing: next.bearing,
+        duration: 900,
+      });
+    } else {
+      setViewState(next);
+    }
   }, [focusCode, allRows]);
 
   const layers = useMemo(() => {
@@ -114,11 +127,11 @@ export function NigeriaMap({ metric, selectedId, focusId = null, onSelect }: Nig
     (info: PickingInfo) => {
       if (info.object) {
         onSelect(info.object as StateMetric);
-      } else {
+      } else if (!focusCode) {
         onSelect(null);
       }
     },
-    [onSelect],
+    [onSelect, focusCode],
   );
 
   const getTooltip = useCallback(
@@ -146,6 +159,7 @@ export function NigeriaMap({ metric, selectedId, focusId = null, onSelect }: Nig
   return (
     <div className="nigeria-map" data-testid="nigeria-map">
       <Map
+        ref={mapRef}
         {...viewState}
         onMove={(event) => setViewState(event.viewState)}
         mapStyle={theme === "dark" ? DARK_STYLE : LIGHT_STYLE}

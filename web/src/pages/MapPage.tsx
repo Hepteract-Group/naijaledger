@@ -76,7 +76,8 @@ export function MapPage() {
           </p>
         </div>
         <p className="map-demo-banner" role="status">
-          Illustrative demo — not live totals ({rows.length} jurisdictions)
+          Illustrative demo — not live totals ({rows.length}{" "}
+          {rows.length === 1 ? "jurisdiction" : "jurisdictions"})
         </p>
       </header>
 

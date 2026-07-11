@@ -8,7 +8,15 @@ vi.mock("react-force-graph-2d", () => ({
 }));
 
 vi.mock("./components/NigeriaMap", () => ({
-  NigeriaMap: () => <div data-testid="nigeria-map">map canvas</div>,
+  NigeriaMap: (props: { focusId?: string | null; selectedId?: string | null }) => (
+    <div
+      data-testid="nigeria-map"
+      data-focus-id={props.focusId ?? ""}
+      data-selected-id={props.selectedId ?? ""}
+    >
+      map canvas
+    </div>
+  ),
 }));
 
 afterEach(() => {
@@ -247,5 +255,17 @@ describe("App routes", () => {
     expect(screen.getByRole("button", { name: "Contract volume" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Anomaly density" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: /top /i })).toBeTruthy();
+  });
+
+  it("focuses the map from the state facet URL", async () => {
+    stubMatchMedia(false);
+    window.history.pushState({}, "", "/map?state=BY");
+    render(<App />);
+    expect(await screen.findByRole("heading", { name: "Map" })).toBeTruthy();
+    const canvas = screen.getByTestId("nigeria-map");
+    expect(canvas.getAttribute("data-focus-id")).toBe("BY");
+    expect(canvas.getAttribute("data-selected-id")).toBe("BY");
+    expect(screen.getByDisplayValue("Bayelsa")).toBeTruthy();
+    expect(screen.getByText(/1 jurisdictions|1 jurisdiction/i)).toBeTruthy();
   });
 });
