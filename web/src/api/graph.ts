@@ -1,6 +1,6 @@
 import { apiGet } from "./client";
 import { buildQuery } from "./types";
-import type { GraphDocument, GraphLinkDoc, GraphNodeDoc } from "../graph/types";
+import type { GraphDocument } from "../graph/types";
 
 export type PublicGraphDocument = GraphDocument & {
   available: boolean;
@@ -17,7 +17,7 @@ export function toGraphDocument(doc: PublicGraphDocument): GraphDocument {
     id: doc.id,
     title: doc.title,
     demo: doc.demo,
-    nodes: doc.nodes as GraphNodeDoc[],
-    links: doc.links as GraphLinkDoc[],
+    nodes: doc.nodes,
+    links: doc.links,
   };
 }

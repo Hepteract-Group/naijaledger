@@ -85,7 +85,14 @@ export function GraphPage() {
     };
   }, []);
 
-  const doc = load.kind === "loading" ? DEMO_DOC : load.doc;
+  const emptyLive: GraphDocument = {
+    id: "loading",
+    title: "Loading",
+    demo: false,
+    nodes: [],
+    links: [],
+  };
+  const doc = load.kind === "loading" ? emptyLive : load.doc;
   const data = useMemo(() => toForceGraphData(doc), [doc]);
   const focusKinds = useMemo(() => new Set(enabledKinds), [enabledKinds]);
   const stateName = KNOWN_STATES.find((row) => row.code === facetState.toUpperCase())?.name ?? "";

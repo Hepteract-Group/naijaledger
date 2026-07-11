@@ -80,6 +80,41 @@ def test_fetch_subgraph_sample_with_fake_driver() -> None:
     assert doc["links"][0]["rel_type"] == "ISSUED"
 
 
+def test_fetch_subgraph_ego_seed_with_fake_driver() -> None:
+    agency = _FakeNode(["Agency", "FinanceParty"], {"id": "a1", "name": "Works"})
+    tender = _FakeNode(["Tender"], {"id": "t1", "title": "Road works"})
+    session = MagicMock()
+    session.run.side_effect = [
+        [
+            {
+                "seed": agency,
+                "r": object(),
+                "m": tender,
+                "start_n": agency,
+                "end_n": tender,
+                "rel_type": "ISSUED",
+                "rid": 7,
+            }
+        ],
+    ]
+    session.__enter__ = lambda s: s
+    session.__exit__ = MagicMock(return_value=False)
+    driver = MagicMock()
+    driver.session.return_value = session
+
+    doc = fetch_subgraph(driver, seed_id="a1", limit=10)
+    assert doc["id"] == "live-a1"
+    assert {n["id"] for n in doc["nodes"]} == {"a1", "t1"}
+    by_id = {n["id"]: n for n in doc["nodes"]}
+    assert by_id["a1"]["kind"] == "party"
+    assert by_id["t1"]["kind"] == "tender"
+    assert by_id["t1"]["name"] == "Road works"
+    assert len(doc["links"]) == 1
+    assert doc["links"][0]["source"] == "a1"
+    assert doc["links"][0]["target"] == "t1"
+    assert doc["links"][0]["rel_type"] == "ISSUED"
+
+
 def test_unavailable_subgraph_shape() -> None:
     doc = unavailable_subgraph()
     assert doc["available"] is False
@@ -124,6 +159,7 @@ def test_graph_subgraph_live_override() -> None:
     driver.session.return_value = session
     fake_client = MagicMock()
     fake_client._driver = driver
+    fake_client.driver = driver
     fake_client.close = MagicMock()
 
     def _client() -> Generator[Any, None, None]:

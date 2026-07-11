@@ -38,6 +38,10 @@ class MemgraphClient:
     def __init__(self, driver: Driver) -> None:
         self._driver = driver
 
+    @property
+    def driver(self) -> Driver:
+        return self._driver
+
     @classmethod
     def from_url(cls, url: str | None = None) -> MemgraphClient:
         resolved = (

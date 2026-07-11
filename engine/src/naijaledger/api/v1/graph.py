@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Generator
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
+from neo4j.exceptions import Neo4jError
 
 from naijaledger.api.schemas import PublicGraphDocument, PublicGraphLink, PublicGraphNode
 from naijaledger.graph.client import MemgraphClient
 from naijaledger.graph.read import fetch_subgraph, unavailable_subgraph
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["graph"])
 
@@ -26,7 +30,7 @@ def get_memgraph_client() -> Generator[MemgraphClient | None, None, None]:
     client: MemgraphClient | None = None
     try:
         client = MemgraphClient.from_url()
-        with client._driver.session() as session:
+        with client.driver.session() as session:
             session.run("RETURN 1")
     except Exception:
         if client is not None:
@@ -53,8 +57,9 @@ def get_graph_subgraph(
     if client is None:
         return _to_document(unavailable_subgraph(seed_id=seed_id))
     try:
-        raw = fetch_subgraph(client._driver, seed_id=seed_id, limit=limit)
-    except Exception:
+        raw = fetch_subgraph(client.driver, seed_id=seed_id, limit=limit)
+    except Neo4jError:
+        logger.exception("Memgraph subgraph query failed")
         return _to_document(unavailable_subgraph(seed_id=seed_id))
     return _to_document(raw)
 
