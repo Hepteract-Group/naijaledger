@@ -39,6 +39,10 @@ OPENAPI_TAGS = [
         "description": "State-level map aggregates (tender value + open flag density)",
     },
     {
+        "name": "graph",
+        "description": "Bounded live Memgraph finance subgraphs (read-only)",
+    },
+    {
         "name": "export",
         "description": ("Partner bulk export (bearer token required). Flags remain hypotheses."),
     },

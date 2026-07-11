@@ -1,7 +1,7 @@
 """Public response DTOs for the read API (spec 0023)."""
 
 from datetime import datetime
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, Literal, TypeVar
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -86,6 +86,31 @@ class PublicMapState(BaseModel):
     tender_count: int
     open_flag_count: int
     anomaly_density: float
+
+
+class PublicGraphNode(BaseModel):
+    id: str
+    labels: list[str]
+    name: str
+    kind: Literal["party", "tender", "award", "contract"]
+
+
+class PublicGraphLink(BaseModel):
+    id: str
+    source: str
+    target: str
+    rel_type: str
+
+
+class PublicGraphDocument(BaseModel):
+    """Live Memgraph subgraph (spec 0036). available=false when Bolt unreachable."""
+
+    id: str
+    title: str
+    demo: bool = False
+    available: bool = True
+    nodes: list[PublicGraphNode]
+    links: list[PublicGraphLink]
 
 
 class PublicAward(BaseModel):
