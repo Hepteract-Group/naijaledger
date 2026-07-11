@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { CitedSource } from "../components/CitedSource";
+import { FacetBar } from "../components/FacetBar";
 import { NigeriaMap } from "../components/NigeriaMap";
+import { geoYearFacetPatch, parseGeoYearFacets } from "../explore/facets";
 import {
   formatMetricValue,
   listStateMetrics,
@@ -13,13 +15,38 @@ import {
   type StateMetric,
 } from "../map/fixtures";
 
+const KNOWN_STATES = listStateMetrics().map((row) => ({ code: row.id, name: row.name }));
+
 export function MapPage() {
+  const [params, setParams] = useSearchParams();
+  const { state: facetState } = parseGeoYearFacets(params);
   const [metric, setMetric] = useState<MapMetric>("contract_volume");
   const [selected, setSelected] = useState<StateMetric | null>(null);
-  const rows = useMemo(() => listStateMetrics(), []);
+  const rows = useMemo(() => {
+    const all = listStateMetrics();
+    if (!facetState) {
+      return all;
+    }
+    return all.filter((row) => row.id === facetState.toUpperCase());
+  }, [facetState]);
   const leaders = useMemo(() => topStates(rows, metric, 5), [rows, metric]);
   const ceiling = useMemo(() => maxMetric(rows, metric), [rows, metric]);
-  const rank = selected ? rankForMetric(rows, metric, selected.id) : null;
+  const rank =
+    selected && rows.some((row) => row.id === selected.id)
+      ? rankForMetric(rows, metric, selected.id)
+      : null;
+
+  const patchParams = (patch: Record<string, string | null>) => {
+    const next = new URLSearchParams(params);
+    for (const [key, value] of Object.entries(patch)) {
+      if (value == null || value === "") {
+        next.delete(key);
+      } else {
+        next.set(key, value);
+      }
+    }
+    setParams(next, { replace: true });
+  };
 
   return (
     <div className="page page--map">
@@ -35,6 +62,23 @@ export function MapPage() {
           Illustrative demo — not live totals ({rows.length} jurisdictions)
         </p>
       </header>
+
+      <div className="explore-controls">
+        <FacetBar
+          state={facetState}
+          lga=""
+          year=""
+          states={KNOWN_STATES}
+          years={[]}
+          lgas={[]}
+          showLga={false}
+          showYear={false}
+          onChange={(patch) => {
+            patchParams(geoYearFacetPatch(patch));
+            setSelected(null);
+          }}
+        />
+      </div>
 
       <div className="map-toolbar" role="toolbar" aria-label="Map metrics">
         <div className="map-metric-toggle" role="group" aria-label="Metric">
@@ -99,6 +143,12 @@ export function MapPage() {
                     <dd>{selected.anomaly_density.toFixed(2)}</dd>
                   </div>
                 </dl>
+                <Link
+                  className="btn btn--ghost"
+                  to={`/explore?resource=tenders&state=${selected.id}`}
+                >
+                  Explore tenders in {selected.name}
+                </Link>
               </div>
             ) : (
               <p className="map-side__hint">
@@ -131,12 +181,15 @@ export function MapPage() {
               citation={{
                 id: "map-sources",
                 label: "Source registry",
-                href: "/sources",
+                href: facetState ? `/sources?state=${facetState}` : "/sources",
                 kind: "registry",
                 note: "Drill to catalogued sources",
               }}
             />
-            <Link className="btn btn--ghost" to="/explore">
+            <Link
+              className="btn btn--ghost"
+              to={facetState ? `/explore?resource=tenders&state=${facetState}` : "/explore"}
+            >
               Open explore
             </Link>
           </div>

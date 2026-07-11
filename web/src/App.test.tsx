@@ -167,6 +167,12 @@ describe("App routes", () => {
       "fetch",
       vi.fn().mockImplementation(async (input: RequestInfo) => {
         const url = String(input);
+        if (url.includes("/v1/facets")) {
+          return {
+            ok: true,
+            json: async () => ({ states: [], years: [], lgas: [] }),
+          };
+        }
         if (url.includes("/v1/sources/") && !url.endsWith("/v1/sources")) {
           return { ok: true, json: async () => source };
         }

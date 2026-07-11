@@ -47,7 +47,7 @@ def _ekiti_to_package(data: bytes, *, max_rows: int | None = None) -> dict[str, 
 ADAPTERS_BY_URL: dict[str, AdapterSpec] = {
     EKITI_URL.rstrip("/"): AdapterSpec(
         adapter_id="ekiti-html-table",
-        method_version="ekiti-html-table-1",
+        method_version="ekiti-html-table-2",
         formats=frozenset({"html"}),
         to_package=_ekiti_to_package,
     ),

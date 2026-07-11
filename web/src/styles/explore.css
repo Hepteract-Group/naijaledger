@@ -49,6 +49,14 @@
   margin-bottom: var(--space-5);
 }
 
+.facet-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  width: 100%;
+  margin-bottom: var(--space-3);
+}
+
 .explore-field {
   display: flex;
   flex-direction: column;

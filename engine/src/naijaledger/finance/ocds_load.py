@@ -130,6 +130,9 @@ def _upsert_tender(
     currency: str,
     bidding_opens_at: Any,
     bidding_closes_at: Any,
+    state_code: str | None,
+    lga: str | None,
+    fiscal_year: int | None,
     meta: dict[str, Any] | None,
 ) -> UUID:
     existing = connection.execute(
@@ -148,6 +151,9 @@ def _upsert_tender(
                     currency = :currency,
                     bidding_opens_at = :bidding_opens_at,
                     bidding_closes_at = :bidding_closes_at,
+                    state_code = :state_code,
+                    lga = :lga,
+                    fiscal_year = :fiscal_year,
                     meta = CAST(:meta AS jsonb),
                     updated_at = now()
                 WHERE id = :id
@@ -162,6 +168,9 @@ def _upsert_tender(
                 "currency": currency,
                 "bidding_opens_at": bidding_opens_at,
                 "bidding_closes_at": bidding_closes_at,
+                "state_code": state_code,
+                "lga": lga,
+                "fiscal_year": fiscal_year,
                 "meta": json.dumps(meta) if meta is not None else None,
             },
         )
@@ -172,10 +181,11 @@ def _upsert_tender(
             """
             INSERT INTO tenders (
                 ocid, agency_id, title, method, value_amount, currency,
-                bidding_opens_at, bidding_closes_at, meta
+                bidding_opens_at, bidding_closes_at, state_code, lga, fiscal_year, meta
             ) VALUES (
                 :ocid, :agency_id, :title, :method, :value_amount, :currency,
-                :bidding_opens_at, :bidding_closes_at, CAST(:meta AS jsonb)
+                :bidding_opens_at, :bidding_closes_at, :state_code, :lga, :fiscal_year,
+                CAST(:meta AS jsonb)
             )
             RETURNING id
             """
@@ -189,6 +199,9 @@ def _upsert_tender(
             "currency": currency,
             "bidding_opens_at": bidding_opens_at,
             "bidding_closes_at": bidding_closes_at,
+            "state_code": state_code,
+            "lga": lga,
+            "fiscal_year": fiscal_year,
             "meta": json.dumps(meta) if meta is not None else None,
         },
     ).one()
@@ -395,6 +408,9 @@ def load_normalized_release(
             currency=release.tender.currency,
             bidding_opens_at=release.tender.bidding_opens_at,
             bidding_closes_at=release.tender.bidding_closes_at,
+            state_code=release.tender.state_code,
+            lga=release.tender.lga,
+            fiscal_year=release.tender.fiscal_year,
             meta=release.tender.meta,
         )
         result.tender_id = tender_id

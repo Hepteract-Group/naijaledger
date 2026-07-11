@@ -31,6 +31,10 @@ OPENAPI_TAGS = [
         "description": "Open anomaly flag hypotheses (not verified claims)",
     },
     {
+        "name": "facets",
+        "description": "Distinct state / LGA / year values for Explore drill-down",
+    },
+    {
         "name": "export",
         "description": ("Partner bulk export (bearer token required). Flags remain hypotheses."),
     },

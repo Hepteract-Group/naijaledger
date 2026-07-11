@@ -7,6 +7,8 @@ from datetime import UTC, datetime
 from html.parser import HTMLParser
 from typing import Any
 
+from naijaledger.finance.geo import normalize_lga, parse_fiscal_year
+
 _NAIRA_AMOUNT = re.compile(
     r"^[₦N]?\s*([\d,]+(?:\.\d+)?)\s*$",
     re.IGNORECASE,
@@ -19,7 +21,10 @@ _COL_ENTITY = 2
 _COL_OCID = 3
 _COL_COST = 4
 _COL_CONTRACTOR = 5
+_COL_YEAR = 9
 _COL_AWARD_DATE = 12
+_COL_LOCATION = 14
+_DEFAULT_STATE_CODE = "EK"
 
 
 class _TableExtractor(HTMLParser):
@@ -104,8 +109,12 @@ def row_to_ocds_release(row: list[str]) -> dict[str, Any] | None:
     contractor = row[_COL_CONTRACTOR].strip() if len(row) > _COL_CONTRACTOR else ""
     cost_raw = row[_COL_COST].strip() if len(row) > _COL_COST else ""
     award_raw = row[_COL_AWARD_DATE].strip() if len(row) > _COL_AWARD_DATE else ""
+    year_raw = row[_COL_YEAR].strip() if len(row) > _COL_YEAR else ""
+    location_raw = row[_COL_LOCATION].strip() if len(row) > _COL_LOCATION else ""
     amount = parse_naira_amount(cost_raw)
     award_date = parse_portal_date(award_raw)
+    fiscal_year = parse_fiscal_year(year_raw)
+    lga = normalize_lga(location_raw)
 
     buyer_id = _party_id("buyer", entity or "unknown-agency")
     supplier_id = _party_id("supplier", contractor or "unknown-supplier")
@@ -119,6 +128,10 @@ def row_to_ocds_release(row: list[str]) -> dict[str, Any] | None:
         "id": ocid,
         "title": title or ocid,
         "procuringEntity": {"id": buyer_id, "name": entity} if entity else None,
+        # NaijaLedger extension fields (read by ocds._normalize_tender).
+        "nlStateCode": _DEFAULT_STATE_CODE,
+        "nlLga": lga,
+        "nlFiscalYear": fiscal_year,
     }
     if amount is not None:
         tender["value"] = {"amount": amount, "currency": "NGN"}

@@ -60,8 +60,19 @@ class PublicTender(BaseModel):
     currency: str
     bidding_opens_at: datetime | None
     bidding_closes_at: datetime | None
+    state_code: str | None = None
+    lga: str | None = None
+    fiscal_year: int | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class PublicFacets(BaseModel):
+    """Distinct facet values for Explore drill-down (spec 0034)."""
+
+    states: list[dict[str, str]]
+    years: list[int]
+    lgas: list[str]
 
 
 class PublicAward(BaseModel):

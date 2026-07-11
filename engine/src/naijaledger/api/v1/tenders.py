@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.engine import Connection
 
 from naijaledger.api.deps import get_connection
@@ -17,8 +17,18 @@ def list_tenders_endpoint(
     connection: Annotated[Connection, Depends(get_connection)],
     limit: LimitQuery = DEFAULT_LIMIT,
     offset: OffsetQuery = 0,
+    state: Annotated[str | None, Query(description="Two-letter state code, e.g. EK")] = None,
+    lga: Annotated[str | None, Query(description="LGA name contains (ILIKE)")] = None,
+    year: Annotated[int | None, Query(ge=1900, le=2100, description="Fiscal year")] = None,
 ) -> Page[PublicTender]:
-    items = list_public_tenders(connection, limit=limit, offset=offset)
+    items = list_public_tenders(
+        connection,
+        limit=limit,
+        offset=offset,
+        state=state,
+        lga=lga,
+        year=year,
+    )
     return Page(items=items, limit=limit, offset=offset, count=len(items))
 
 

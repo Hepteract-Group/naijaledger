@@ -36,6 +36,9 @@ class NormalizedTender(BaseModel):
     currency: str = "NGN"
     bidding_opens_at: datetime | None = None
     bidding_closes_at: datetime | None = None
+    state_code: str | None = None
+    lga: str | None = None
+    fiscal_year: int | None = None
     meta: dict[str, Any] | None = None
 
 

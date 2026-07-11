@@ -11,14 +11,31 @@ export type PublicTender = {
   currency: string;
   bidding_opens_at: string | null;
   bidding_closes_at: string | null;
+  state_code: string | null;
+  lga: string | null;
+  fiscal_year: number | null;
   created_at: string;
   updated_at: string;
 };
 
 export type TendersPage = Page<PublicTender>;
 
-export function fetchTenders(limit = 50, offset = 0): Promise<TendersPage> {
-  return apiGet<TendersPage>(`/v1/tenders${buildQuery({ limit, offset })}`);
+export type TenderListParams = {
+  limit?: number;
+  offset?: number;
+  state?: string;
+  lga?: string;
+  year?: number | string;
+};
+
+export function fetchTenders(
+  params: TenderListParams | number = 50,
+  offset = 0,
+): Promise<TendersPage> {
+  if (typeof params === "number") {
+    return apiGet<TendersPage>(`/v1/tenders${buildQuery({ limit: params, offset })}`);
+  }
+  return apiGet<TendersPage>(`/v1/tenders${buildQuery(params)}`);
 }
 
 export function fetchTender(id: string): Promise<PublicTender> {
