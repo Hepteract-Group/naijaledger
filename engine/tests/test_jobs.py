@@ -363,3 +363,67 @@ def test_normalize_load_job_loads_fixture(db_connection) -> None:
     assert finished.result["skipped"] is False
     assert finished.result["release_count"] == 2
     assert db_connection.execute(text("SELECT count(*) FROM tenders")).scalar_one() >= 2
+
+
+def test_normalize_load_skips_when_no_adapter(db_connection) -> None:
+    from naijaledger.jobs.service import enqueue_normalize_load_job
+
+    source = create_source(
+        db_connection,
+        SourceCreate(
+            name="No Adapter Source",
+            jurisdiction="federal",
+            category="other",
+            url=f"https://example.com/{uuid4().hex}",
+            fetch_method="http",
+            format="html",
+            added_by=SEED_ADDED_BY,
+        ),
+    )
+    fetch_row = db_connection.execute(
+        text(
+            """
+            INSERT INTO fetch_records (
+                source_id, url, requested_at, status_code, ok, sha256, archive_key
+            ) VALUES (
+                :source_id, :url, now(), 200, true, 'no-adapter', 'sha256/no-adapter'
+            )
+            RETURNING id
+            """
+        ),
+        {"source_id": source.id, "url": source.url},
+    ).scalar_one()
+    doc_id = db_connection.execute(
+        text(
+            """
+            INSERT INTO documents (
+                source_id, first_fetch_id, sha256, format, archive_key, title
+            ) VALUES (
+                :source_id, :fetch_id, 'no-adapter', 'html', 'sha256/no-adapter', 'x'
+            )
+            RETURNING id
+            """
+        ),
+        {"source_id": source.id, "fetch_id": fetch_row},
+    ).scalar_one()
+
+    # Force a normalize_load job even though no adapter matches (backfill / misconfig).
+    job = enqueue_normalize_load_job(
+        db_connection,
+        document_id=doc_id,
+        adapter_id="none",
+        method_version="none-1",
+    )
+    assert job is not None
+    claimed = claim_next_job(db_connection, worker_id="skip-worker")
+    assert claimed is not None
+    finished = process_claimed_job(
+        db_connection,
+        claimed,
+        minio_client=MagicMock(),
+        bucket="test",
+    )
+    assert finished.status == "succeeded"
+    assert finished.result is not None
+    assert finished.result["skipped"] is True
+    assert finished.result["reason"] == "no_adapter"
