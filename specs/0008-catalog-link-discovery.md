@@ -33,14 +33,17 @@ Budget Office index has no direct artifact links; year pages under
 `…/budget-documents/{YYYY}-budget` (and approved/amendment variants) expose Joomla `/download`.
 Settings: `catalog_subdir_max` (default 3 year pages), `catalog_discovery_max_children` (default 50).
 When `/download` links exist on a year page, `/viewdocument` viewers are skipped.
+Year-folder HTML is always archived on each discovery run (`documents.meta.discovery.kind =
+budget_office_year_page`; MinIO/document dedup by content hash) and becomes the intermediate
+parent for PDF children (#149).
 
 Child `documents.meta`:
 
 ```json
 {
   "discovery": {
-    "catalog_url": "https://…",
-    "parent_document_id": "uuid",
+    "catalog_url": "https://…/2026-budget",
+    "parent_document_id": "uuid-of-year-page-or-index",
     "parent_fetch_id": "uuid"
   }
 }
@@ -53,7 +56,8 @@ Catalog URLs (v1): Lagos registered-awards, Jigawa contracts, Budget documents, 
 - [x] Lagos fixture HTML yields ≥1 `AWARD-REGISTER-*.pdf` URL; child fetch archives PDF document.
 - [x] Jigawa fixture HTML yields ≥1 `storage/contracts/reports/*.pdf` URL; child fetch archives PDF.
 - [x] Budget Office index fixture yields year-folder links; year-page fixture yields `/download`;
-  discovery expands year page(s) and archives PDF children (skips `/viewdocument` when downloads exist).
+  discovery expands year page(s), archives year HTML + PDF children (skips `/viewdocument` when
+  downloads exist); year page is intermediate parent for children.
 - [x] Child `documents.format` from Content-Type or URL extension.
 - [x] Re-run skips child URLs that already have successful `fetch_records`.
 - [x] Unit tests use fixture HTML only (no live network).

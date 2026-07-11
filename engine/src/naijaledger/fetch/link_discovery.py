@@ -263,6 +263,8 @@ def discover_and_fetch_catalog_children(
     parent_document_id = catalog_result["document_id"]
     parent_fetch_id = catalog_result["fetch_record_id"]
     links = extract_artifact_links(catalog_html, base_url=catalog_url)
+    # Child URL → (parent_document_id, parent_fetch_id, year_catalog_url)
+    pending_year_parents: dict[str, tuple[UUID, UUID, str]] = {}
 
     # Budget Office index has no direct PDFs — descend into year folders first.
     if is_budget_office_index(catalog_url):
@@ -287,12 +289,56 @@ def discover_and_fetch_catalog_children(
                     year_response.status_code,
                 )
                 continue
+
+            # Archive year-folder HTML for provenance (document dedups by sha256).
+            year_capture = persist_fetch_capture(
+                connection,
+                source,
+                url=year_url,
+                requested_at=requested_at,
+                status_code=year_response.status_code,
+                body=year_response.content,
+                headers=_response_headers(year_response),
+                error=None,
+                minio_client=minio_client,
+                bucket=bucket,
+                document_meta={
+                    "discovery": {
+                        "catalog_url": catalog_url,
+                        "parent_document_id": str(parent_document_id),
+                        "parent_fetch_id": str(parent_fetch_id),
+                        "kind": "budget_office_year_page",
+                    }
+                },
+                document_title=_title_from_url(year_url),
+            )
+            record_batch_result(summary, year_capture)
+            year_parent_document_id = parent_document_id
+            year_parent_fetch_id = parent_fetch_id
+            if year_capture["ok"] and year_capture["document_id"] is not None:
+                year_parent_document_id = year_capture["document_id"]
+                year_parent_fetch_id = year_capture["fetch_record_id"]
+            else:
+                existing = _latest_ok_fetch_document(
+                    connection,
+                    source_id=source.id,
+                    url=year_url,
+                )
+                if existing is not None:
+                    year_parent_document_id, year_parent_fetch_id = existing
+
             year_links = extract_artifact_links(year_response.content, base_url=year_url)
             # Prefer binary /download; skip /viewdocument when downloads exist (same doc).
             downloads = [link for link in year_links if "/download" in urlparse(link).path.lower()]
             chosen = downloads if downloads else year_links
             for link in chosen:
                 if link not in links:
+                    # Stash parent override for this child URL (year page as intermediate).
+                    pending_year_parents[link] = (
+                        year_parent_document_id,
+                        year_parent_fetch_id,
+                        year_url,
+                    )
                     links.append(link)
 
     if not links:
@@ -316,13 +362,19 @@ def discover_and_fetch_catalog_children(
         ):
             logger.debug("skipping already-fetched child %s", child_url)
             continue
+        child_parent_doc = parent_document_id
+        child_parent_fetch = parent_fetch_id
+        child_catalog_url = catalog_url
+        override = pending_year_parents.get(child_url)
+        if override is not None:
+            child_parent_doc, child_parent_fetch, child_catalog_url = override
         child_result = fetch_catalog_child(
             connection,
             source,
             child_url=child_url,
-            catalog_url=catalog_url,
-            parent_document_id=parent_document_id,
-            parent_fetch_id=parent_fetch_id,
+            catalog_url=child_catalog_url,
+            parent_document_id=child_parent_doc,
+            parent_fetch_id=child_parent_fetch,
             http_client=http_client,
             minio_client=minio_client,
             bucket=bucket,
@@ -332,6 +384,31 @@ def discover_and_fetch_catalog_children(
         fetched += 1
 
     return summary
+
+
+def _latest_ok_fetch_document(
+    connection: Connection,
+    *,
+    source_id: UUID,
+    url: str,
+) -> tuple[UUID, UUID] | None:
+    row = connection.execute(
+        text(
+            """
+            SELECT d.id AS document_id, fr.id AS fetch_id
+            FROM fetch_records fr
+            JOIN documents d ON d.sha256 = fr.sha256
+            WHERE fr.source_id = :source_id AND fr.url = :url AND fr.ok = true
+              AND fr.sha256 IS NOT NULL
+            ORDER BY fr.requested_at DESC
+            LIMIT 1
+            """
+        ),
+        {"source_id": source_id, "url": url},
+    ).first()
+    if row is None:
+        return None
+    return row.document_id, row.fetch_id
 
 
 def merge_batch_summaries(*summaries: FetchBatchSummary) -> FetchBatchSummary:
