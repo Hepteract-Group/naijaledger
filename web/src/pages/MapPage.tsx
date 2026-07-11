@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { fetchFacets } from "../api/facets";
 import { fetchMapStates } from "../api/map";
 import { CitedSource } from "../components/CitedSource";
 import { FacetBar } from "../components/FacetBar";
 import { NigeriaMap } from "../components/NigeriaMap";
-import { geoYearFacetPatch, parseGeoYearFacets } from "../explore/facets";
+import { geoYearFacetPatch, parseFacetYear, parseGeoYearFacets } from "../explore/facets";
 import {
   formatMetricValue,
   listStateMetrics,
@@ -28,16 +29,33 @@ export function MapPage() {
   const [params, setParams] = useSearchParams();
   const { state: facetState, year: facetYear } = parseGeoYearFacets(params);
   const focusId = facetState.trim().toUpperCase() || null;
-  const yearNum = facetYear ? Number(facetYear) : undefined;
+  const yearNum = parseFacetYear(facetYear);
   const [metric, setMetric] = useState<MapMetric>("contract_volume");
   const [selected, setSelected] = useState<StateMetric | null>(null);
   const [load, setLoad] = useState<LoadState>({ kind: "loading" });
+  const [facetYears, setFacetYears] = useState<number[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchFacets()
+      .then((data) => {
+        if (!cancelled) {
+          setFacetYears(data.years);
+        }
+      })
+      .catch(() => {
+        /* optional */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     setLoad({ kind: "loading" });
     void fetchMapStates({
-      year: Number.isFinite(yearNum) ? yearNum : undefined,
+      year: yearNum,
     })
       .then((page) => {
         if (cancelled) {
@@ -108,11 +126,12 @@ export function MapPage() {
     }
   };
 
+  const yearLabel = yearNum != null ? ` · fiscal year ${yearNum}` : "";
   const banner =
     load.kind === "live"
-      ? `Live from public API (${rows.length} ${rows.length === 1 ? "jurisdiction" : "jurisdictions"})`
+      ? `Live from public API (${rows.length} ${rows.length === 1 ? "jurisdiction" : "jurisdictions"})${yearLabel}`
       : load.kind === "demo"
-        ? `Illustrative demo — not live totals (${load.reason})`
+        ? `Illustrative demo — not live totals (${load.reason}). Year filter needs a live API.`
         : "Loading state aggregates…";
 
   return (
@@ -136,7 +155,7 @@ export function MapPage() {
           lga=""
           year={facetYear}
           states={KNOWN_STATES}
-          years={[]}
+          years={facetYears}
           lgas={[]}
           showLga={false}
           showYear={true}

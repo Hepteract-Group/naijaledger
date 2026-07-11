@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { geoYearFacetPatch, parseGeoYearFacets } from "./facets";
+import { geoYearFacetPatch, parseFacetYear, parseGeoYearFacets } from "./facets";
 
 describe("geo year facets", () => {
   it("parses URL params", () => {
@@ -17,5 +17,13 @@ describe("geo year facets", () => {
       lga: "X",
       year: "2026",
     });
+  });
+
+  it("only accepts complete fiscal years for API", () => {
+    expect(parseFacetYear("")).toBeUndefined();
+    expect(parseFacetYear("2")).toBeUndefined();
+    expect(parseFacetYear("202")).toBeUndefined();
+    expect(parseFacetYear("2026")).toBe(2026);
+    expect(parseFacetYear("1899")).toBeUndefined();
   });
 });

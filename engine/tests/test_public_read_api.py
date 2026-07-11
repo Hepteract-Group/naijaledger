@@ -298,6 +298,16 @@ def test_tender_geo_year_filters_and_facets(
     assert 2026 in body["years"]
     assert "ADO-EKITI" in body["lgas"]
 
+    ekiti_facets = api_client.get("/v1/facets", params={"state": "EK"})
+    assert ekiti_facets.status_code == 200
+    ekiti_lgas = ekiti_facets.json()["lgas"]
+    assert "ADO-EKITI" in ekiti_lgas
+    assert "IKEJA" not in ekiti_lgas
+
+    la_facets = api_client.get("/v1/facets", params={"state": "LA"})
+    assert "IKEJA" in la_facets.json()["lgas"]
+    assert "ADO-EKITI" not in la_facets.json()["lgas"]
+
 
 def test_map_states_aggregates(
     api_client: TestClient,
