@@ -81,14 +81,6 @@ export function MapPage() {
     selected && rows.some((row) => row.id === selected.id)
       ? rankForMetric(rows, metric, selected.id)
       : null;
-  const liveYears = useMemo(() => {
-    if (load.kind !== "live") {
-      return [];
-    }
-    // Year options come from facets elsewhere; keep free-text year on FacetBar.
-    return [];
-  }, [load.kind]);
-
   useEffect(() => {
     if (!focusId) {
       return;
@@ -144,7 +136,7 @@ export function MapPage() {
           lga=""
           year={facetYear}
           states={KNOWN_STATES}
-          years={liveYears}
+          years={[]}
           lgas={[]}
           showLga={false}
           showYear={true}

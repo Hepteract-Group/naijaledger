@@ -1,10 +1,18 @@
 """Unit tests for geo helpers and facet URL parsing companions."""
 
+from naijaledger.finance.centroids import STATE_CENTROIDS
 from naijaledger.finance.geo import (
+    STATE_CODE_TO_NAME,
     normalize_lga,
     normalize_state_code,
     parse_fiscal_year,
 )
+
+
+def test_centroids_cover_every_known_state() -> None:
+    assert set(STATE_CENTROIDS) == set(STATE_CODE_TO_NAME)
+    for code, (name, _lat, _lng) in STATE_CENTROIDS.items():
+        assert name == STATE_CODE_TO_NAME[code]
 
 
 def test_normalize_state_code() -> None:
