@@ -1,9 +1,11 @@
 from datetime import UTC, datetime
+from hashlib import sha256
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import httpx
 import pytest
+from sqlalchemy import text
 
 from naijaledger.archive.types import ArchiveStoreResult
 from naijaledger.config import Settings
@@ -362,15 +364,17 @@ def test_discover_budget_office_expands_year_pages(
         raise AssertionError(f"unexpected URL {url}")
 
     http_client = httpx.Client(transport=httpx.MockTransport(handler))
-    monkeypatch.setattr(
-        "naijaledger.fetch.capture.store_raw_bytes",
-        lambda _client, _bucket, data, **_kwargs: ArchiveStoreResult(
-            archive_key="sha256/budgetpdf",
-            content_hash="budgetpdf",
+
+    def _store(_client, _bucket, data, **_kwargs):
+        digest = sha256(data).hexdigest()[:24]
+        return ArchiveStoreResult(
+            archive_key=f"sha256/{digest}",
+            content_hash=digest,
             byte_count=len(data),
             created=True,
-        ),
-    )
+        )
+
+    monkeypatch.setattr("naijaledger.fetch.capture.store_raw_bytes", _store)
 
     summary = discover_and_fetch_catalog_children(
         db_connection,
@@ -394,10 +398,31 @@ def test_discover_budget_office_expands_year_pages(
     assert any("/2026-budget" in url for url in fetched_urls)
     assert any(url.rstrip("/").endswith("/download") for url in fetched_urls)
     assert not any("/viewdocument/" in url for url in fetched_urls)
-    assert summary["attempted"] >= 1
-    assert summary["succeeded"] >= 1
-    child_document = get_document_by_sha256(db_connection, "budgetpdf")
+    assert summary["attempted"] >= 2  # year HTML + at least one PDF
+    assert summary["succeeded"] >= 2
+
+    year_fetch = db_connection.execute(
+        text(
+            """
+            SELECT fr.url, fr.ok, d.id AS document_id, d.format, d.meta
+            FROM fetch_records fr
+            JOIN documents d ON d.sha256 = fr.sha256
+            WHERE fr.source_id = :source_id AND fr.url LIKE '%/2026-budget%'
+              AND fr.ok = true
+            LIMIT 1
+            """
+        ),
+        {"source_id": approved.id},
+    ).first()
+    assert year_fetch is not None
+    assert year_fetch.format == "html"
+    assert year_fetch.meta["discovery"]["kind"] == "budget_office_year_page"
+    assert year_fetch.meta["discovery"]["parent_document_id"] == str(catalog_doc["document_id"])
+
+    pdf_hash = sha256(pdf_bytes).hexdigest()[:24]
+    child_document = get_document_by_sha256(db_connection, pdf_hash)
     assert child_document is not None
     assert child_document.format == "pdf"
     assert child_document.meta is not None
-    assert child_document.meta["discovery"]["parent_document_id"] == str(catalog_doc["document_id"])
+    # PDF parent is the year-folder document, not the index.
+    assert child_document.meta["discovery"]["parent_document_id"] == str(year_fetch.document_id)
