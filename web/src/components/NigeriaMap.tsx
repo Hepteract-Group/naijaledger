@@ -26,6 +26,14 @@ type NigeriaMapProps = {
 const LIGHT_STYLE = "https://basemaps.cartocdn.com/gl/positron-nolabels-gl-style/style.json";
 const DARK_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json";
 
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
 function DeckGLOverlay(props: MapboxOverlayProps) {
   const overlay = useControl<MapboxOverlay>(() => new MapboxOverlay(props));
   overlay.setProps(props);
@@ -90,7 +98,7 @@ export function NigeriaMap({ metric, selectedId, onSelect }: NigeriaMapProps) {
         return null;
       }
       return {
-        html: `<strong>${row.name}</strong><br/>${metricLabel(metric)}: ${formatMetricValue(row, metric)}`,
+        html: `<strong>${escapeHtml(row.name)}</strong><br/>${escapeHtml(metricLabel(metric))}: ${escapeHtml(formatMetricValue(row, metric))}`,
         style: {
           background: "var(--bg-elevated, #fff)",
           color: "var(--ink, #14261c)",

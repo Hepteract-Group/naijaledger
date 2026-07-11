@@ -52,7 +52,8 @@ export function GraphPage() {
       return [];
     }
     const ids = new Set<string>();
-    for (const link of data.links) {
+    // Use document links (string ids) — force-graph mutates runtime link endpoints into objects.
+    for (const link of doc.links) {
       if (link.source === selected.id) {
         ids.add(link.target);
       }
@@ -61,7 +62,7 @@ export function GraphPage() {
       }
     }
     return data.nodes.filter((node) => ids.has(node.id));
-  }, [data, selected]);
+  }, [data.nodes, doc.links, selected]);
 
   const toggleKind = (kind: GraphNodeKind) => {
     setEnabledKinds((prev) => {
