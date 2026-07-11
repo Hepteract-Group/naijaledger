@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { CitedSource } from "../components/CitedSource";
 import { FacetBar } from "../components/FacetBar";
@@ -16,25 +16,35 @@ import {
 } from "../map/fixtures";
 
 const KNOWN_STATES = listStateMetrics().map((row) => ({ code: row.id, name: row.name }));
+const ALL_ROWS = listStateMetrics();
 
 export function MapPage() {
   const [params, setParams] = useSearchParams();
   const { state: facetState } = parseGeoYearFacets(params);
+  const focusId = facetState.trim().toUpperCase() || null;
   const [metric, setMetric] = useState<MapMetric>("contract_volume");
   const [selected, setSelected] = useState<StateMetric | null>(null);
   const rows = useMemo(() => {
-    const all = listStateMetrics();
-    if (!facetState) {
-      return all;
+    if (!focusId) {
+      return ALL_ROWS;
     }
-    return all.filter((row) => row.id === facetState.toUpperCase());
-  }, [facetState]);
+    return ALL_ROWS.filter((row) => row.id === focusId);
+  }, [focusId]);
   const leaders = useMemo(() => topStates(rows, metric, 5), [rows, metric]);
-  const ceiling = useMemo(() => maxMetric(rows, metric), [rows, metric]);
+  // National ceiling so the legend stays comparable when focused on one state.
+  const ceiling = useMemo(() => maxMetric(ALL_ROWS, metric), [metric]);
   const rank =
     selected && rows.some((row) => row.id === selected.id)
       ? rankForMetric(rows, metric, selected.id)
       : null;
+
+  useEffect(() => {
+    if (!focusId) {
+      return;
+    }
+    const match = ALL_ROWS.find((row) => row.id === focusId) ?? null;
+    setSelected(match);
+  }, [focusId]);
 
   const patchParams = (patch: Record<string, string | null>) => {
     const next = new URLSearchParams(params);
@@ -48,6 +58,13 @@ export function MapPage() {
     setParams(next, { replace: true });
   };
 
+  const onSelectColumn = (row: StateMetric | null) => {
+    setSelected(row);
+    if (row) {
+      patchParams(geoYearFacetPatch({ state: row.id }));
+    }
+  };
+
   return (
     <div className="page page--map">
       <header className="map-hero">
@@ -59,7 +76,8 @@ export function MapPage() {
           </p>
         </div>
         <p className="map-demo-banner" role="status">
-          Illustrative demo — not live totals ({rows.length} jurisdictions)
+          Illustrative demo — not live totals ({rows.length}{" "}
+          {rows.length === 1 ? "jurisdiction" : "jurisdictions"})
         </p>
       </header>
 
@@ -75,7 +93,9 @@ export function MapPage() {
           showYear={false}
           onChange={(patch) => {
             patchParams(geoYearFacetPatch(patch));
-            setSelected(null);
+            if (!patch.state) {
+              setSelected(null);
+            }
           }}
         />
       </div>
@@ -100,14 +120,19 @@ export function MapPage() {
           ))}
         </div>
         <p className="map-toolbar__hint">
-          Height and colour encode <strong>{metricLabel(metric).toLowerCase()}</strong> (demo
-          scale).
+          Height and colour encode <strong>{metricLabel(metric).toLowerCase()}</strong> (demo scale)
+          {focusId ? " · map focused on selected state" : ""}.
         </p>
       </div>
 
       <div className="map-layout">
         <section className="map-stage" aria-label="Nigeria state map">
-          <NigeriaMap metric={metric} selectedId={selected?.id ?? null} onSelect={setSelected} />
+          <NigeriaMap
+            metric={metric}
+            selectedId={selected?.id ?? null}
+            focusId={focusId}
+            onSelect={onSelectColumn}
+          />
           <div className="map-legend" aria-hidden="true">
             <span className="map-legend__label">Low</span>
             <span className={`map-legend__ramp map-legend__ramp--${metric}`} />
@@ -165,7 +190,7 @@ export function MapPage() {
                   <button
                     type="button"
                     className={`map-rank__btn${selected?.id === row.id ? " is-active" : ""}`}
-                    onClick={() => setSelected(row)}
+                    onClick={() => onSelectColumn(row)}
                   >
                     <span className="map-rank__n">{index + 1}</span>
                     <span className="map-rank__name">{row.name}</span>
@@ -181,14 +206,14 @@ export function MapPage() {
               citation={{
                 id: "map-sources",
                 label: "Source registry",
-                href: facetState ? `/sources?state=${facetState}` : "/sources",
+                href: focusId ? `/sources?state=${focusId}` : "/sources",
                 kind: "registry",
                 note: "Drill to catalogued sources",
               }}
             />
             <Link
               className="btn btn--ghost"
-              to={facetState ? `/explore?resource=tenders&state=${facetState}` : "/explore"}
+              to={focusId ? `/explore?resource=tenders&state=${focusId}` : "/explore"}
             >
               Open explore
             </Link>
