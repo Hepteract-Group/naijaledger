@@ -143,3 +143,56 @@ export function elevationForMetric(row: StateMetric, metric: MapMetric): number 
 export function maxMetric(rows: readonly StateMetric[], metric: MapMetric): number {
   return rows.reduce((acc, row) => Math.max(acc, row[metric]), 0);
 }
+
+export function metricLabel(metric: MapMetric): string {
+  return metric === "contract_volume" ? "Contract volume" : "Anomaly density";
+}
+
+export function formatMetricValue(row: StateMetric, metric: MapMetric): string {
+  if (metric === "contract_volume") {
+    return String(row.contract_volume);
+  }
+  return row.anomaly_density.toFixed(2);
+}
+
+export function metricIntensity(row: StateMetric, metric: MapMetric, max: number): number {
+  if (max <= 0) {
+    return 0;
+  }
+  return Math.min(1, row[metric] / max);
+}
+
+/** Rank 1 = highest for the active metric. */
+export function rankForMetric(
+  rows: readonly StateMetric[],
+  metric: MapMetric,
+  id: string,
+): number | null {
+  const ordered = [...rows].sort((a, b) => b[metric] - a[metric]);
+  const index = ordered.findIndex((row) => row.id === id);
+  return index === -1 ? null : index + 1;
+}
+
+export function topStates(
+  rows: readonly StateMetric[],
+  metric: MapMetric,
+  limit = 5,
+): StateMetric[] {
+  return [...rows].sort((a, b) => b[metric] - a[metric]).slice(0, limit);
+}
+
+/** RGBA for column fill — forest scale for volume, indigo for anomaly. */
+export function columnFillColor(
+  intensity: number,
+  metric: MapMetric,
+  selected: boolean,
+): [number, number, number, number] {
+  const t = Math.max(0.15, intensity);
+  if (selected) {
+    return [184, 137, 45, 245];
+  }
+  if (metric === "contract_volume") {
+    return [11, Math.round(70 + t * 70), Math.round(55 + t * 40), Math.round(160 + t * 70)];
+  }
+  return [36, Math.round(50 + t * 40), Math.round(90 + t * 70), Math.round(160 + t * 70)];
+}

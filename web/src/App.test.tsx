@@ -227,6 +227,8 @@ describe("App routes", () => {
     expect(await screen.findByRole("heading", { name: "Graph" })).toBeTruthy();
     expect(screen.getByText(/illustrative demo — not a live memgraph/i)).toBeTruthy();
     expect(screen.getByTestId("graph-canvas")).toBeTruthy();
+    expect(screen.getByPlaceholderText(/search parties/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Parties" })).toBeTruthy();
   });
 
   it("opens the demo map page from nav", async () => {
@@ -234,8 +236,10 @@ describe("App routes", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("link", { name: "Map" }));
     expect(await screen.findByRole("heading", { name: "Map" })).toBeTruthy();
-    expect(screen.getByText(/illustrative demo — not live contract/i)).toBeTruthy();
+    expect(screen.getByText(/illustrative demo — not live totals/i)).toBeTruthy();
     expect(screen.getByTestId("nigeria-map")).toBeTruthy();
-    expect(screen.getByRole("combobox")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Contract volume" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Anomaly density" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /top /i })).toBeTruthy();
   });
 });
