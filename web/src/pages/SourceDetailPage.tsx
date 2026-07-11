@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { isApiFailure } from "../api/client";
 import { fetchSource, type PublicSource } from "../api/sources";
+import { CitedSource } from "../components/CitedSource";
 
 type LoadState =
   | { kind: "loading" }
@@ -118,9 +119,18 @@ export function SourceDetailPage() {
         </div>
       </dl>
       <p className="placeholder">
-        Archived document bytes and page-level provenance drill-down land with E10.6 / archive
-        serving.
+        Archived document bytes remain a follow-up. Citations and dossier export are available from
+        Stories.
       </p>
+      <CitedSource
+        citation={{
+          id: "source-self",
+          label: source.name,
+          href: source.url,
+          kind: source.category,
+          note: "Original registry URL",
+        }}
+      />
       <Link className="btn btn--primary" to="/explore">
         Back to explore
       </Link>

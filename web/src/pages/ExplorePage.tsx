@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { fetchFlags, type PublicFlag } from "../api/flags";
 import { fetchParties, type PublicParty } from "../api/parties";
 import { fetchTenders, type PublicTender } from "../api/tenders";
+import { CitedSource } from "../components/CitedSource";
 import { DistributionChart } from "../components/DistributionChart";
 import {
   countBy,
@@ -517,6 +518,15 @@ export function ExplorePage() {
                     </div>
                   </dl>
                 ) : null}
+                <CitedSource
+                  citation={{
+                    id: "explore-sources",
+                    label: "Source registry",
+                    href: "/sources",
+                    kind: "registry",
+                    note: "Provenance catalog",
+                  }}
+                />
                 <Link className="btn btn--ghost" to="/sources">
                   Browse sources
                 </Link>

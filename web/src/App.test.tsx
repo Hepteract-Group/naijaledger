@@ -202,6 +202,9 @@ describe("App routes", () => {
     expect(screen.getByText(/illustrative demo — not a published claim/i)).toBeTruthy();
     expect(screen.getByRole("heading", { name: /start from a public source/i })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Browse sources" })).toBeTruthy();
+    expect(screen.getByText("Export dossier")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Download JSON" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Download Markdown" })).toBeTruthy();
     expect(screen.getAllByRole("link", { name: "Explore parties" }).length).toBeGreaterThanOrEqual(
       1,
     );
