@@ -6,6 +6,7 @@ from naijaledger.api.v1 import (
     export,
     facets,
     flags,
+    graph,
     map_states,
     parties,
     sources,
@@ -21,4 +22,5 @@ router.include_router(contracts.router)
 router.include_router(flags.router)
 router.include_router(facets.router)
 router.include_router(map_states.router)
+router.include_router(graph.router)
 router.include_router(export.router)

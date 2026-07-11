@@ -1,14 +1,21 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { fetchGraphSubgraph, toGraphDocument } from "../api/graph";
 import { CitedSource } from "../components/CitedSource";
 import { FacetBar } from "../components/FacetBar";
 import { GraphCanvas } from "../components/GraphCanvas";
 import { geoYearFacetPatch, parseGeoYearFacets } from "../explore/facets";
 import { getDemoGraph } from "../graph/fixtures";
-import { toForceGraphData, type ForceGraphNode, type GraphNodeKind } from "../graph/types";
+import {
+  toForceGraphData,
+  type ForceGraphNode,
+  type GraphDocument,
+  type GraphNodeKind,
+} from "../graph/types";
 import { listStateMetrics } from "../map/fixtures";
 
 const KNOWN_STATES = listStateMetrics().map((row) => ({ code: row.id, name: row.name }));
+const DEMO_DOC = getDemoGraph();
 
 const KIND_OPTIONS: { kind: GraphNodeKind; label: string }[] = [
   { kind: "party", label: "Parties" },
@@ -24,11 +31,16 @@ const KIND_BLURB: Record<GraphNodeKind, string> = {
   contract: "Signed contract record",
 };
 
+type LoadState =
+  | { kind: "loading" }
+  | { kind: "live"; doc: GraphDocument }
+  | { kind: "empty"; doc: GraphDocument }
+  | { kind: "demo"; doc: GraphDocument; reason: string };
+
 export function GraphPage() {
   const [params, setParams] = useSearchParams();
   const { state: facetState } = parseGeoYearFacets(params);
-  const doc = useMemo(() => getDemoGraph(), []);
-  const data = useMemo(() => toForceGraphData(doc), [doc]);
+  const [load, setLoad] = useState<LoadState>({ kind: "loading" });
   const [selected, setSelected] = useState<ForceGraphNode | null>(null);
   const [query, setQuery] = useState("");
   const [enabledKinds, setEnabledKinds] = useState<GraphNodeKind[]>([
@@ -38,8 +50,61 @@ export function GraphPage() {
     "contract",
   ]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setLoad({ kind: "loading" });
+    void fetchGraphSubgraph({ limit: 80 })
+      .then((payload) => {
+        if (cancelled) {
+          return;
+        }
+        if (!payload.available) {
+          setLoad({
+            kind: "demo",
+            doc: DEMO_DOC,
+            reason: "Memgraph unavailable",
+          });
+          return;
+        }
+        const doc = toGraphDocument(payload);
+        if (doc.nodes.length === 0) {
+          setLoad({ kind: "empty", doc });
+          return;
+        }
+        setLoad({ kind: "live", doc });
+      })
+      .catch((error: unknown) => {
+        if (cancelled) {
+          return;
+        }
+        const reason = error instanceof Error ? error.message : "API unavailable";
+        setLoad({ kind: "demo", doc: DEMO_DOC, reason });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const emptyLive: GraphDocument = {
+    id: "loading",
+    title: "Loading",
+    demo: false,
+    nodes: [],
+    links: [],
+  };
+  const doc = load.kind === "loading" ? emptyLive : load.doc;
+  const data = useMemo(() => toForceGraphData(doc), [doc]);
   const focusKinds = useMemo(() => new Set(enabledKinds), [enabledKinds]);
   const stateName = KNOWN_STATES.find((row) => row.code === facetState.toUpperCase())?.name ?? "";
+
+  const banner =
+    load.kind === "loading"
+      ? "Loading live graph…"
+      : load.kind === "live"
+        ? "Live from Memgraph finance projection"
+        : load.kind === "empty"
+          ? "Live Memgraph projection is empty — rebuild the graph after ingest"
+          : `Illustrative demo — not a live Memgraph projection (${load.reason})`;
 
   const patchParams = (patch: Record<string, string | null>) => {
     const next = new URLSearchParams(params);
@@ -72,7 +137,6 @@ export function GraphPage() {
       return [];
     }
     const ids = new Set<string>();
-    // Use document links (string ids) — force-graph mutates runtime link endpoints into objects.
     for (const link of doc.links) {
       if (link.source === selected.id) {
         ids.add(link.target);
@@ -106,11 +170,9 @@ export function GraphPage() {
             or search a name — click a node for a short briefing.
           </p>
         </div>
-        {doc.demo ? (
-          <p className="graph-demo-banner" role="status">
-            Illustrative demo — not a live Memgraph projection
-          </p>
-        ) : null}
+        <p className="graph-demo-banner" role="status">
+          {banner}
+        </p>
       </header>
 
       <div className="explore-controls">
@@ -138,8 +200,9 @@ export function GraphPage() {
 
       {facetState ? (
         <p className="explore-hint">
-          Shared state facet with Explore/Map. Live graph geo filter lands with #141
-          {stateName ? ` — search seeded with ${stateName}` : ""}.{" "}
+          Shared state facet with Explore/Map. Projection has no geo props yet — state seeds search
+          only
+          {stateName ? ` (${stateName})` : ""}.{" "}
           <Link to={`/explore?resource=tenders&state=${facetState}`}>Open Explore</Link>
         </p>
       ) : null}

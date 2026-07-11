@@ -236,13 +236,50 @@ describe("App routes", () => {
 
   it("opens the demo graph page from nav", async () => {
     stubMatchMedia(false);
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
     render(<App />);
     fireEvent.click(screen.getByRole("link", { name: "Graph" }));
     expect(await screen.findByRole("heading", { name: "Graph" })).toBeTruthy();
-    expect(screen.getByText(/illustrative demo — not a live memgraph/i)).toBeTruthy();
+    expect(await screen.findByText(/illustrative demo — not a live memgraph/i)).toBeTruthy();
     expect(screen.getByTestId("graph-canvas")).toBeTruthy();
     expect(screen.getByPlaceholderText(/search parties/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Parties" })).toBeTruthy();
+  });
+
+  it("uses live graph when the API returns nodes", async () => {
+    stubMatchMedia(false);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (input: RequestInfo) => {
+        const url = String(input);
+        if (url.includes("/v1/graph/subgraph")) {
+          return {
+            ok: true,
+            json: async () => ({
+              id: "live-sample",
+              title: "Live finance graph",
+              demo: false,
+              available: true,
+              nodes: [
+                {
+                  id: "a1",
+                  labels: ["Agency", "FinanceParty"],
+                  name: "Live Agency",
+                  kind: "party",
+                },
+              ],
+              links: [],
+            }),
+          };
+        }
+        return { ok: false, status: 404, json: async () => ({}) };
+      }),
+    );
+    render(<App />);
+    fireEvent.click(screen.getByRole("link", { name: "Graph" }));
+    expect(await screen.findByRole("heading", { name: "Graph" })).toBeTruthy();
+    expect(await screen.findByText(/live from memgraph finance projection/i)).toBeTruthy();
+    expect(screen.getByTestId("graph-canvas")).toBeTruthy();
   });
 
   it("opens the demo map page from nav", async () => {
