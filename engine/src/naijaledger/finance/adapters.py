@@ -1,18 +1,22 @@
-"""Source-URL keyed adapters: archived bytes → OCDS release package."""
+"""Source-URL keyed adapters: archived bytes → OCDS release package or budget load."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from naijaledger.finance.html_portal import ekiti_html_to_ocds_package
 from naijaledger.finance.ocds import OcdsNormalizeError, normalize_ocds_document
 from naijaledger.sources.types import SourceFormat
 
 ToPackageFn = Callable[..., dict[str, Any]]
+LoadKind = Literal["ocds", "budget"]
 
 EKITI_URL = "https://ocdsportal.azurewebsites.net/Home/Procurements"
+BUDGET_OFFICE_URL = (
+    "https://budgetoffice.gov.ng/index.php/resources/internal-resources/budget-documents"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,7 +24,8 @@ class AdapterSpec:
     adapter_id: str
     method_version: str
     formats: frozenset[SourceFormat]
-    to_package: ToPackageFn
+    load_kind: LoadKind = "ocds"
+    to_package: ToPackageFn | None = None
 
 
 def _ocds_json_to_package(data: bytes, *, max_rows: int | None = None) -> dict[str, Any]:
@@ -33,7 +38,6 @@ def _ocds_json_to_package(data: bytes, *, max_rows: int | None = None) -> dict[s
         package = {"releases": [raw]}
     else:
         raise OcdsNormalizeError("JSON is neither a release nor a release package")
-    # Validate early.
     normalize_ocds_document(package)
     if max_rows is not None:
         package = {**package, "releases": list(package.get("releases") or [])[:max_rows]}
@@ -49,15 +53,23 @@ ADAPTERS_BY_URL: dict[str, AdapterSpec] = {
         adapter_id="ekiti-html-table",
         method_version="ekiti-html-table-2",
         formats=frozenset({"html"}),
+        load_kind="ocds",
         to_package=_ekiti_to_package,
+    ),
+    BUDGET_OFFICE_URL.rstrip("/"): AdapterSpec(
+        adapter_id="budget-office-appropriation",
+        method_version="budget-office-appropriation-1",
+        formats=frozenset({"pdf"}),
+        load_kind="budget",
+        to_package=None,
     ),
 }
 
-# Generic JSON OCDS: matched by format when URL has no specific adapter.
 GENERIC_JSON_ADAPTER = AdapterSpec(
     adapter_id="ocds-json",
     method_version="ocds-json-1",
     formats=frozenset({"json"}),
+    load_kind="ocds",
     to_package=_ocds_json_to_package,
 )
 
