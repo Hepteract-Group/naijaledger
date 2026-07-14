@@ -18,8 +18,10 @@ class StateEntry(TypedDict):
 
 @lru_cache(maxsize=1)
 def load_nigeria_states() -> tuple[StateEntry, ...]:
-    raw = resources.files("naijaledger.geo").joinpath("nigeria_states.json").read_text(
-        encoding="utf-8"
+    raw = (
+        resources.files("naijaledger.geo")
+        .joinpath("nigeria_states.json")
+        .read_text(encoding="utf-8")
     )
     rows = json.loads(raw)
     return tuple(
