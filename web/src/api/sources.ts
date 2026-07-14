@@ -11,6 +11,7 @@ export type PublicSource = {
   format: string;
   fetch_method: string;
   status: string;
+  ingest_role?: string;
   health_status: string;
   expected_cadence: number | null;
   created_at: string;
