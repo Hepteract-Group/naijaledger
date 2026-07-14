@@ -10,6 +10,7 @@ from naijaledger.api.v1 import (
     map_states,
     parties,
     sources,
+    stories,
     tenders,
 )
 
@@ -23,4 +24,5 @@ router.include_router(flags.router)
 router.include_router(facets.router)
 router.include_router(map_states.router)
 router.include_router(graph.router)
+router.include_router(stories.router)
 router.include_router(export.router)

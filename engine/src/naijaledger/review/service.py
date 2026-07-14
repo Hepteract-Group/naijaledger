@@ -153,7 +153,12 @@ def decide_review(
     )
     if result.rowcount != 1:
         raise ReviewStateError("review is no longer pending")
-    return get_review_decision(connection, decision_id)
+    decided = get_review_decision(connection, decision_id)
+    if decided.decision == "approve_publish" and decided.subject_type == "story":
+        from naijaledger.stories.service import publish_story_from_review
+
+        publish_story_from_review(connection, decided)
+    return decided
 
 
 def is_approved_for_publish(connection: Connection, subject_type: str, subject_id: UUID) -> bool:

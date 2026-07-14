@@ -205,11 +205,31 @@ describe("App routes", () => {
   it("lists stories and opens the demo scrollytelling narrative", async () => {
     stubMatchMedia(false);
     stubIntersectionObserver();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((input: RequestInfo) => {
+        const url = String(input);
+        if (url.includes("/v1/stories/by-slug/")) {
+          return Promise.resolve({ ok: false, status: 404 });
+        }
+        if (url.includes("/v1/stories")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ items: [], limit: 50, offset: 0, count: 0 }),
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ items: [], limit: 50, offset: 0, count: 0 }),
+        });
+      }),
+    );
 
     render(<App />);
     fireEvent.click(screen.getByRole("link", { name: "Stories" }));
     expect(await screen.findByRole("heading", { name: "Stories" })).toBeTruthy();
-    expect(screen.getByText("Follow the ledger")).toBeTruthy();
+    expect(await screen.findByText("Follow the ledger")).toBeTruthy();
+    expect(screen.getByText(/showing demo narratives/i)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("link", { name: /follow the ledger/i }));
     expect(await screen.findByRole("heading", { name: "Follow the ledger" })).toBeTruthy();
@@ -227,6 +247,7 @@ describe("App routes", () => {
   it("shows not-found for unknown story slugs", async () => {
     stubMatchMedia(false);
     stubIntersectionObserver();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 404 }));
     window.history.pushState({}, "", "/stories/does-not-exist");
 
     render(<App />);

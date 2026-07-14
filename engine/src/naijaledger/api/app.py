@@ -43,6 +43,10 @@ OPENAPI_TAGS = [
         "description": "Bounded live Memgraph finance subgraphs (read-only)",
     },
     {
+        "name": "stories",
+        "description": "Human-approved narrative stories (scrollytelling)",
+    },
+    {
         "name": "export",
         "description": ("Partner bulk export (bearer token required). Flags remain hypotheses."),
     },

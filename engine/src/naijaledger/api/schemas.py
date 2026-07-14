@@ -153,3 +153,42 @@ class PublicFlag(BaseModel):
     status: str
     created_at: datetime
     updated_at: datetime
+
+
+class PublicStoryCitation(BaseModel):
+    id: str
+    label: str
+    href: str | None = None
+
+
+class PublicStoryVisual(BaseModel):
+    kind: Literal["stat", "quote", "placeholder"]
+    title: str
+    value: str | None = None
+    detail: str | None = None
+
+
+class PublicStoryStep(BaseModel):
+    id: str
+    headline: str
+    body: str
+    visual: PublicStoryVisual
+    citations: list[PublicStoryCitation]
+
+
+class PublicStoryNext(BaseModel):
+    label: str
+    to: str
+
+
+class PublicStory(BaseModel):
+    """Published scrollytelling narrative (spec 0038). Always demo=false."""
+
+    id: UUID
+    slug: str
+    title: str
+    lede: str
+    demo: Literal[False] = False
+    steps: list[PublicStoryStep]
+    next: PublicStoryNext
+    published_at: datetime
