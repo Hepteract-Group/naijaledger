@@ -28,6 +28,7 @@ class PublicSource(BaseModel):
     format: str
     fetch_method: str
     status: str
+    ingest_role: str
     health_status: str
     expected_cadence: float | None = Field(
         description="Cadence in seconds, or null when unset",

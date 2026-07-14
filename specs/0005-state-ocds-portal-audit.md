@@ -58,8 +58,10 @@ Raw probes stored under `.probe/v4/` (gitignored locally; not committed).
 | **Open Treasury** | https://opentreasury.gov.ng/ | **Retired** | TLS certificate expired / portal unsafe per [FIJ (Jul 2025)](https://fij.ng/article/9-months-and-counting-oagfs-open-treasury-portal-unsafe-for-visitors/). Removed from seed catalog; existing rows retired on re-seed. | Human decision on alternate payments source |
 | Budget Office | https://budgetoffice.gov.ng/index.php/resources/internal-resources/budget-documents | **Catalog index** | Year folders (`2026-budget`, …) with Joomla `/download` + `/viewdocument/{id}` (Appropriation Bill). | Catalog crawler for DocMan downloads |
 | NEITI | https://neiti.gov.ng/documents/all | **Catalog → PDF** | Many PDF links under `/INFORMATION/DOCUMENTS/…` (engagement + audits mixed). | E3.4 PDF children + filter/allowlist |
-| OpenStates.ng | https://openstates.ng/ | **Thin SPA overview** | State-name glance page; no contract/budget rows in HTML | Treat as discovery/aggregation UI, not primary leaf; or find API/data routes |
-| CAC BOR | https://bor.cac.gov.ng/ | **Search UI only** | Playwright shows PSC search form; no bulk register dump | Needs `api`/`playwright` interactive search strategy — not bulk HTML scrape |
+| OpenStates.ng | https://openstates.ng/ | **discovery_ui** | State-name glance page; no contract/budget rows in HTML | Stay `proposed` — partnership path #64; see `specs/0039-federal-discovery-rescope.md` |
+| CAC BOR | https://bor.cac.gov.ng/ | **search_ui** | Playwright shows PSC search form; no bulk register dump | Stay `proposed`; enrichment under #38 — not bulk HTML |
+
+See also **spec 0039** for `ingest_role` registry metadata and seed auto-approve rules.
 
 ## 5. Acceptance criteria
 

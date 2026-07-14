@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from naijaledger.sources.types import (
     FetchMethod,
     HealthStatus,
+    IngestRole,
     Jurisdiction,
     SourceCategory,
     SourceFormat,
@@ -24,6 +25,7 @@ class SourceCreate(BaseModel):
     format: SourceFormat
     expected_cadence: timedelta | None = None
     added_by: str | None = None
+    ingest_role: IngestRole = "leaf"
 
 
 class SourceUpdate(BaseModel):
@@ -38,6 +40,7 @@ class SourceUpdate(BaseModel):
     schema_fingerprint: str | None = None
     health_status: HealthStatus | None = None
     reliability_score: Decimal | None = Field(default=None, ge=0, le=1)
+    ingest_role: IngestRole | None = None
 
 
 class SourceRecord(BaseModel):
@@ -58,6 +61,7 @@ class SourceRecord(BaseModel):
     health_status: HealthStatus
     reliability_score: Decimal
     status: SourceStatus
+    ingest_role: IngestRole
     added_by: str | None
     approved_by: str | None
     created_at: datetime

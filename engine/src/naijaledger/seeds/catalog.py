@@ -1,6 +1,7 @@
 """Approved initial source catalog for registry seeding (E2.3).
 
 Content-sampled 2026-07-08 — see specs/0005-state-ocds-portal-audit.md.
+Roles: specs/0039-federal-discovery-rescope.md (`ingest_role`).
 Fetch today archives *only* this URL (no link-following yet). Leaf pages must contain
 award/tender/contract rows; catalog pages (Lagos/Jigawa PDF indexes) need E3.4 discovery.
 """
@@ -8,9 +9,13 @@ award/tender/contract rows; catalog pages (Lagos/Jigawa PDF indexes) need E3.4 d
 from datetime import timedelta
 
 from naijaledger.sources.models import SourceCreate
+from naijaledger.sources.types import IngestRole
 
 SEED_ADDED_BY = "seed:e2.3"
 SEED_APPROVED_BY = "human:decision-brief-2026-07-07"
+
+# Roles that may enter the approved fetch schedule (spec 0039).
+SEED_AUTO_APPROVE_ROLES: frozenset[IngestRole] = frozenset({"leaf", "catalog"})
 
 _FEDERAL_SOURCES: list[SourceCreate] = [
     SourceCreate(
@@ -22,6 +27,7 @@ _FEDERAL_SOURCES: list[SourceCreate] = [
         format="html",
         expected_cadence=timedelta(days=7),
         added_by=SEED_ADDED_BY,
+        ingest_role="leaf",
     ),
     SourceCreate(
         name="Budget Office of the Federation — Budget Documents",
@@ -32,6 +38,7 @@ _FEDERAL_SOURCES: list[SourceCreate] = [
         format="html",
         expected_cadence=timedelta(days=7),
         added_by=SEED_ADDED_BY,
+        ingest_role="catalog",
     ),
     SourceCreate(
         name="NEITI — Documents library",
@@ -42,6 +49,7 @@ _FEDERAL_SOURCES: list[SourceCreate] = [
         format="html",
         expected_cadence=timedelta(days=7),
         added_by=SEED_ADDED_BY,
+        ingest_role="catalog",
     ),
     SourceCreate(
         name="OpenStates.ng",
@@ -52,6 +60,7 @@ _FEDERAL_SOURCES: list[SourceCreate] = [
         format="html",
         expected_cadence=timedelta(days=7),
         added_by=SEED_ADDED_BY,
+        ingest_role="discovery_ui",
     ),
     SourceCreate(
         name="CAC Beneficial Ownership Register",
@@ -62,6 +71,7 @@ _FEDERAL_SOURCES: list[SourceCreate] = [
         format="html",
         expected_cadence=timedelta(days=30),
         added_by=SEED_ADDED_BY,
+        ingest_role="search_ui",
     ),
 ]
 
@@ -76,6 +86,7 @@ _STATE_PROCUREMENT_SOURCES: list[SourceCreate] = [
         format="html",
         expected_cadence=timedelta(days=7),
         added_by=SEED_ADDED_BY,
+        ingest_role="catalog",
     ),
     SourceCreate(
         name="Kaduna State Open Contracting Portal",
@@ -87,6 +98,7 @@ _STATE_PROCUREMENT_SOURCES: list[SourceCreate] = [
         format="html",
         expected_cadence=timedelta(days=7),
         added_by=SEED_ADDED_BY,
+        ingest_role="leaf",
     ),
     SourceCreate(
         name="Ekiti State Open Contracting Portal",
@@ -98,6 +110,7 @@ _STATE_PROCUREMENT_SOURCES: list[SourceCreate] = [
         format="html",
         expected_cadence=timedelta(days=7),
         added_by=SEED_ADDED_BY,
+        ingest_role="leaf",
     ),
     SourceCreate(
         name="Adamawa State Open Contracting Portal",
@@ -109,6 +122,7 @@ _STATE_PROCUREMENT_SOURCES: list[SourceCreate] = [
         format="html",
         expected_cadence=timedelta(days=7),
         added_by=SEED_ADDED_BY,
+        ingest_role="leaf",
     ),
     SourceCreate(
         name="Gombe State Due Process Portal",
@@ -120,6 +134,7 @@ _STATE_PROCUREMENT_SOURCES: list[SourceCreate] = [
         format="html",
         expected_cadence=timedelta(days=7),
         added_by=SEED_ADDED_BY,
+        ingest_role="leaf",
     ),
     SourceCreate(
         name="Jigawa State Open Contracting Portal",
@@ -131,6 +146,7 @@ _STATE_PROCUREMENT_SOURCES: list[SourceCreate] = [
         format="html",
         expected_cadence=timedelta(days=7),
         added_by=SEED_ADDED_BY,
+        ingest_role="catalog",
     ),
     SourceCreate(
         name="Anambra State Public Procurement Portal",
@@ -142,6 +158,7 @@ _STATE_PROCUREMENT_SOURCES: list[SourceCreate] = [
         format="html",
         expected_cadence=timedelta(days=7),
         added_by=SEED_ADDED_BY,
+        ingest_role="leaf",
     ),
     SourceCreate(
         name="Benue State Procurement Portal",
@@ -153,6 +170,7 @@ _STATE_PROCUREMENT_SOURCES: list[SourceCreate] = [
         format="html",
         expected_cadence=timedelta(days=7),
         added_by=SEED_ADDED_BY,
+        ingest_role="leaf",
     ),
 ]
 

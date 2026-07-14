@@ -7,6 +7,7 @@ from naijaledger.sources.models import SourceCreate, SourceRecord, SourceUpdate
 from naijaledger.sources.service import (
     approve_source,
     create_source,
+    demote_to_proposed,
     get_source,
     list_sources,
     record_fetch_success,
@@ -23,6 +24,7 @@ __all__ = [
     "SourceUpdate",
     "approve_source",
     "create_source",
+    "demote_to_proposed",
     "get_source",
     "list_sources",
     "record_fetch_success",

@@ -2,11 +2,12 @@ from typing import TypedDict
 
 from sqlalchemy.engine import Connection
 
-from naijaledger.seeds.catalog import SEED_APPROVED_BY, SEED_CATALOG
+from naijaledger.seeds.catalog import SEED_APPROVED_BY, SEED_AUTO_APPROVE_ROLES, SEED_CATALOG
 from naijaledger.sources.models import SourceCreate, SourceUpdate
 from naijaledger.sources.service import (
     approve_source,
     create_source,
+    demote_to_proposed,
     get_source_by_url_and_format,
     list_sources,
     retire_source,
@@ -242,16 +243,30 @@ def apply_seed_catalog(
 
     for entry in catalog:
         existing = get_source_by_url_and_format(connection, entry.url, entry.format)
+        auto_approve = entry.ingest_role in SEED_AUTO_APPROVE_ROLES
         if existing is not None:
             summary["skipped"] += 1
-            if existing.status == "proposed":
-                approve_source(connection, existing.id, approved_by=approved_by)
-                summary["approved"] += 1
+            if existing.ingest_role != entry.ingest_role:
+                update_source(
+                    connection,
+                    existing.id,
+                    SourceUpdate(ingest_role=entry.ingest_role),
+                )
+                summary["corrected"] += 1
+                existing = get_source_by_url_and_format(connection, entry.url, entry.format)
+                assert existing is not None
+            if auto_approve:
+                if existing.status == "proposed":
+                    approve_source(connection, existing.id, approved_by=approved_by)
+                    summary["approved"] += 1
+            elif existing.status == "approved":
+                demote_to_proposed(connection, existing.id)
+                summary["corrected"] += 1
             continue
 
         created = create_source(connection, entry)
         summary["created"] += 1
-        if created.status == "proposed":
+        if auto_approve and created.status == "proposed":
             approve_source(connection, created.id, approved_by=approved_by)
             summary["approved"] += 1
 
