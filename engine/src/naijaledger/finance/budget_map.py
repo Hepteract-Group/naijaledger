@@ -45,12 +45,34 @@ def _cell(row: list[str], index: int | None) -> str:
     return str(row[index]).strip()
 
 
-def _parse_amount_cell(raw: str) -> int | None:
+def _parse_amount_cell(raw: str, *, unit_scale: int = 1) -> int | None:
     if not raw:
         return None
     cleaned = re.sub(r"[₦,\s]", "", raw)
     cleaned = cleaned.replace("NGN", "").strip()
-    return amount_to_kobo(cleaned)
+    if cleaned.startswith("(") and cleaned.endswith(")"):
+        cleaned = f"-{cleaned[1:-1]}"
+    kobo = amount_to_kobo(cleaned)
+    if kobo is None:
+        return None
+    return kobo * unit_scale
+
+
+def _unit_scale_from_headers(headers: list[str]) -> int:
+    joined = " ".join(_norm_header(h) for h in headers)
+    if "000" in joined or "thousand" in joined:
+        return 1_000
+    if "million" in joined or "’m" in joined or "'m" in joined:
+        return 1_000_000
+    return 1
+
+
+def _stable_synthetic_code(*, agency: str, description: str | None, amount: int | None) -> str:
+    import hashlib
+
+    material = f"{agency}|{description or ''}|{amount or 0}"
+    digest = hashlib.sha256(material.encode("utf-8")).hexdigest()[:12]
+    return f"SYN-{digest}"
 
 
 def map_table_grid_to_budget_lines(
@@ -71,18 +93,22 @@ def map_table_grid_to_budget_lines(
     agency_i = _header_index(headers, _AGENCY_HEADERS)
     if amount_i is None and desc_i is None and code_i is None:
         return []
+    unit_scale = _unit_scale_from_headers(headers)
 
     lines: list[NormalizedBudgetLine] = []
-    for offset, row in enumerate(grid[1:], start=1):
+    for row in grid[1:]:
         if max_rows is not None and len(lines) >= max_rows:
             break
         if not any(str(cell).strip() for cell in row):
             continue
-        code = _cell(row, code_i) or f"ROW-{offset:04d}"
         description = _cell(row, desc_i) or None
         agency = _cell(row, agency_i) or default_agency
-        amount = _parse_amount_cell(_cell(row, amount_i))
-        if description is None and amount is None and not _cell(row, code_i):
+        amount = _parse_amount_cell(_cell(row, amount_i), unit_scale=unit_scale)
+        explicit_code = _cell(row, code_i)
+        code = explicit_code or _stable_synthetic_code(
+            agency=agency, description=description, amount=amount
+        )
+        if description is None and amount is None and not explicit_code:
             continue
         lines.append(
             NormalizedBudgetLine(

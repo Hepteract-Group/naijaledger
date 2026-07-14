@@ -38,6 +38,26 @@ def test_map_table_grid_and_amount_kobo() -> None:
     assert lines[1].allocated_amount == 25_000_000
 
 
+def test_thousands_header_scales_amount() -> None:
+    grid = [
+        ["Code", "MDA", "Description", "Amount (₦'000)"],
+        ["01", "Works", "Bridges", "100"],
+    ]
+    lines = map_table_grid_to_budget_lines(grid, fiscal_year=2025)
+    assert lines[0].allocated_amount == 10_000_000  # 100 * 1000 naira → kobo
+
+
+def test_stable_synthetic_code_without_code_column() -> None:
+    grid = [
+        ["MDA", "Description", "Amount"],
+        ["Works", "Bridges", "1000"],
+    ]
+    first = map_table_grid_to_budget_lines(grid, fiscal_year=2025)
+    second = map_table_grid_to_budget_lines(grid, fiscal_year=2025)
+    assert first[0].code.startswith("SYN-")
+    assert first[0].code == second[0].code
+
+
 def test_infer_fiscal_year() -> None:
     assert infer_fiscal_year("Appropriation Act 2025") == 2025
     assert infer_fiscal_year("no-year") is None
