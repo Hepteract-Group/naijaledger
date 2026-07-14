@@ -6,7 +6,7 @@ import re
 
 from naijaledger.geo_data import build_state_code_to_name, build_state_name_to_code
 
-# Codes/names from naijaledger/data/nigeria_states.json (SSO with web map).
+# Codes/names from naijaledger/geo/nigeria_states.json (SSO with web map).
 STATE_NAME_TO_CODE: dict[str, str] = build_state_name_to_code()
 STATE_CODE_TO_NAME: dict[str, str] = build_state_code_to_name()
 

@@ -1,0 +1,337 @@
+[
+  {
+    "code": "AB",
+    "name": "Abia",
+    "lat": 5.4527,
+    "lng": 7.5248,
+    "aliases": [
+      "abia"
+    ]
+  },
+  {
+    "code": "AD",
+    "name": "Adamawa",
+    "lat": 9.3265,
+    "lng": 12.3984,
+    "aliases": [
+      "adamawa"
+    ]
+  },
+  {
+    "code": "AK",
+    "name": "Akwa Ibom",
+    "lat": 5.0077,
+    "lng": 7.8537,
+    "aliases": [
+      "akwa ibom"
+    ]
+  },
+  {
+    "code": "AN",
+    "name": "Anambra",
+    "lat": 6.2209,
+    "lng": 7.067,
+    "aliases": [
+      "anambra"
+    ]
+  },
+  {
+    "code": "BA",
+    "name": "Bauchi",
+    "lat": 10.3158,
+    "lng": 9.8442,
+    "aliases": [
+      "bauchi"
+    ]
+  },
+  {
+    "code": "BY",
+    "name": "Bayelsa",
+    "lat": 4.7719,
+    "lng": 6.0699,
+    "aliases": [
+      "bayelsa"
+    ]
+  },
+  {
+    "code": "BE",
+    "name": "Benue",
+    "lat": 7.3369,
+    "lng": 8.7404,
+    "aliases": [
+      "benue"
+    ]
+  },
+  {
+    "code": "BO",
+    "name": "Borno",
+    "lat": 11.8333,
+    "lng": 13.15,
+    "aliases": [
+      "borno"
+    ]
+  },
+  {
+    "code": "CR",
+    "name": "Cross River",
+    "lat": 5.8702,
+    "lng": 8.5988,
+    "aliases": [
+      "cross river"
+    ]
+  },
+  {
+    "code": "DE",
+    "name": "Delta",
+    "lat": 5.704,
+    "lng": 5.9339,
+    "aliases": [
+      "delta"
+    ]
+  },
+  {
+    "code": "EB",
+    "name": "Ebonyi",
+    "lat": 6.2649,
+    "lng": 8.0137,
+    "aliases": [
+      "ebonyi"
+    ]
+  },
+  {
+    "code": "ED",
+    "name": "Edo",
+    "lat": 6.634,
+    "lng": 5.93,
+    "aliases": [
+      "edo"
+    ]
+  },
+  {
+    "code": "EK",
+    "name": "Ekiti",
+    "lat": 7.719,
+    "lng": 5.311,
+    "aliases": [
+      "ekiti"
+    ]
+  },
+  {
+    "code": "EN",
+    "name": "Enugu",
+    "lat": 6.4584,
+    "lng": 7.5464,
+    "aliases": [
+      "enugu"
+    ]
+  },
+  {
+    "code": "FC",
+    "name": "FCT",
+    "lat": 9.0765,
+    "lng": 7.3986,
+    "aliases": [
+      "fct",
+      "federal capital territory",
+      "abuja"
+    ]
+  },
+  {
+    "code": "GO",
+    "name": "Gombe",
+    "lat": 10.2897,
+    "lng": 11.171,
+    "aliases": [
+      "gombe"
+    ]
+  },
+  {
+    "code": "IM",
+    "name": "Imo",
+    "lat": 5.572,
+    "lng": 7.0588,
+    "aliases": [
+      "imo"
+    ]
+  },
+  {
+    "code": "JI",
+    "name": "Jigawa",
+    "lat": 12.228,
+    "lng": 9.5616,
+    "aliases": [
+      "jigawa"
+    ]
+  },
+  {
+    "code": "KD",
+    "name": "Kaduna",
+    "lat": 10.5105,
+    "lng": 7.4165,
+    "aliases": [
+      "kaduna"
+    ]
+  },
+  {
+    "code": "KN",
+    "name": "Kano",
+    "lat": 12.0022,
+    "lng": 8.592,
+    "aliases": [
+      "kano"
+    ]
+  },
+  {
+    "code": "KT",
+    "name": "Katsina",
+    "lat": 12.9908,
+    "lng": 7.601,
+    "aliases": [
+      "katsina"
+    ]
+  },
+  {
+    "code": "KE",
+    "name": "Kebbi",
+    "lat": 11.4942,
+    "lng": 4.2333,
+    "aliases": [
+      "kebbi"
+    ]
+  },
+  {
+    "code": "KO",
+    "name": "Kogi",
+    "lat": 7.7337,
+    "lng": 6.6906,
+    "aliases": [
+      "kogi"
+    ]
+  },
+  {
+    "code": "KW",
+    "name": "Kwara",
+    "lat": 8.9669,
+    "lng": 4.3874,
+    "aliases": [
+      "kwara"
+    ]
+  },
+  {
+    "code": "LA",
+    "name": "Lagos",
+    "lat": 6.5244,
+    "lng": 3.3792,
+    "aliases": [
+      "lagos"
+    ]
+  },
+  {
+    "code": "NA",
+    "name": "Nasarawa",
+    "lat": 8.4991,
+    "lng": 8.5,
+    "aliases": [
+      "nasarawa"
+    ]
+  },
+  {
+    "code": "NI",
+    "name": "Niger",
+    "lat": 9.9306,
+    "lng": 5.5983,
+    "aliases": [
+      "niger"
+    ]
+  },
+  {
+    "code": "OG",
+    "name": "Ogun",
+    "lat": 6.998,
+    "lng": 3.4737,
+    "aliases": [
+      "ogun"
+    ]
+  },
+  {
+    "code": "ON",
+    "name": "Ondo",
+    "lat": 7.1,
+    "lng": 5.05,
+    "aliases": [
+      "ondo"
+    ]
+  },
+  {
+    "code": "OS",
+    "name": "Osun",
+    "lat": 7.5629,
+    "lng": 4.52,
+    "aliases": [
+      "osun"
+    ]
+  },
+  {
+    "code": "OY",
+    "name": "Oyo",
+    "lat": 8.1574,
+    "lng": 3.6147,
+    "aliases": [
+      "oyo"
+    ]
+  },
+  {
+    "code": "PL",
+    "name": "Plateau",
+    "lat": 9.2182,
+    "lng": 9.5179,
+    "aliases": [
+      "plateau"
+    ]
+  },
+  {
+    "code": "RI",
+    "name": "Rivers",
+    "lat": 4.8156,
+    "lng": 7.0498,
+    "aliases": [
+      "rivers"
+    ]
+  },
+  {
+    "code": "SO",
+    "name": "Sokoto",
+    "lat": 13.0059,
+    "lng": 5.2476,
+    "aliases": [
+      "sokoto"
+    ]
+  },
+  {
+    "code": "TA",
+    "name": "Taraba",
+    "lat": 8.0,
+    "lng": 10.5,
+    "aliases": [
+      "taraba"
+    ]
+  },
+  {
+    "code": "YO",
+    "name": "Yobe",
+    "lat": 12.0,
+    "lng": 11.5,
+    "aliases": [
+      "yobe"
+    ]
+  },
+  {
+    "code": "ZA",
+    "name": "Zamfara",
+    "lat": 12.17,
+    "lng": 6.66,
+    "aliases": [
+      "zamfara"
+    ]
+  }
+]

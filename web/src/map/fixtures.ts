@@ -1,6 +1,6 @@
 /** Demo state metrics for 3D map (E10.5 / spec 0030). */
 
-import nigeriaStates from "../../../engine/src/naijaledger/data/nigeria_states.json";
+import nigeriaStates from "../../../engine/src/naijaledger/geo/nigeria_states.json";
 
 export type MapMetric = "contract_volume" | "anomaly_density";
 

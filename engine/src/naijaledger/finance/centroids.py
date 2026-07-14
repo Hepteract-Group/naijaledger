@@ -1,6 +1,6 @@
 """Approximate ADM1 centroids for map API (illustrative, not survey-grade).
 
-SSO: `naijaledger/data/nigeria_states.json` (also imported by the web map).
+SSO: `naijaledger/geo/nigeria_states.json` (also imported by the web map).
 """
 
 from __future__ import annotations
