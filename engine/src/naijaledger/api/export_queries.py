@@ -44,7 +44,7 @@ _CONTRACT_COLUMNS = """
 """
 _SOURCE_PUBLIC_COLUMNS = """
     id, name, jurisdiction, region, category, url, fetch_method, format,
-    expected_cadence, health_status, status, created_at, updated_at
+    expected_cadence, health_status, status, ingest_role, created_at, updated_at
 """
 _FLAG_PUBLIC_COLUMNS = """
     id, subject_type, subject_id, rule, severity, evidence, status, created_at, updated_at

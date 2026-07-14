@@ -20,7 +20,7 @@ from naijaledger.sources.types import (
 _SOURCE_COLUMNS = """
     id, name, jurisdiction, region, category, url, fetch_method, format,
     expected_cadence, last_fetched_at, last_success_hash, schema_fingerprint,
-    health_status, reliability_score, status, added_by, approved_by,
+    health_status, reliability_score, status, ingest_role, added_by, approved_by,
     created_at, updated_at
 """
 
@@ -44,6 +44,7 @@ def _row_to_record(row: Row[Any]) -> SourceRecord:
         health_status=mapping["health_status"],
         reliability_score=Decimal(str(reliability)),
         status=mapping["status"],
+        ingest_role=mapping["ingest_role"],
         added_by=mapping["added_by"],
         approved_by=mapping["approved_by"],
         created_at=mapping["created_at"],
@@ -71,10 +72,10 @@ def create_source(connection: Connection, data: SourceCreate) -> SourceRecord:
         f"""
         INSERT INTO sources (
             name, jurisdiction, region, category, url, fetch_method, format,
-            expected_cadence, added_by
+            expected_cadence, added_by, ingest_role
         ) VALUES (
             :name, :jurisdiction, :region, :category, :url, :fetch_method, :format,
-            :expected_cadence, :added_by
+            :expected_cadence, :added_by, :ingest_role
         )
         RETURNING {_SOURCE_COLUMNS}
         """
@@ -92,6 +93,7 @@ def create_source(connection: Connection, data: SourceCreate) -> SourceRecord:
                 "format": data.format,
                 "expected_cadence": data.expected_cadence,
                 "added_by": data.added_by,
+                "ingest_role": data.ingest_role,
             },
         ).one()
     except IntegrityError as exc:
@@ -214,6 +216,28 @@ def approve_source(
         """
     )
     row = connection.execute(query, {"id": source_id, "approved_by": approved_by}).one()
+    return _row_to_record(row)
+
+
+def demote_to_proposed(connection: Connection, source_id: UUID) -> SourceRecord:
+    """Move approved → proposed (discovery/search re-scope). Not for retired."""
+    current = _fetch_one(connection, source_id)
+    if current.status == "retired":
+        raise InvalidSourceTransitionError("retired sources cannot be demoted")
+    if current.status == "proposed":
+        return current
+
+    query = text(
+        f"""
+        UPDATE sources
+        SET status = 'proposed',
+            approved_by = NULL,
+            updated_at = now()
+        WHERE id = :id
+        RETURNING {_SOURCE_COLUMNS}
+        """
+    )
+    row = connection.execute(query, {"id": source_id}).one()
     return _row_to_record(row)
 
 

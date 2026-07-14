@@ -48,7 +48,7 @@ _CONTRACT_COLUMNS = """
 
 _SOURCE_PUBLIC_COLUMNS = """
     id, name, jurisdiction, region, category, url, fetch_method, format,
-    expected_cadence, health_status, status, created_at, updated_at
+    expected_cadence, health_status, status, ingest_role, created_at, updated_at
 """
 
 
@@ -81,6 +81,7 @@ def to_public_source(record: SourceRecord) -> PublicSource:
         format=record.format,
         fetch_method=record.fetch_method,
         status=record.status,
+        ingest_role=record.ingest_role,
         health_status=record.health_status,
         expected_cadence=_cadence_seconds(record.expected_cadence),
         created_at=record.created_at,
@@ -126,6 +127,7 @@ def _row_to_public_source(row: Row[Any]) -> PublicSource:
         format=mapping["format"],
         fetch_method=mapping["fetch_method"],
         status=mapping["status"],
+        ingest_role=mapping["ingest_role"],
         health_status=mapping["health_status"],
         expected_cadence=_cadence_seconds(mapping["expected_cadence"]),
         created_at=mapping["created_at"],
