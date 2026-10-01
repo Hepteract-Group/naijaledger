@@ -178,7 +178,10 @@ export function GraphPage() {
           </p>
         </div>
         {load.kind === "live" || load.kind === "demo" || load.kind === "empty" ? (
-          <DataModeBanner mode={load.kind === "demo" ? "demo" : "live"} message={banner} />
+          <DataModeBanner
+            mode={load.kind === "demo" ? "demo" : load.kind === "empty" ? "empty" : "live"}
+            message={banner}
+          />
         ) : (
           <p className="page__lede" role="status">
             {banner}

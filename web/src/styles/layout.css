@@ -268,6 +268,11 @@
   background: linear-gradient(90deg, var(--accent-soft), var(--bg-elevated));
 }
 
+.data-banner--empty {
+  border-color: color-mix(in srgb, var(--ink-muted) 35%, var(--line));
+  background: color-mix(in srgb, var(--bg-elevated) 90%, var(--ink-muted));
+}
+
 .data-banner__pill {
   font-size: 0.7rem;
   font-weight: 700;
@@ -287,6 +292,11 @@
 .data-banner--live .data-banner__pill {
   background: var(--accent);
   color: var(--on-accent);
+}
+
+.data-banner--empty .data-banner__pill {
+  background: var(--ink-muted);
+  color: var(--bg);
 }
 
 .party-list {

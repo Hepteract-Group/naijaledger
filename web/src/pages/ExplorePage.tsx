@@ -251,9 +251,7 @@ export function ExplorePage() {
             </button>
           ))}
         </div>
-        <InfoTip
-          label={`What are ${resource === "parties" ? "parties" : resource === "tenders" ? "tenders" : "flags"}?`}
-        >
+        <InfoTip label={`What are ${resource}?`}>
           {resource === "parties"
             ? "The people and organisations in public finance: government agencies, companies, and persons. Each has a canonical name, aliases, and IDs such as RC, CAC, or TIN."
             : resource === "tenders"

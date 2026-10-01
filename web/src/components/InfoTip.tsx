@@ -5,7 +5,11 @@ type InfoTipProps = {
   children: ReactNode;
 };
 
-/** Compact help: hover, focus, or tap. Escape dismisses. */
+function canHoverFinePointer(): boolean {
+  return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+}
+
+/** Compact help: hover on fine pointers; tap/keyboard toggle elsewhere. Escape dismisses. */
 export function InfoTip({ label, children }: InfoTipProps) {
   const tipId = useId();
   const rootRef = useRef<HTMLSpanElement | null>(null);
@@ -40,11 +44,23 @@ export function InfoTip({ label, children }: InfoTipProps) {
         className="info-tip__btn"
         aria-describedby={open ? tipId : undefined}
         aria-label={label}
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
-        onClick={() => setOpen((value) => !value)}
+        onMouseEnter={() => {
+          if (canHoverFinePointer()) {
+            setOpen(true);
+          }
+        }}
+        onMouseLeave={() => {
+          if (canHoverFinePointer()) {
+            setOpen(false);
+          }
+        }}
+        onClick={() => {
+          // Fine-pointer devices already open on hover; ignore click so we do not flash closed.
+          if (canHoverFinePointer()) {
+            return;
+          }
+          setOpen((value) => !value);
+        }}
       >
         i
       </button>
