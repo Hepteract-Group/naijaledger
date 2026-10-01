@@ -1,7 +1,8 @@
 ---
-name: Work
-about: Required intake for every epic, feature, task, bug, and chore
+name: Work – Story / Task
+about: Required intake for a story, feature, task, bug, or chore
 title: ""
+labels: story
 ---
 
 ## Type

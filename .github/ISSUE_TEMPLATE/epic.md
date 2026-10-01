@@ -1,7 +1,8 @@
 ---
-name: Work
-about: Required intake for every epic, feature, task, bug, and chore
-title: ""
+name: Work – Epic
+about: Required intake for an epic (shared Work body; Type = epic)
+title: "[Epic] "
+labels: epic
 ---
 
 ## Type
