@@ -3,7 +3,7 @@
 - **Epic / Issue**: follow-up to E2.3 / fetch failures
 - **Status**: Implemented (v5 — NOCOPO Open-Data, retire Open Treasury 2026-07-08)
 - **Author**: agent
-- **Needs human decision?**: partial — alternate federal payments source when Open Treasury returns
+- **Needs human decision?**: no — federal payments alternate decided 2026-10-01 (BudgIT GovSpend, `specs/0040-govspend-payments.md`)
 
 ## 1. Important constraint (current product)
 
@@ -55,7 +55,7 @@ Raw probes stored under `.probe/v4/` (gitignored locally; not committed).
 | Source | Seed URL | Class | Finding | Retrieval needed |
 |--------|----------|-------|---------|------------------|
 | **NOCOPO** | https://nocopo.bpp.gov.ng/Open-Data | **JS leaf HTML + per-row JSON** | Homepage is login/marketing shell. `/Open-Data` has JsonReport table (OCID, project title, package/lot, budget year, per-row **Download**). Plain curl = empty table; Playwright renders rows. Ex: `ocds-gyl66f-0517018034-000001` / *PROCUREMENT, TESTING… HOSPITALITY AND TOURISM WORKSHOP* / 2023 / FEPO/23/01. License modal may need dismiss (auto-handled in probe). | **Playwright** for table; E3.4 for per-row JSON downloads + bulk export |
-| **Open Treasury** | https://opentreasury.gov.ng/ | **Retired** | TLS certificate expired / portal unsafe per [FIJ (Jul 2025)](https://fij.ng/article/9-months-and-counting-oagfs-open-treasury-portal-unsafe-for-visitors/). Removed from seed catalog; existing rows retired on re-seed. | Human decision on alternate payments source |
+| **Open Treasury** | https://opentreasury.gov.ng/ | **Retired** | TLS certificate expired / portal unsafe per [FIJ (Jul 2025)](https://fij.ng/article/9-months-and-counting-oagfs-open-treasury-portal-unsafe-for-visitors/). Removed from seed catalog; existing rows retired on re-seed. | Decided 2026-10-01: BudgIT GovSpend (`specs/0040-govspend-payments.md`) |
 | Budget Office | https://budgetoffice.gov.ng/index.php/resources/internal-resources/budget-documents | **Catalog index** | Year folders (`2026-budget`, …) with Joomla `/download` + `/viewdocument/{id}` (Appropriation Bill). | Catalog crawler for DocMan downloads |
 | NEITI | https://neiti.gov.ng/documents/all | **Catalog → PDF** | Many PDF links under `/INFORMATION/DOCUMENTS/…` (engagement + audits mixed). | E3.4 PDF children + filter/allowlist |
 | OpenStates.ng | https://openstates.ng/ | **discovery_ui** | State-name glance page; no contract/budget rows in HTML | Stay `proposed` — partnership path #64; see `specs/0039-federal-discovery-rescope.md` |

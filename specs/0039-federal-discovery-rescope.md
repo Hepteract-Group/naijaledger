@@ -3,8 +3,9 @@
 - **Epic / Issue**: E2.3 follow-up / #82
 - **Status**: Implemented
 - **Author**: agent
-- **Needs human decision?**: yes — alternate **federal payments** source after
-  Open Treasury retirement (tracked separately; does not block this re-scope).
+- **Needs human decision?**: no — federal payments source decided 2026-10-01
+  (BudgIT GovSpend, `specs/0040-govspend-payments.md`). That decision does not
+  change this re-scope.
 
 ## 1. Problem
 
@@ -82,5 +83,5 @@ sources.ingest_role TEXT NOT NULL DEFAULT 'leaf'
 
 ## 7. Open questions
 
-- Which federal payments source replaces Open Treasury? → **needs-human**.
+- Which federal payments source replaces Open Treasury? → **Decided 2026-10-01:** BudgIT GovSpend. Contract: `specs/0040-govspend-payments.md`. Implementation: #179.
 - OpenStates partnership data route? → deferred to #64.
