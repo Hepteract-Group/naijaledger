@@ -1,48 +1,73 @@
-/* Design tokens — African-inspired (forest green, adire indigo, cowrie gold) */
+/* NaijaLedger visual system — "Adire Ledger"
+   Deep forest + indigo resist dye + cowrie gold. Not purple SaaS. Not cream terracotta. */
 
 :root,
 [data-theme="light"] {
   color-scheme: light;
-  --bg: #f3f6f1;
-  --bg-elevated: #ffffff;
-  --ink: #14261c;
-  --ink-muted: #4a6354;
-  --accent: #0b6e4f;
-  --accent-hover: #095c42;
-  --gold: #b8892d;
-  --gold-soft: #e8d5a3;
-  --indigo: #243b6b;
-  --line: #c5d4c8;
-  --danger: #a33b2d;
-  --focus: #0b6e4f;
-  --hero-glow: rgba(11, 110, 79, 0.14);
-  --pattern: rgba(36, 59, 107, 0.06);
-  --shadow: 0 18px 50px rgba(20, 38, 28, 0.08);
+  --bg: #eef2ef;
+  --bg-deep: #e2e9e4;
+  --bg-elevated: #f7faf8;
+  --ink: #0b1611;
+  --ink-muted: #3f5648;
+  --accent: #0a6b4f;
+  --accent-hover: #085540;
+  --accent-soft: rgba(10, 107, 79, 0.12);
+  --gold: #b7841f;
+  --gold-bright: #d4a53c;
+  --gold-soft: rgba(183, 132, 31, 0.16);
+  --indigo: #1a3358;
+  --indigo-soft: rgba(26, 51, 88, 0.1);
+  --line: #c4d0c8;
+  --line-strong: #9aafa2;
+  --danger: #9c3228;
+  --danger-soft: rgba(156, 50, 40, 0.12);
+  --focus: #0a6b4f;
+  --hero-glow: rgba(10, 107, 79, 0.18);
+  --pattern: rgba(26, 51, 88, 0.045);
+  --shadow: 0 24px 60px rgba(11, 22, 17, 0.1);
+  --shadow-tight: 0 8px 24px rgba(11, 22, 17, 0.08);
+  --viz-1: #0a6b4f;
+  --viz-2: #1a3358;
+  --viz-3: #b7841f;
+  --viz-4: #2a8f6e;
+  --on-accent: #f4fff9;
 }
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0e1712;
-  --bg-elevated: #162019;
-  --ink: #e7f0e9;
-  --ink-muted: #9bb5a4;
-  --accent: #3fbf8a;
-  --accent-hover: #5fd4a2;
-  --gold: #e0c36a;
-  --gold-soft: #3d3420;
-  --indigo: #8fa4d4;
-  --line: #2a3d32;
-  --danger: #f07167;
-  --focus: #3fbf8a;
-  --hero-glow: rgba(63, 191, 138, 0.16);
-  --pattern: rgba(224, 195, 106, 0.05);
-  --shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+  --bg: #070d0a;
+  --bg-deep: #040806;
+  --bg-elevated: #101916;
+  --ink: #e8f2ec;
+  --ink-muted: #8eaa99;
+  --accent: #3ecf94;
+  --accent-hover: #62dbab;
+  --accent-soft: rgba(62, 207, 148, 0.14);
+  --gold: #e4c15f;
+  --gold-bright: #f2d67a;
+  --gold-soft: rgba(228, 193, 95, 0.14);
+  --indigo: #a8bae0;
+  --indigo-soft: rgba(168, 186, 224, 0.12);
+  --line: #1f3028;
+  --line-strong: #314a3d;
+  --danger: #f0786c;
+  --danger-soft: rgba(240, 120, 108, 0.14);
+  --focus: #3ecf94;
+  --hero-glow: rgba(62, 207, 148, 0.14);
+  --pattern: rgba(228, 193, 95, 0.04);
+  --shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  --shadow-tight: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --viz-1: #3ecf94;
+  --viz-2: #a8bae0;
+  --viz-3: #e4c15f;
+  --viz-4: #6ee0b0;
+  --on-accent: #04110c;
 }
 
 :root {
-  --font-display: "Fraunces", "Iowan Old Style", "Palatino Linotype", serif;
-  --font-body: "Source Sans 3", "Source Sans Pro", "Segoe UI", sans-serif;
-  --font-mono: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --font-display: "Syne", "Avenir Next", "Segoe UI", sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
@@ -51,7 +76,11 @@
   --space-6: 2rem;
   --space-7: 3rem;
   --space-8: 4.5rem;
-  --radius: 0.35rem;
-  --max: 72rem;
-  --header-h: 4rem;
+  --space-9: 6.5rem;
+  --radius: 0.2rem;
+  --radius-lg: 0.75rem;
+  --max: 76rem;
+  --header-h: 4.25rem;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
 }

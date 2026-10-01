@@ -207,6 +207,7 @@ export function ExplorePage() {
 
   return (
     <div className="page page--explore">
+      <p className="page__kicker">Ledger</p>
       <h1 className="page__title">Explore</h1>
       <p className="page__lede">
         Filter, sort, and compare public finance entities. Flags are open hypotheses — not verified

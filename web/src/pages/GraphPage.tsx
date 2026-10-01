@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { fetchGraphSubgraph, toGraphDocument } from "../api/graph";
 import { CitedSource } from "../components/CitedSource";
+import { DataModeBanner } from "../components/DataModeBanner";
 import { FacetBar } from "../components/FacetBar";
 import { GraphCanvas } from "../components/GraphCanvas";
 import { geoYearFacetPatch, parseGeoYearFacets } from "../explore/facets";
@@ -170,9 +171,13 @@ export function GraphPage() {
             or search a name — click a node for a short briefing.
           </p>
         </div>
-        <p className="graph-demo-banner" role="status">
-          {banner}
-        </p>
+        {load.kind === "live" || load.kind === "demo" ? (
+          <DataModeBanner mode={load.kind === "live" ? "live" : "demo"} message={banner} />
+        ) : (
+          <p className="page__lede" role="status">
+            {banner}
+          </p>
+        )}
       </header>
 
       <div className="explore-controls">

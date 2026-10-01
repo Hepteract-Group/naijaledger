@@ -1,0 +1,282 @@
+/* Home — full-bleed first viewport, brand-led */
+
+.home-hero {
+  position: relative;
+  min-height: calc(100vh - var(--header-h));
+  display: grid;
+  align-items: end;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.home-hero__canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.constellation__land {
+  fill: color-mix(in srgb, var(--accent) 32%, transparent);
+  stroke: color-mix(in srgb, var(--accent) 80%, var(--gold));
+  stroke-width: 2;
+}
+
+.constellation__trail {
+  fill: none;
+  stroke: var(--gold-bright);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-dasharray: 5 9;
+  opacity: 0.85;
+  animation: dash-flow 12s linear infinite;
+}
+
+.constellation__trail--secondary {
+  stroke: var(--indigo);
+  opacity: 0.7;
+  animation-duration: 16s;
+  animation-direction: reverse;
+}
+
+.constellation__node {
+  fill: var(--gold-bright);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--gold) 80%, transparent));
+}
+
+.constellation__node--accent {
+  fill: var(--accent);
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 85%, transparent));
+}
+
+.constellation__halo {
+  fill: color-mix(in srgb, var(--accent) 12%, transparent);
+  stroke: var(--accent);
+  stroke-width: 1.1;
+  opacity: 0.7;
+  animation: pulse-glow 3.2s ease-in-out infinite;
+}
+
+.home-hero__veil {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(
+      105deg,
+      color-mix(in srgb, var(--bg) 88%, transparent) 0%,
+      color-mix(in srgb, var(--bg) 55%, transparent) 38%,
+      color-mix(in srgb, var(--bg) 12%, transparent) 72%
+    ),
+    linear-gradient(0deg, var(--bg) 0%, transparent 42%);
+}
+
+.home-hero__copy {
+  position: relative;
+  z-index: 2;
+  max-width: var(--max);
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-5) var(--space-7);
+}
+
+.home-hero__brand {
+  font-family: var(--font-display);
+  font-size: clamp(3.4rem, 12vw, 7.2rem);
+  font-weight: 800;
+  line-height: 0.88;
+  letter-spacing: -0.055em;
+  margin: 0 0 var(--space-5);
+  color: var(--ink);
+  animation: rise 800ms var(--ease-out) both;
+}
+
+.home-hero__headline {
+  font-family: var(--font-display);
+  font-size: clamp(1.45rem, 3.2vw, 2.15rem);
+  font-weight: 600;
+  margin: 0 0 var(--space-3);
+  max-width: 18ch;
+  color: var(--ink);
+  animation: rise 800ms var(--ease-out) 70ms both;
+}
+
+.home-hero__lede {
+  margin: 0 0 var(--space-6);
+  max-width: 34ch;
+  color: var(--ink-muted);
+  font-size: 1.12rem;
+  animation: rise 800ms var(--ease-out) 130ms both;
+}
+
+.home-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  animation: rise 800ms var(--ease-out) 190ms both;
+}
+
+.home-strip {
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg-elevated) 65%, transparent);
+}
+
+.home-strip__inner {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-5);
+  display: grid;
+  gap: var(--space-6);
+  grid-template-columns: 1.1fr 1fr;
+  align-items: center;
+}
+
+.home-strip__inner--reverse {
+  grid-template-columns: 1fr 1.1fr;
+}
+
+.home-strip__inner--reverse .home-strip__visual {
+  order: -1;
+}
+
+.home-strip__kicker {
+  margin: 0 0 var(--space-2);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.home-strip__title {
+  margin: 0 0 var(--space-3);
+  font-size: clamp(1.7rem, 3vw, 2.4rem);
+  max-width: 16ch;
+}
+
+.home-strip__body {
+  margin: 0 0 var(--space-5);
+  color: var(--ink-muted);
+  max-width: 38ch;
+}
+
+.home-strip__visual {
+  min-height: 14rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(circle at 30% 30%, var(--accent-soft), transparent 55%),
+    radial-gradient(circle at 80% 70%, var(--gold-soft), transparent 45%), var(--bg-elevated);
+  box-shadow: var(--shadow-tight);
+  position: relative;
+  overflow: hidden;
+}
+
+.home-strip__visual--map::before,
+.home-strip__visual--graph::before,
+.home-strip__visual--story::before {
+  content: "";
+  position: absolute;
+  inset: 12%;
+  border-radius: 50% 40% 55% 45%;
+  border: 1px dashed color-mix(in srgb, var(--indigo) 35%, transparent);
+  opacity: 0.7;
+}
+
+.home-strip__visual--map::after {
+  content: "";
+  position: absolute;
+  width: 38%;
+  height: 52%;
+  left: 31%;
+  top: 22%;
+  border-radius: 42% 48% 38% 55%;
+  background: linear-gradient(160deg, var(--accent), var(--indigo));
+  opacity: 0.35;
+  filter: blur(0.5px);
+  animation: pulse-glow 4.5s ease-in-out infinite;
+}
+
+.home-strip__visual--graph {
+  background-image:
+    radial-gradient(circle at 22% 40%, var(--accent) 0 4px, transparent 5px),
+    radial-gradient(circle at 48% 28%, var(--gold) 0 5px, transparent 6px),
+    radial-gradient(circle at 70% 55%, var(--indigo) 0 4px, transparent 5px),
+    radial-gradient(circle at 40% 68%, var(--viz-4) 0 3px, transparent 4px),
+    linear-gradient(
+      118deg,
+      transparent 0 18%,
+      color-mix(in srgb, var(--accent) 50%, transparent) 18% 18.4%,
+      transparent 18.4% 42%,
+      color-mix(in srgb, var(--gold) 55%, transparent) 42% 42.4%,
+      transparent 42.4% 68%,
+      color-mix(in srgb, var(--indigo) 50%, transparent) 68% 68.4%,
+      transparent 68.4%
+    ),
+    radial-gradient(circle at 30% 30%, var(--accent-soft), transparent 55%), var(--bg-elevated);
+}
+
+.home-strip__visual--story {
+  display: grid;
+  place-items: center;
+  padding: var(--space-5);
+}
+
+.home-strip__quote {
+  margin: 0;
+  max-width: 18ch;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.25;
+  color: var(--ink);
+  text-align: center;
+}
+
+.home-close {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-5) var(--space-9);
+  text-align: center;
+}
+
+.home-close__title {
+  margin: 0 0 var(--space-3);
+  font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+}
+
+.home-close__body {
+  margin: 0 auto var(--space-5);
+  max-width: 42ch;
+  color: var(--ink-muted);
+}
+
+.constellation {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+@media (max-width: 860px) {
+  .home-strip__inner,
+  .home-strip__inner--reverse {
+    grid-template-columns: 1fr;
+  }
+
+  .home-strip__inner--reverse .home-strip__visual {
+    order: 0;
+  }
+
+  .home-hero__copy {
+    padding-top: var(--space-7);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .constellation__trail,
+  .constellation__halo,
+  .home-strip__visual--map::after {
+    animation: none;
+  }
+}

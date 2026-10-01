@@ -28,6 +28,7 @@ export function StatusPage() {
 
   return (
     <div className="page">
+      <p className="page__kicker">Operations</p>
       <h1 className="page__title">Engine status</h1>
       <p className="page__lede">Live check against the NaijaLedger API health endpoint.</p>
       {state.kind === "loading" && <p>Checking API…</p>}

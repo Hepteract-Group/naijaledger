@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { fetchFacets } from "../api/facets";
 import { fetchMapStates } from "../api/map";
 import { CitedSource } from "../components/CitedSource";
+import { DataModeBanner } from "../components/DataModeBanner";
 import { FacetBar } from "../components/FacetBar";
 import { NigeriaMap } from "../components/NigeriaMap";
 import { geoYearFacetPatch, parseFacetYear, parseGeoYearFacets } from "../explore/facets";
@@ -144,9 +145,13 @@ export function MapPage() {
             column or a name in the ranking to inspect.
           </p>
         </div>
-        <p className="map-demo-banner" role="status">
-          {banner}
-        </p>
+        {load.kind === "live" || load.kind === "demo" ? (
+          <DataModeBanner mode={load.kind === "live" ? "live" : "demo"} message={banner} />
+        ) : (
+          <p className="page__lede" role="status">
+            {banner}
+          </p>
+        )}
       </header>
 
       <div className="explore-controls">
