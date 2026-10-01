@@ -23,6 +23,7 @@ function ParticleField() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const hostRef = useRef<HTMLDivElement | null>(null);
   const progressRef = useRef(0);
+  const visibleRef = useRef(true);
   const reduce = useReducedMotion();
   const { scrollYProgress } = useScroll({
     target: hostRef,
@@ -35,7 +36,8 @@ function ParticleField() {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) {
+    const host = hostRef.current;
+    if (!canvas || !host) {
       return;
     }
     let ctx: CanvasRenderingContext2D | null = null;
@@ -62,17 +64,7 @@ function ParticleField() {
       gold: Math.random() > 0.6,
     });
 
-    const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      width = canvas.clientWidth;
-      height = canvas.clientHeight;
-      canvas.width = Math.floor(width * dpr);
-      canvas.height = Math.floor(height * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      particles = Array.from({ length: reduce ? 16 : 70 }, () => spawn(width, height));
-    };
-
-    const tick = () => {
+    const paint = (moving: boolean) => {
       const t = Math.min(1, Math.max(0, progressRef.current));
       ctx.clearRect(0, 0, width, height);
 
@@ -90,9 +82,9 @@ function ParticleField() {
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, width, height);
 
-      const speed = reduce ? 0 : 0.55 + t * 1.1;
+      const speed = moving ? 0.55 + t * 1.1 : 0;
       for (const p of particles) {
-        if (!reduce) {
+        if (moving) {
           p.x += p.vx * speed;
           p.y += p.vy * speed;
           if (p.x < -10) p.x = width + 10;
@@ -107,16 +99,68 @@ function ParticleField() {
           : `hsla(158, 70%, 55%, ${0.2 + t * 0.22})`;
         ctx.fill();
       }
+    };
 
+    const resize = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      width = canvas.clientWidth;
+      height = canvas.clientHeight;
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      particles = Array.from({ length: reduce ? 16 : 70 }, () => spawn(width, height));
+      paint(false);
+    };
+
+    const tick = () => {
+      if (!visibleRef.current || reduce) {
+        raf = 0;
+        return;
+      }
+      paint(true);
       raf = requestAnimationFrame(tick);
     };
 
+    const startLoop = () => {
+      if (reduce || raf || !visibleRef.current) {
+        return;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+
+    const stopLoop = () => {
+      if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+    };
+
     resize();
-    window.addEventListener("resize", resize);
-    raf = requestAnimationFrame(tick);
+    const ro = new ResizeObserver(resize);
+    ro.observe(host);
+
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        visibleRef.current = entry?.isIntersecting ?? false;
+        if (visibleRef.current) {
+          paint(false);
+          startLoop();
+        } else {
+          stopLoop();
+        }
+      },
+      { threshold: 0.05 },
+    );
+    io.observe(host);
+
+    if (!reduce) {
+      startLoop();
+    }
+
     return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("resize", resize);
+      stopLoop();
+      ro.disconnect();
+      io.disconnect();
     };
   }, [reduce]);
 
@@ -127,16 +171,16 @@ function ParticleField() {
   );
 }
 
-/** Abstracted ledger folios: source document → money entry → proof status. */
+/** Illustrative ledger folios only — not live data or published claims. */
 const FOLIOS = [
   {
     key: "source",
     folio: "A",
     label: "Source",
     rows: [
-      { k: "Doc", v: "NOCOPO · sealed" },
+      { k: "Doc", v: "portal · sealed" },
       { k: "When", v: "fetched · archived" },
-      { k: "Hash", v: "a3f9…c21e" },
+      { k: "Hash", v: "——————" },
     ],
     className: "ledger-panel--archive",
   },
@@ -145,9 +189,9 @@ const FOLIOS = [
     folio: "B",
     label: "Entry",
     rows: [
-      { k: "From", v: "Ministry of Works" },
-      { k: "To", v: "Contractor Ltd" },
-      { k: "Amt", v: "₦2.4bn · FY24" },
+      { k: "From", v: "Agency ——" },
+      { k: "To", v: "Vendor ——" },
+      { k: "Amt", v: "₦ ——— · FY——" },
     ],
     className: "ledger-panel--trail",
   },
@@ -156,7 +200,7 @@ const FOLIOS = [
     folio: "C",
     label: "Proof",
     rows: [
-      { k: "Cite", v: "p.14 · region B" },
+      { k: "Cite", v: "page · region" },
       { k: "Gate", v: "human review" },
       { k: "Out", v: "held · not claim" },
     ],
@@ -184,6 +228,7 @@ export function LivingLedger() {
 
   return (
     <div ref={stageRef} className="ledger-stage" aria-hidden>
+      <p className="ledger-stage__badge">Illustrative</p>
       <div className="ledger-stage__floor" />
       <motion.div
         className="ledger-rig"
@@ -204,11 +249,7 @@ export function LivingLedger() {
                 rotateZ: [-1.2, 1.2, -1.2],
               }
         }
-        transition={
-          reduce
-            ? undefined
-            : { duration: 14, repeat: Infinity, ease: "easeInOut" }
-        }
+        transition={reduce ? undefined : { duration: 14, repeat: Infinity, ease: "easeInOut" }}
       >
         {FOLIOS.map((panel, index) => (
           <motion.article
@@ -353,9 +394,7 @@ export function StoryTrail() {
             progress={scrollYProgress}
           />
         ))}
-        {!reduce ? (
-          <motion.span className="story-trail__bead" style={{ top: beadY }} />
-        ) : null}
+        {!reduce ? <motion.span className="story-trail__bead" style={{ top: beadY }} /> : null}
       </motion.div>
     </div>
   );

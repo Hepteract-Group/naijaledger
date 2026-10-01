@@ -38,6 +38,7 @@ function StoryVisualPanel({ visual, active }: { visual: StoryVisual; active: boo
             <span />
             <span />
           </div>
+          <p className="scrolly__visual-hint">Chart coming soon — not data</p>
         </>
       ) : null}
     </div>

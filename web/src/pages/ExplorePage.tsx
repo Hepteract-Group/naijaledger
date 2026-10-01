@@ -219,28 +219,17 @@ export function ExplorePage() {
         .
       </p>
 
-      <div className="explore-tabs" role="tablist" aria-label="Resource">
-        {(
-          [
+      <div className="explore-tabs-bar">
+        <div className="explore-tabs" role="tablist" aria-label="Resource">
+          {(
             [
-              "parties",
-              "Parties",
-              "The people and organisations in public finance: government agencies, companies, and persons. Each has a canonical name, aliases, and IDs such as RC, CAC, or TIN.",
-            ],
-            [
-              "tenders",
-              "Tenders",
-              "Procurement opportunities posted by an agency — title, method (open, selective, limited, direct), value, and bidding window. Awards and contracts hang off these.",
-            ],
-            [
-              "flags",
-              "Flags",
-              "Automated red-flag hypotheses, not proven claims. They mark patterns that need human review before anything is treated as fact.",
-            ],
-          ] as const
-        ).map(([id, label, tip]) => (
-          <div key={id} className="explore-tabs__item">
+              ["parties", "Parties"],
+              ["tenders", "Tenders"],
+              ["flags", "Flags"],
+            ] as const
+          ).map(([id, label]) => (
             <button
+              key={id}
               type="button"
               role="tab"
               id={`explore-tab-${id}`}
@@ -260,9 +249,17 @@ export function ExplorePage() {
             >
               {label}
             </button>
-            <InfoTip label={`What are ${label.toLowerCase()}?`}>{tip}</InfoTip>
-          </div>
-        ))}
+          ))}
+        </div>
+        <InfoTip
+          label={`What are ${resource === "parties" ? "parties" : resource === "tenders" ? "tenders" : "flags"}?`}
+        >
+          {resource === "parties"
+            ? "The people and organisations in public finance: government agencies, companies, and persons. Each has a canonical name, aliases, and IDs such as RC, CAC, or TIN."
+            : resource === "tenders"
+              ? "Procurement opportunities posted by an agency — title, method (open, selective, limited, direct), value, and bidding window. Awards and contracts hang off these."
+              : "Automated red-flag hypotheses, not proven claims. They mark patterns that need human review before anything is treated as fact."}
+        </InfoTip>
       </div>
 
       {resource === "flags" ? (

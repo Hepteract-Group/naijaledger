@@ -105,7 +105,7 @@ export function GraphPage() {
       : load.kind === "live"
         ? "Live network of agencies, companies, and contracts"
         : load.kind === "empty"
-          ? "The live network is empty for this view — try Explore while we refresh connections"
+          ? "No graph has been built for this view yet — try Explore after ingest"
           : `Guided sample while the live network is offline (${load.reason})`;
 
   const patchParams = (patch: Record<string, string | null>) => {
@@ -177,8 +177,8 @@ export function GraphPage() {
             .
           </p>
         </div>
-        {load.kind === "live" || load.kind === "demo" ? (
-          <DataModeBanner mode={load.kind === "live" ? "live" : "demo"} message={banner} />
+        {load.kind === "live" || load.kind === "demo" || load.kind === "empty" ? (
+          <DataModeBanner mode={load.kind === "demo" ? "demo" : "live"} message={banner} />
         ) : (
           <p className="page__lede" role="status">
             {banner}

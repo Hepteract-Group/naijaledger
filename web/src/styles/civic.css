@@ -49,6 +49,23 @@
   opacity: 0.9;
 }
 
+.ledger-stage__badge {
+  position: absolute;
+  z-index: 2;
+  top: 8%;
+  right: 10%;
+  margin: 0;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--gold) 55%, var(--line));
+  background: color-mix(in srgb, var(--gold-soft) 80%, var(--bg-elevated));
+  color: var(--ink);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 .ledger-rig {
   position: relative;
   width: min(96%, 30rem);
@@ -64,12 +81,11 @@
   padding: 1.2rem 1.3rem 1.4rem;
   border-radius: 1.1rem;
   border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line-strong));
-  background:
-    linear-gradient(
-      155deg,
-      color-mix(in srgb, var(--bg-elevated) 88%, #fff 8%),
-      color-mix(in srgb, var(--bg-elevated) 70%, transparent)
-    );
+  background: linear-gradient(
+    155deg,
+    color-mix(in srgb, var(--bg-elevated) 88%, #fff 8%),
+    color-mix(in srgb, var(--bg-elevated) 70%, transparent)
+  );
   backdrop-filter: blur(16px) saturate(1.25);
   box-shadow:
     0 22px 56px color-mix(in srgb, #000 55%, transparent),
@@ -345,7 +361,11 @@
     border-radius: 999px;
     border: 1.5px solid color-mix(in srgb, var(--accent) 70%, #fff);
     background:
-      radial-gradient(circle at 35% 30%, color-mix(in srgb, #fff 55%, transparent), transparent 55%),
+      radial-gradient(
+        circle at 35% 30%,
+        color-mix(in srgb, #fff 55%, transparent),
+        transparent 55%
+      ),
       color-mix(in srgb, var(--accent) 45%, var(--bg-elevated));
     box-shadow:
       0 0 18px color-mix(in srgb, var(--accent) 45%, transparent),

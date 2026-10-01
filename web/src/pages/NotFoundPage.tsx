@@ -8,7 +8,7 @@ export function NotFoundPage() {
       <p className="page__lede">
         That URL is not a page in NaijaLedger. Head back to the ledger, the map, or the method.
       </p>
-      <div className="home-hero__actions">
+      <div className="page__actions">
         <Link className="btn btn--primary" to="/">
           Home
         </Link>

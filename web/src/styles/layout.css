@@ -235,6 +235,12 @@
   font-size: 1.08rem;
 }
 
+.page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
 .banner-error {
   color: var(--danger);
 }
