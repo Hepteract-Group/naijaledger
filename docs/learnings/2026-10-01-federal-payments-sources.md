@@ -60,17 +60,17 @@ All counts and date bounds below are as of that probe date; the live API can mov
 
 Not needed for GovSpend. Keep `naijaledger@agentmail.to` for partnership reply and any future signup-gated source.
 
-## Decision (2026-10-01)
-
-Founder approved BudgIT GovSpend as the interim federal payments source. Do not send the partnership email unless the founder asks for an email trail. Contract: `specs/0040-govspend-payments.md`. Build tracked in #179.
-
 ## Recommendation (for #172)
 
 1. **Approve BudgIT GovSpend** as the interim federal payments source (`ingest_role=leaf`, category=`payments`), with mandatory credit and rate-limited pagination of the public JSON API.
 2. **Open partnership / reuse confirmation** with BudgIT (`info@budgit.org`) before large-scale production ingest (ties to #64). Public browse/download is intentional for CSOs/media; still ask for written OK + attribution language.
-3. Optionally seed **OAGF FAAC PDF catalog** as a separate federation-transfer source — does **not** replace MDA payments for `budget_payment_mismatch`.
+3. Optionally seed **Office of the Accountant-General of the Federation — Federation Account Allocation Committee (FAAC)** PDF catalog as a separate federation-transfer source — does **not** replace ministry payments for `budget_payment_mismatch`.
 4. Keep Open Treasury retired until TLS is fixed; then re-evaluate as primary official leaf.
-5. Do **not** attempt GIFMIS PFM credential scraping or Remita.
+5. Do **not** attempt Government Integrated Financial Management Information System (GIFMIS) credential scraping or Remita.
+
+## Decision (2026-10-01)
+
+Accepts item 1 above. Founder approved BudgIT GovSpend as the interim federal payments source. Item 2 (the partnership email) stays unsent unless the founder asks for an email trail. Contract: `specs/0040-govspend-payments.md`. Build tracked in #179.
 
 ## Follow-ups
 
