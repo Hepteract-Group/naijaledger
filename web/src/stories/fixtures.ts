@@ -40,7 +40,9 @@ export const DEMO_STORY: NarrativeStory = {
         title: "Publication gate",
         detail: "AI proposes. Humans dispose — for published claims.",
       },
-      citations: [{ id: "c3", label: "Review decisions (E8.3)" }],
+      citations: [
+        { id: "c3", label: "Explainer: Methodology — human review gate", href: "/methodology" },
+      ],
     },
     {
       id: "disclose",

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchStories } from "../api/stories";
+import { DataModeBanner } from "../components/DataModeBanner";
 import { listStories } from "../stories/fixtures";
 import type { NarrativeStory } from "../stories/types";
 
@@ -58,13 +59,14 @@ export function StoriesIndexPage() {
     <div className="page">
       <h1 className="page__title">Stories</h1>
       <p className="page__lede">
-        Cited narrative investigations. Demo stories are labelled until human-approved publication
-        is available.
+        Investigations you can scroll — every claim points at a source. Demo pieces stay labelled
+        until a human clears them for publication.
       </p>
       {load.kind === "demo" ? (
-        <p className="scrolly__demo-banner" role="status">
-          Showing demo narratives ({load.reason}).
-        </p>
+        <DataModeBanner mode="demo" message={`Showing demo narratives (${load.reason}).`} />
+      ) : null}
+      {load.kind === "live" ? (
+        <DataModeBanner mode="live" message="Published narratives from the public API." />
       ) : null}
       {load.kind === "loading" ? <p className="page__lede">Loading stories…</p> : null}
       <ul className="story-index">

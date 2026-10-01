@@ -3,7 +3,9 @@ import { Link, useSearchParams } from "react-router-dom";
 import { fetchFacets } from "../api/facets";
 import { fetchMapStates } from "../api/map";
 import { CitedSource } from "../components/CitedSource";
+import { DataModeBanner } from "../components/DataModeBanner";
 import { FacetBar } from "../components/FacetBar";
+import { InfoTip } from "../components/InfoTip";
 import { NigeriaMap } from "../components/NigeriaMap";
 import { geoYearFacetPatch, parseFacetYear, parseGeoYearFacets } from "../explore/facets";
 import {
@@ -129,10 +131,10 @@ export function MapPage() {
   const yearLabel = yearNum != null ? ` · fiscal year ${yearNum}` : "";
   const banner =
     load.kind === "live"
-      ? `Live from public API (${rows.length} ${rows.length === 1 ? "jurisdiction" : "jurisdictions"})${yearLabel}`
+      ? `Live map · ${rows.length} ${rows.length === 1 ? "state" : "states"}${yearLabel}`
       : load.kind === "demo"
-        ? `Illustrative demo — not live totals (${load.reason}). Year filter needs a live API.`
-        : "Loading state aggregates…";
+        ? `Guided sample map (${load.reason}). Year filters need live totals.`
+        : "Loading the map…";
 
   return (
     <div className="page page--map">
@@ -140,13 +142,22 @@ export function MapPage() {
         <div className="map-hero__copy">
           <h1 className="page__title">Map</h1>
           <p className="page__lede">
-            Compare Nigerian states by tender contract volume or open anomaly-flag density. Select a
-            column or a name in the ranking to inspect.
+            Where is contracting activity concentrated? Pick a state, watch the columns rise, then
+            open the ledger for that place
+            <InfoTip label="Reading the columns">
+              Taller columns mean higher contract volume or denser open questions, depending on the
+              toggle.
+            </InfoTip>
+            .
           </p>
         </div>
-        <p className="map-demo-banner" role="status">
-          {banner}
-        </p>
+        {load.kind === "live" || load.kind === "demo" ? (
+          <DataModeBanner mode={load.kind === "live" ? "live" : "demo"} message={banner} />
+        ) : (
+          <p className="page__lede" role="status">
+            {banner}
+          </p>
+        )}
       </header>
 
       <div className="explore-controls">

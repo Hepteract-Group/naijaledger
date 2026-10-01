@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import { applyTheme, resolveInitialTheme, toggleTheme } from "./theme";
@@ -17,6 +17,12 @@ vi.mock("./components/NigeriaMap", () => ({
       map canvas
     </div>
   ),
+}));
+
+vi.mock("./components/MoneyFlowScene", () => ({
+  MoneyFlowScene: () => <div data-testid="money-flow-mock" aria-hidden />,
+  LivingLedger: () => <div data-testid="living-ledger-mock" aria-hidden />,
+  StoryTrail: () => <div data-testid="story-trail-mock" aria-hidden />,
 }));
 
 afterEach(() => {
@@ -41,6 +47,38 @@ function stubMatchMedia(dark = false): void {
   );
 }
 
+function stubIntersectionObserver(): void {
+  vi.stubGlobal(
+    "IntersectionObserver",
+    class {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    },
+  );
+}
+
+function stubResizeObserver(): void {
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    },
+  );
+}
+
+function stubObservers(): void {
+  stubIntersectionObserver();
+  stubResizeObserver();
+}
+
+function clickNav(name: string): void {
+  const nav = screen.getByRole("navigation", { name: "Primary" });
+  fireEvent.click(within(nav).getByRole("link", { name }));
+}
+
 describe("theme", () => {
   it("applies light or dark to documentElement", () => {
     stubMatchMedia(false);
@@ -59,20 +97,10 @@ describe("theme", () => {
   });
 });
 
-function stubIntersectionObserver(): void {
-  vi.stubGlobal(
-    "IntersectionObserver",
-    class {
-      observe(): void {}
-      unobserve(): void {}
-      disconnect(): void {}
-    },
-  );
-}
-
 describe("App routes", () => {
   it("renders brand-first home and navigates to explore", async () => {
     stubMatchMedia(false);
+    stubObservers();
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -83,9 +111,10 @@ describe("App routes", () => {
 
     render(<App />);
     expect(screen.getAllByText("NaijaLedger").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByRole("heading", { name: /follow the money/i })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /the money is ours/i })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /enter the ledger/i })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("link", { name: "Explore" }));
+    clickNav("Explore");
     expect(await screen.findByRole("heading", { name: "Explore" })).toBeTruthy();
     expect(await screen.findByText(/no parties match/i)).toBeTruthy();
     expect(screen.getByRole("tab", { name: "Parties" })).toBeTruthy();
@@ -93,8 +122,48 @@ describe("App routes", () => {
     expect(screen.getByRole("tab", { name: "Flags" })).toBeTruthy();
   });
 
+  it("opens methodology and shows a real 404 page", async () => {
+    stubMatchMedia(false);
+    stubObservers();
+    render(<App />);
+    clickNav("Method");
+    expect(
+      await screen.findByRole("heading", { name: /from public file to trusted figure/i }),
+    ).toBeTruthy();
+    expect(screen.getByText(/archive before we read/i)).toBeTruthy();
+
+    cleanup();
+    window.history.pushState({}, "", "/no-such-route");
+    render(<App />);
+    expect(await screen.findByRole("heading", { name: /this trail ends here/i })).toBeTruthy();
+  });
+
+  it("toggles mobile nav and closes it on navigate", async () => {
+    stubMatchMedia(false);
+    stubObservers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ items: [], limit: 50, offset: 0, count: 0 }),
+      }),
+    );
+    render(<App />);
+    const toggle = screen.getByRole("button", { name: "Menu" });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("button", { name: "Close" })).toBeTruthy();
+    clickNav("Explore");
+    expect(await screen.findByRole("heading", { name: "Explore" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Menu" }).getAttribute("aria-expanded")).toBe(
+      "false",
+    );
+  });
+
   it("switches explore resource and shows flag hypothesis copy", async () => {
     stubMatchMedia(false);
+    stubObservers();
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -104,14 +173,15 @@ describe("App routes", () => {
     );
 
     render(<App />);
-    fireEvent.click(screen.getByRole("link", { name: "Explore" }));
+    clickNav("Explore");
     await screen.findByRole("heading", { name: "Explore" });
     fireEvent.click(screen.getByRole("tab", { name: "Flags" }));
-    expect(await screen.findByText(/hypotheses pending human review/i)).toBeTruthy();
+    expect(await screen.findByText(/flags are questions with evidence/i)).toBeTruthy();
   });
 
   it("compares two parties side by side", async () => {
     stubMatchMedia(false);
+    stubObservers();
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -145,7 +215,7 @@ describe("App routes", () => {
     );
 
     render(<App />);
-    fireEvent.click(screen.getByRole("link", { name: "Explore" }));
+    clickNav("Explore");
     expect(await screen.findByText("Ministry A")).toBeTruthy();
     fireEvent.click(screen.getByRole("checkbox", { name: /compare ministry a/i }));
     fireEvent.click(screen.getByRole("checkbox", { name: /compare vendor b/i }));
@@ -156,6 +226,7 @@ describe("App routes", () => {
 
   it("lists sources and drills into detail", async () => {
     stubMatchMedia(false);
+    stubObservers();
     const source = {
       id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
       name: "Open Treasury demo",
@@ -195,7 +266,7 @@ describe("App routes", () => {
     );
 
     render(<App />);
-    fireEvent.click(screen.getByRole("link", { name: "Sources" }));
+    clickNav("Sources");
     expect(await screen.findByRole("heading", { name: "Sources" })).toBeTruthy();
     fireEvent.click(screen.getByRole("link", { name: /open treasury demo/i }));
     expect(await screen.findByRole("heading", { name: "Open Treasury demo" })).toBeTruthy();
@@ -204,7 +275,7 @@ describe("App routes", () => {
 
   it("lists stories and opens the demo scrollytelling narrative", async () => {
     stubMatchMedia(false);
-    stubIntersectionObserver();
+    stubObservers();
     vi.stubGlobal(
       "fetch",
       vi.fn().mockImplementation((input: RequestInfo) => {
@@ -226,7 +297,7 @@ describe("App routes", () => {
     );
 
     render(<App />);
-    fireEvent.click(screen.getByRole("link", { name: "Stories" }));
+    clickNav("Stories");
     expect(await screen.findByRole("heading", { name: "Stories" })).toBeTruthy();
     expect(await screen.findByText("Follow the ledger")).toBeTruthy();
     expect(screen.getByText(/showing demo narratives/i)).toBeTruthy();
@@ -246,7 +317,7 @@ describe("App routes", () => {
 
   it("shows not-found for unknown story slugs", async () => {
     stubMatchMedia(false);
-    stubIntersectionObserver();
+    stubObservers();
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 404 }));
     window.history.pushState({}, "", "/stories/does-not-exist");
 
@@ -257,11 +328,15 @@ describe("App routes", () => {
 
   it("opens the demo graph page from nav", async () => {
     stubMatchMedia(false);
+    stubObservers();
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
     render(<App />);
-    fireEvent.click(screen.getByRole("link", { name: "Graph" }));
+    clickNav("Graph");
     expect(await screen.findByRole("heading", { name: "Graph" })).toBeTruthy();
-    expect(await screen.findByText(/illustrative demo — not a live memgraph/i)).toBeTruthy();
+    expect(
+      await screen.findByText(/guided sample while the live network is offline/i),
+    ).toBeTruthy();
+    expect(screen.getByText("Demo")).toBeTruthy();
     expect(screen.getByTestId("graph-canvas")).toBeTruthy();
     expect(screen.getByPlaceholderText(/search parties/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Parties" })).toBeTruthy();
@@ -269,6 +344,7 @@ describe("App routes", () => {
 
   it("uses live graph when the API returns nodes", async () => {
     stubMatchMedia(false);
+    stubObservers();
     vi.stubGlobal(
       "fetch",
       vi.fn().mockImplementation(async (input: RequestInfo) => {
@@ -297,19 +373,22 @@ describe("App routes", () => {
       }),
     );
     render(<App />);
-    fireEvent.click(screen.getByRole("link", { name: "Graph" }));
+    clickNav("Graph");
     expect(await screen.findByRole("heading", { name: "Graph" })).toBeTruthy();
-    expect(await screen.findByText(/live from memgraph finance projection/i)).toBeTruthy();
+    expect(await screen.findByText(/live network of agencies/i)).toBeTruthy();
+    expect(screen.getByText("Live")).toBeTruthy();
     expect(screen.getByTestId("graph-canvas")).toBeTruthy();
   });
 
   it("opens the demo map page from nav", async () => {
     stubMatchMedia(false);
+    stubObservers();
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
     render(<App />);
-    fireEvent.click(screen.getByRole("link", { name: "Map" }));
+    clickNav("Map");
     expect(await screen.findByRole("heading", { name: "Map" })).toBeTruthy();
-    expect(await screen.findByText(/illustrative demo — not live totals/i)).toBeTruthy();
+    expect(await screen.findByText(/guided sample map/i)).toBeTruthy();
+    expect(screen.getByText("Demo")).toBeTruthy();
     expect(screen.getByTestId("nigeria-map")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Contract volume" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Anomaly density" })).toBeTruthy();
@@ -318,11 +397,12 @@ describe("App routes", () => {
 
   it("focuses the map from the state facet URL", async () => {
     stubMatchMedia(false);
+    stubObservers();
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
     window.history.pushState({}, "", "/map?state=BY");
     render(<App />);
     expect(await screen.findByRole("heading", { name: "Map" })).toBeTruthy();
-    expect(await screen.findByText(/illustrative demo — not live totals/i)).toBeTruthy();
+    expect(await screen.findByText(/guided sample map/i)).toBeTruthy();
     const canvas = screen.getByTestId("nigeria-map");
     expect(canvas.getAttribute("data-focus-id")).toBe("BY");
     expect(canvas.getAttribute("data-selected-id")).toBe("BY");
@@ -331,6 +411,7 @@ describe("App routes", () => {
 
   it("uses live map aggregates when the API responds", async () => {
     stubMatchMedia(false);
+    stubObservers();
     vi.stubGlobal(
       "fetch",
       vi.fn().mockImplementation(async (input: RequestInfo) => {
@@ -368,7 +449,8 @@ describe("App routes", () => {
     );
     window.history.pushState({}, "", "/map?year=2026");
     render(<App />);
-    expect(await screen.findByText(/live from public api/i)).toBeTruthy();
+    expect(await screen.findByText(/live map/i)).toBeTruthy();
+    expect(screen.getByText("Live")).toBeTruthy();
     expect(screen.getByText(/fiscal year 2026/i)).toBeTruthy();
     expect(screen.getByDisplayValue("2026")).toBeTruthy();
     expect(screen.getByTestId("nigeria-map").getAttribute("data-focus-id")).toBe("");

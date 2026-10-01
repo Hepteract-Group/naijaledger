@@ -7,6 +7,7 @@ import { fetchTenders, type PublicTender } from "../api/tenders";
 import { CitedSource } from "../components/CitedSource";
 import { DistributionChart } from "../components/DistributionChart";
 import { FacetBar } from "../components/FacetBar";
+import { InfoTip } from "../components/InfoTip";
 import { geoYearFacetPatch, parseFacetYear, parseGeoYearFacets } from "../explore/facets";
 import {
   countBy,
@@ -207,47 +208,61 @@ export function ExplorePage() {
 
   return (
     <div className="page page--explore">
+      <p className="page__kicker">Ledger</p>
       <h1 className="page__title">Explore</h1>
       <p className="page__lede">
-        Filter, sort, and compare public finance entities. Flags are open hypotheses — not verified
-        claims. Drill into the <Link to="/sources">source registry</Link> for provenance.
+        Search the people and organisations behind public contracts. Compare side by side. Red-flag
+        items stay marked as questions, not verdicts
+        <InfoTip label="About flags">
+          A flag means something looks unusual and needs human review. It is not an accusation.
+        </InfoTip>
+        .
       </p>
 
-      <div className="explore-tabs" role="tablist" aria-label="Resource">
-        {(
-          [
-            ["parties", "Parties"],
-            ["tenders", "Tenders"],
-            ["flags", "Flags"],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            id={`explore-tab-${id}`}
-            aria-controls="explore-tabpanel"
-            aria-selected={resource === id}
-            className={`explore-tabs__btn${resource === id ? " explore-tabs__btn--active" : ""}`}
-            onClick={() =>
-              patchParams({
-                resource: id,
-                party_type: null,
-                q: null,
-                sort: "name",
-                dir: "asc",
-                ...(id === "tenders" ? {} : { state: null, lga: null, year: null }),
-              })
-            }
-          >
-            {label}
-          </button>
-        ))}
+      <div className="explore-tabs-bar">
+        <div className="explore-tabs" role="tablist" aria-label="Resource">
+          {(
+            [
+              ["parties", "Parties"],
+              ["tenders", "Tenders"],
+              ["flags", "Flags"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              id={`explore-tab-${id}`}
+              aria-controls="explore-tabpanel"
+              aria-selected={resource === id}
+              className={`explore-tabs__btn${resource === id ? " explore-tabs__btn--active" : ""}`}
+              onClick={() =>
+                patchParams({
+                  resource: id,
+                  party_type: null,
+                  q: null,
+                  sort: "name",
+                  dir: "asc",
+                  ...(id === "tenders" ? {} : { state: null, lga: null, year: null }),
+                })
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <InfoTip label={`What are ${resource}?`}>
+          {resource === "parties"
+            ? "The people and organisations in public finance: government agencies, companies, and persons. Each has a canonical name, aliases, and IDs such as RC, CAC, or TIN."
+            : resource === "tenders"
+              ? "Procurement opportunities posted by an agency — title, method (open, selective, limited, direct), value, and bidding window. Awards and contracts hang off these."
+              : "Automated red-flag hypotheses, not proven claims. They mark patterns that need human review before anything is treated as fact."}
+        </InfoTip>
       </div>
 
       {resource === "flags" ? (
         <p className="explore-hypothesis" role="note">
-          Anomaly flags are hypotheses pending human review — not published facts.
+          Flags are questions with evidence attached — not verdicts.
         </p>
       ) : null}
 

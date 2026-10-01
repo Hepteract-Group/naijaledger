@@ -131,9 +131,14 @@ export function SourceDetailPage() {
           note: "Original registry URL",
         }}
       />
-      <Link className="btn btn--primary" to="/explore">
-        Back to explore
-      </Link>
+      <div className="method-cta">
+        <Link className="btn btn--ghost" to="/sources">
+          All sources
+        </Link>
+        <Link className="btn btn--primary" to="/explore">
+          Explore data
+        </Link>
+      </div>
     </div>
   );
 }

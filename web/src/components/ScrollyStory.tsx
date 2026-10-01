@@ -3,6 +3,7 @@ import type { Citation } from "../dossier/types";
 import { useActiveStep } from "../hooks/useActiveStep";
 import type { NarrativeStory, StoryStep, StoryVisual } from "../stories/types";
 import { CitedSource } from "./CitedSource";
+import { DataModeBanner } from "./DataModeBanner";
 import { DossierExport } from "./DossierExport";
 
 type ScrollyStoryProps = {
@@ -32,7 +33,12 @@ function StoryVisualPanel({ visual, active }: { visual: StoryVisual; active: boo
         <>
           <p className="scrolly__visual-kicker">{visual.title}</p>
           {visual.detail ? <p className="scrolly__visual-detail">{visual.detail}</p> : null}
-          <p className="scrolly__visual-hint">Visual placeholder — charts/maps arrive in E10.3+</p>
+          <div className="scrolly__visual-orbit" aria-hidden>
+            <span />
+            <span />
+            <span />
+          </div>
+          <p className="scrolly__visual-hint">Chart coming soon — not data</p>
         </>
       ) : null}
     </div>
@@ -72,9 +78,7 @@ export function ScrollyStory({ story }: ScrollyStoryProps) {
     <article className="scrolly">
       <header className="scrolly__header">
         {story.demo ? (
-          <p className="scrolly__demo-banner" role="status">
-            Illustrative demo — not a published claim.
-          </p>
+          <DataModeBanner mode="demo" message="Illustrative demo — not a published claim." />
         ) : null}
         <h1 className="scrolly__title">{story.title}</h1>
         <p className="scrolly__lede">{story.lede}</p>
