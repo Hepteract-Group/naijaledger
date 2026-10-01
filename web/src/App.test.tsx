@@ -109,8 +109,10 @@ describe("App routes", () => {
     stubIntersectionObserver();
     render(<App />);
     clickNav("Method");
-    expect(await screen.findByRole("heading", { name: /we verify before we speak/i })).toBeTruthy();
-    expect(screen.getByText(/save the original first/i)).toBeTruthy();
+    expect(
+      await screen.findByRole("heading", { name: /from public file to trusted figure/i }),
+    ).toBeTruthy();
+    expect(screen.getByText(/archive before we read/i)).toBeTruthy();
 
     cleanup();
     window.history.pushState({}, "", "/no-such-route");
@@ -133,7 +135,7 @@ describe("App routes", () => {
     clickNav("Explore");
     await screen.findByRole("heading", { name: "Explore" });
     fireEvent.click(screen.getByRole("tab", { name: "Flags" }));
-    expect(await screen.findByText(/hypotheses pending human review/i)).toBeTruthy();
+    expect(await screen.findByText(/flags are questions with evidence/i)).toBeTruthy();
   });
 
   it("compares two parties side by side", async () => {

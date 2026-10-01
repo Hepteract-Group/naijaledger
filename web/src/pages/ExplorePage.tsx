@@ -222,38 +222,52 @@ export function ExplorePage() {
       <div className="explore-tabs" role="tablist" aria-label="Resource">
         {(
           [
-            ["parties", "Parties"],
-            ["tenders", "Tenders"],
-            ["flags", "Flags"],
+            [
+              "parties",
+              "Parties",
+              "The people and organisations in public finance: government agencies, companies, and persons. Each has a canonical name, aliases, and IDs such as RC, CAC, or TIN.",
+            ],
+            [
+              "tenders",
+              "Tenders",
+              "Procurement opportunities posted by an agency — title, method (open, selective, limited, direct), value, and bidding window. Awards and contracts hang off these.",
+            ],
+            [
+              "flags",
+              "Flags",
+              "Automated red-flag hypotheses, not proven claims. They mark patterns that need human review before anything is treated as fact.",
+            ],
           ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            id={`explore-tab-${id}`}
-            aria-controls="explore-tabpanel"
-            aria-selected={resource === id}
-            className={`explore-tabs__btn${resource === id ? " explore-tabs__btn--active" : ""}`}
-            onClick={() =>
-              patchParams({
-                resource: id,
-                party_type: null,
-                q: null,
-                sort: "name",
-                dir: "asc",
-                ...(id === "tenders" ? {} : { state: null, lga: null, year: null }),
-              })
-            }
-          >
-            {label}
-          </button>
+        ).map(([id, label, tip]) => (
+          <div key={id} className="explore-tabs__item">
+            <button
+              type="button"
+              role="tab"
+              id={`explore-tab-${id}`}
+              aria-controls="explore-tabpanel"
+              aria-selected={resource === id}
+              className={`explore-tabs__btn${resource === id ? " explore-tabs__btn--active" : ""}`}
+              onClick={() =>
+                patchParams({
+                  resource: id,
+                  party_type: null,
+                  q: null,
+                  sort: "name",
+                  dir: "asc",
+                  ...(id === "tenders" ? {} : { state: null, lga: null, year: null }),
+                })
+              }
+            >
+              {label}
+            </button>
+            <InfoTip label={`What are ${label.toLowerCase()}?`}>{tip}</InfoTip>
+          </div>
         ))}
       </div>
 
       {resource === "flags" ? (
         <p className="explore-hypothesis" role="note">
-          Anomaly flags are hypotheses pending human review — not published facts.
+          Flags are questions with evidence attached — not verdicts.
         </p>
       ) : null}
 
