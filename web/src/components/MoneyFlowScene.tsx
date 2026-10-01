@@ -280,6 +280,7 @@ export function LivingLedger() {
                 </div>
               ))}
             </dl>
+            {/* Last folio is frontmost (highest z) — disclaimer must sit on that card. */}
             {index === FOLIOS.length - 1 ? (
               <p className="ledger-panel__badge">Illustrative</p>
             ) : null}
