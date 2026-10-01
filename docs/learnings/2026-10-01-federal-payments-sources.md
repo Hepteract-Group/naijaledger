@@ -60,6 +60,10 @@ All counts and date bounds below are as of that probe date; the live API can mov
 
 Not needed for GovSpend. Keep `naijaledger@agentmail.to` for partnership reply and any future signup-gated source.
 
+## Decision (2026-10-01)
+
+Founder approved BudgIT GovSpend as the interim federal payments source. Do not send the partnership email unless the founder asks for an email trail. Contract: `specs/0040-govspend-payments.md`. Build tracked in #179.
+
 ## Recommendation (for #172)
 
 1. **Approve BudgIT GovSpend** as the interim federal payments source (`ingest_role=leaf`, category=`payments`), with mandatory credit and rate-limited pagination of the public JSON API.

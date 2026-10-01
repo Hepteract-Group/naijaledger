@@ -82,5 +82,5 @@ sources.ingest_role TEXT NOT NULL DEFAULT 'leaf'
 
 ## 7. Open questions
 
-- Which federal payments source replaces Open Treasury? → **needs-human**.
+- Which federal payments source replaces Open Treasury? → **Decided 2026-10-01:** BudgIT GovSpend. Contract: `specs/0040-govspend-payments.md`. Implementation: #179.
 - OpenStates partnership data route? → deferred to #64.
