@@ -21,6 +21,8 @@ vi.mock("./components/NigeriaMap", () => ({
 
 vi.mock("./components/MoneyFlowScene", () => ({
   MoneyFlowScene: () => <div data-testid="money-flow-mock" aria-hidden />,
+  LivingLedger: () => <div data-testid="living-ledger-mock" aria-hidden />,
+  StoryTrail: () => <div data-testid="story-trail-mock" aria-hidden />,
 }));
 
 afterEach(() => {

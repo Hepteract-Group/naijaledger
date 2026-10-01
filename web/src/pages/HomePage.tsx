@@ -2,7 +2,7 @@ import { motion, useReducedMotion, useScroll, useTransform } from "motion/react"
 import { useRef, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { InfoTip } from "../components/InfoTip";
-import { MoneyFlowScene } from "../components/MoneyFlowScene";
+import { LivingLedger, MoneyFlowScene, StoryTrail } from "../components/MoneyFlowScene";
 
 function Chapter({
   id,
@@ -56,6 +56,7 @@ export function HomePage() {
       <section ref={heroRef} className="civic-hero" aria-label="Introduction">
         <MoneyFlowScene />
         <div className="civic-hero__veil" />
+        <LivingLedger />
         <motion.div className="civic-hero__copy" style={{ y: titleY, opacity: titleOpacity }}>
           <p className="civic-hero__brand">
             NaijaLedger
@@ -69,8 +70,7 @@ export function HomePage() {
             <span className="civic-hero__headline-break">The duty is ours.</span>
           </h1>
           <p className="civic-hero__lede">
-            Every school left unfinished, every clinic without medicine, every road that stops short
-            — public money moved somewhere. Follow it. Ask questions. Keep the record.
+            Public money leaves a trail. We keep the map. Follow it. Ask questions. Keep the record.
           </p>
           <div className="civic-hero__actions">
             <Link className="btn btn--primary" to="/explore">
@@ -92,6 +92,7 @@ export function HomePage() {
       </section>
 
       <div className="civic-story">
+        <StoryTrail />
         <Chapter id="ch-watch" kicker="01 — Witness" title="Budgets are promises written in ink">
           <p>
             Across Africa, we know the ritual: announcements, ribbon cuttings, then silence.
