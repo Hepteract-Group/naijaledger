@@ -1,125 +1,175 @@
-import { motion, useReducedMotion } from "motion/react";
+import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
+import { useRef, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { NigeriaConstellation } from "../components/NigeriaConstellation";
+import { InfoTip } from "../components/InfoTip";
+import { MoneyFlowScene } from "../components/MoneyFlowScene";
 
-function Strip({
+function Chapter({
+  id,
   kicker,
-  titleId,
   title,
-  body,
-  to,
+  children,
   cta,
-  visualClass,
-  reverse,
-  quote,
 }: {
+  id: string;
   kicker: string;
-  titleId: string;
   title: string;
-  body: string;
-  to: string;
-  cta: string;
-  visualClass: string;
-  reverse?: boolean;
-  quote?: string;
+  children: ReactNode;
+  cta?: { to: string; label: string };
 }) {
   const reduce = useReducedMotion();
   return (
     <motion.section
-      className="home-strip"
-      aria-labelledby={titleId}
-      initial={reduce ? false : { opacity: 0, y: 28 }}
+      className="civic-chapter"
+      aria-labelledby={id}
+      initial={reduce ? false : { opacity: 0, y: 40 }}
       whileInView={reduce ? undefined : { opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.35 }}
-      transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+      viewport={{ once: true, amount: 0.4 }}
+      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
     >
-      <div className={`home-strip__inner${reverse ? " home-strip__inner--reverse" : ""}`}>
-        <div>
-          <p className="home-strip__kicker">{kicker}</p>
-          <h2 id={titleId} className="home-strip__title">
-            {title}
-          </h2>
-          <p className="home-strip__body">{body}</p>
-          <Link className="btn btn--ghost" to={to}>
-            {cta}
-          </Link>
-        </div>
-        <div className={`home-strip__visual ${visualClass}`} aria-hidden>
-          {quote ? <p className="home-strip__quote">{quote}</p> : null}
-        </div>
-      </div>
+      <p className="civic-chapter__kicker">{kicker}</p>
+      <h2 id={id} className="civic-chapter__title">
+        {title}
+      </h2>
+      <div className="civic-chapter__body">{children}</div>
+      {cta ? (
+        <Link className="btn btn--ghost" to={cta.to}>
+          {cta.label}
+        </Link>
+      ) : null}
     </motion.section>
   );
 }
 
 export function HomePage() {
+  const heroRef = useRef<HTMLElement | null>(null);
+  const reduce = useReducedMotion();
+  const { scrollYProgress } = useScroll({
+    target: heroRef,
+    offset: ["start start", "end start"],
+  });
+  const titleY = useTransform(scrollYProgress, [0, 1], [0, reduce ? 0 : 80]);
+  const titleOpacity = useTransform(scrollYProgress, [0, 0.75], [1, 0.15]);
+
   return (
-    <>
-      <section className="home-hero" aria-label="Introduction">
-        <div className="home-hero__canvas" aria-hidden>
-          <NigeriaConstellation />
-        </div>
-        <div className="home-hero__veil" aria-hidden />
-        <div className="home-hero__copy">
-          <p className="home-hero__brand">NaijaLedger</p>
-          <h1 className="home-hero__headline">Follow the money. Verify the vote.</h1>
-          <p className="home-hero__lede">
-            Source-backed public finance for Nigeria — evidence first, claims only after human
-            review.
+    <div className="civic-home">
+      <section ref={heroRef} className="civic-hero" aria-label="Introduction">
+        <MoneyFlowScene />
+        <div className="civic-hero__veil" />
+        <motion.div className="civic-hero__copy" style={{ y: titleY, opacity: titleOpacity }}>
+          <p className="civic-hero__brand">
+            NaijaLedger
+            <InfoTip label="What is NaijaLedger?">
+              An open ledger of Nigeria’s public money — archived at the source, readable by anyone,
+              published only after human review.
+            </InfoTip>
           </p>
-          <div className="home-hero__actions">
+          <h1 className="civic-hero__headline">
+            The money is ours.
+            <span className="civic-hero__headline-break">The duty is ours.</span>
+          </h1>
+          <p className="civic-hero__lede">
+            Every school left unfinished, every clinic without medicine, every road that stops short
+            — public money moved somewhere. Follow it. Ask questions. Keep the record.
+          </p>
+          <div className="civic-hero__actions">
             <Link className="btn btn--primary" to="/explore">
-              Explore the ledger
+              Enter the ledger
             </Link>
-            <Link className="btn btn--ghost" to="/map">
-              Open the map
+            <Link className="btn btn--ghost" to="/methodology">
+              Why we verify
             </Link>
           </div>
-        </div>
+        </motion.div>
+        <motion.p
+          className="civic-hero__scroll"
+          initial={reduce ? false : { opacity: 0 }}
+          animate={reduce ? undefined : { opacity: [0.35, 1, 0.35] }}
+          transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+        >
+          Scroll the story
+        </motion.p>
       </section>
 
-      <Strip
-        kicker="Geography"
-        titleId="home-map-title"
-        title="Drill from federation to state to year"
-        body="Contract volume and anomaly density across Nigeria — filter by state, LGA, and fiscal year, then jump into the underlying parties and tenders."
-        to="/map"
-        cta="Explore the map"
-        visualClass="home-strip__visual--map"
-      />
-      <Strip
-        kicker="Relationships"
-        titleId="home-graph-title"
-        title="See who connects to what"
-        body="Agencies, companies, tenders, awards, and contracts as a living graph — built so investigators can chase ownership and concentration, not just rows."
-        to="/graph"
-        cta="Open the graph"
-        visualClass="home-strip__visual--graph"
-        reverse
-      />
-      <Strip
-        kicker="Narratives"
-        titleId="home-story-title"
-        title="Read the story. Check the source."
-        body="Scrollytelling investigations with citations on every claim. Demo pieces are labelled until a human approves publication."
-        to="/stories"
-        cta="Read stories"
-        visualClass="home-strip__visual--story"
-        quote="Every figure cites an archived document."
-      />
+      <div className="civic-story">
+        <Chapter id="ch-watch" kicker="01 — Witness" title="Budgets are promises written in ink">
+          <p>
+            Across Africa, we know the ritual: announcements, ribbon cuttings, then silence.
+            NaijaLedger starts where silence usually wins — by capturing the public record before it
+            can rot, disappear, or be rewritten.
+          </p>
+        </Chapter>
 
-      <section className="home-close" aria-labelledby="home-method-title">
-        <h2 id="home-method-title" className="home-close__title">
-          Built for trust, not theatre
-        </h2>
-        <p className="home-close__body">
-          Capture and hash before parse. Provenance on every datum. Humans gate anything published
-          as fact. That is the product.
-        </p>
-        <Link className="btn btn--primary" to="/methodology">
-          How verification works
-        </Link>
-      </section>
-    </>
+        <Chapter
+          id="ch-trail"
+          kicker="02 — Trace"
+          title="From ministry to contract to community"
+          cta={{ to: "/map", label: "See it on the map" }}
+        >
+          <p>
+            Money does not vanish. It travels — through agencies, tenders, awards, and companies.
+            Explore those paths. Zoom from the federation to your state
+            <InfoTip label="How filters work">
+              On the map and explore pages, choose a state, LGA, or year to narrow the trail.
+            </InfoTip>
+            .
+          </p>
+        </Chapter>
+
+        <Chapter
+          id="ch-people"
+          kicker="03 — Relate"
+          title="Names connect. Patterns appear."
+          cta={{ to: "/graph", label: "Open the graph" }}
+        >
+          <p>
+            Who bids together? Who wins repeatedly? The graph is not gossip — it is structure made
+            visible, so journalists, organisers, and citizens can ask sharper questions.
+          </p>
+        </Chapter>
+
+        <Chapter
+          id="ch-voice"
+          kicker="04 — Speak"
+          title="Civic duty is not a spectator sport"
+          cta={{ to: "/stories", label: "Read a narrative" }}
+        >
+          <p>
+            Inspiration without evidence is noise. Evidence without courage is a filing cabinet.
+            Stories here cite sources. Red flags stay labelled as questions until a human decides
+            what may be published as fact
+            <InfoTip label="Publication gate">
+              We never auto-publish accusations. AI can draft; people approve.
+            </InfoTip>
+            .
+          </p>
+        </Chapter>
+
+        <motion.section
+          className="civic-close"
+          aria-labelledby="civic-close-title"
+          initial={reduce ? false : { opacity: 0, scale: 0.98 }}
+          whileInView={reduce ? undefined : { opacity: 1, scale: 1 }}
+          viewport={{ once: true, amount: 0.5 }}
+          transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <h2 id="civic-close-title" className="civic-close__title">
+            Hold the line with us
+          </h2>
+          <p className="civic-close__body">
+            Openness is our security model. Lawful. Nonpartisan. Built so the next generation
+            inherits receipts — not rumours.
+          </p>
+          <div className="civic-hero__actions">
+            <Link className="btn btn--primary" to="/explore">
+              Start exploring
+            </Link>
+            <Link className="btn btn--ghost" to="/sources">
+              Meet the sources
+            </Link>
+          </div>
+        </motion.section>
+      </div>
+    </div>
   );
 }

@@ -1,52 +1,60 @@
 import { Link } from "react-router-dom";
+import { InfoTip } from "../components/InfoTip";
 
 export function MethodologyPage() {
   return (
     <div className="page">
-      <p className="page__kicker">Trust model</p>
-      <h1 className="page__title">How verification works</h1>
+      <p className="page__kicker">Why trust this</p>
+      <h1 className="page__title">We verify before we speak</h1>
       <p className="page__lede">
-        NaijaLedger is built so a published number can be traced to a document, a fetch, and a human
-        decision. The UI never invents authority the pipeline does not have.
+        Public anger without receipts burns out. NaijaLedger is built so every figure you meet can
+        be walked back to a document someone archived — and every public claim waits for a human.
       </p>
 
       <ol className="method-list">
         <li>
-          <h2>Capture before parse</h2>
+          <h2>Save the original first</h2>
           <p>
-            Raw bytes are hashed and written to a write-once archive the moment we can reach a
-            source. Extraction happens after. If the portal disappears later, the evidence remains.
+            When we reach a government page or file, we store the exact bytes and a fingerprint
+            before anyone reads the numbers. Portals go dark. Receipts should not.
+            <InfoTip label="Technical name">
+              This is our write-once archive — content-hashed so tampering is obvious.
+            </InfoTip>
           </p>
         </li>
         <li>
-          <h2>Provenance on every datum</h2>
+          <h2>Keep the trail attached</h2>
           <p>
-            Canonical values link back to source document, page or region, and fetch record. Charts
-            and stories are meant to cite that chain — not float free.
+            A number without a page is just a rumour with formatting. Each value we keep points at
+            the document and place it came from.
           </p>
         </li>
         <li>
-          <h2>Hypotheses are not verdicts</h2>
+          <h2>Questions are not verdicts</h2>
           <p>
-            Anomaly flags are open questions with evidence. They stay labelled until a human review
-            decision allows publication as fact.
+            Odd patterns become flags for people to review. We do not auto-publish accusations.
+            Machines propose; humans dispose.
           </p>
         </li>
         <li>
-          <h2>Demo vs live, always labelled</h2>
+          <h2>Say when something is a demo</h2>
           <p>
-            When the API is empty or unreachable, the UI may show illustrative fixtures so the
-            product is usable. Those surfaces carry an explicit demo banner.
+            If live data is thin, we may show labelled examples so you can still learn the
+            interface. Look for the Demo badge
+            <InfoTip label="Demo vs live">
+              Live means the public API answered. Demo means illustrative sample data.
+            </InfoTip>
+            .
           </p>
         </li>
       </ol>
 
       <div className="method-cta">
         <Link className="btn btn--primary" to="/sources">
-          Browse sources
+          See the sources
         </Link>
         <Link className="btn btn--ghost" to="/explore">
-          Explore data
+          Enter the ledger
         </Link>
       </div>
     </div>

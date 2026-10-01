@@ -7,6 +7,7 @@ import { fetchTenders, type PublicTender } from "../api/tenders";
 import { CitedSource } from "../components/CitedSource";
 import { DistributionChart } from "../components/DistributionChart";
 import { FacetBar } from "../components/FacetBar";
+import { InfoTip } from "../components/InfoTip";
 import { geoYearFacetPatch, parseFacetYear, parseGeoYearFacets } from "../explore/facets";
 import {
   countBy,
@@ -210,8 +211,12 @@ export function ExplorePage() {
       <p className="page__kicker">Ledger</p>
       <h1 className="page__title">Explore</h1>
       <p className="page__lede">
-        Filter, sort, and compare public finance entities. Flags are open hypotheses — not verified
-        claims. Drill into the <Link to="/sources">source registry</Link> for provenance.
+        Search the people and organisations behind public contracts. Compare side by side. Red-flag
+        items stay marked as questions, not verdicts
+        <InfoTip label="About flags">
+          A flag means something looks unusual and needs human review. It is not an accusation.
+        </InfoTip>
+        .
       </p>
 
       <div className="explore-tabs" role="tablist" aria-label="Resource">

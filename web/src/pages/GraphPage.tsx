@@ -5,6 +5,7 @@ import { CitedSource } from "../components/CitedSource";
 import { DataModeBanner } from "../components/DataModeBanner";
 import { FacetBar } from "../components/FacetBar";
 import { GraphCanvas } from "../components/GraphCanvas";
+import { InfoTip } from "../components/InfoTip";
 import { geoYearFacetPatch, parseGeoYearFacets } from "../explore/facets";
 import { getDemoGraph } from "../graph/fixtures";
 import {
@@ -100,12 +101,12 @@ export function GraphPage() {
 
   const banner =
     load.kind === "loading"
-      ? "Loading live graph…"
+      ? "Loading connections…"
       : load.kind === "live"
-        ? "Live from Memgraph finance projection"
+        ? "Live network of agencies, companies, and contracts"
         : load.kind === "empty"
-          ? "Live Memgraph projection is empty — rebuild the graph after ingest"
-          : `Illustrative demo — not a live Memgraph projection (${load.reason})`;
+          ? "The live network is empty for this view — try Explore while we refresh connections"
+          : `Guided sample while the live network is offline (${load.reason})`;
 
   const patchParams = (patch: Record<string, string | null>) => {
     const next = new URLSearchParams(params);
@@ -167,8 +168,13 @@ export function GraphPage() {
         <div className="graph-hero__copy">
           <h1 className="page__title">Graph</h1>
           <p className="page__lede">
-            Follow how agencies, suppliers, tenders, awards, and contracts connect. Filter by type
-            or search a name — click a node for a short briefing.
+            Touch a node to meet an agency, company, or contract. Pull on the web — patterns of
+            winning and spending become harder to ignore
+            <InfoTip label="How to use the graph">
+              Filter by type, search a name, then click a node for a short briefing and source
+              links.
+            </InfoTip>
+            .
           </p>
         </div>
         {load.kind === "live" || load.kind === "demo" ? (

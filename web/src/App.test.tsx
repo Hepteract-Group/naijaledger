@@ -19,6 +19,10 @@ vi.mock("./components/NigeriaMap", () => ({
   ),
 }));
 
+vi.mock("./components/MoneyFlowScene", () => ({
+  MoneyFlowScene: () => <div data-testid="money-flow-mock" aria-hidden />,
+}));
+
 afterEach(() => {
   cleanup();
   localStorage.clear();
@@ -89,8 +93,8 @@ describe("App routes", () => {
 
     render(<App />);
     expect(screen.getAllByText("NaijaLedger").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByRole("heading", { name: /follow the money/i })).toBeTruthy();
-    expect(screen.getByRole("link", { name: /explore the ledger/i })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /the money is ours/i })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /enter the ledger/i })).toBeTruthy();
 
     clickNav("Explore");
     expect(await screen.findByRole("heading", { name: "Explore" })).toBeTruthy();
@@ -105,8 +109,8 @@ describe("App routes", () => {
     stubIntersectionObserver();
     render(<App />);
     clickNav("Method");
-    expect(await screen.findByRole("heading", { name: /how verification works/i })).toBeTruthy();
-    expect(screen.getByText(/capture before parse/i)).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: /we verify before we speak/i })).toBeTruthy();
+    expect(screen.getByText(/save the original first/i)).toBeTruthy();
 
     cleanup();
     window.history.pushState({}, "", "/no-such-route");
@@ -286,7 +290,9 @@ describe("App routes", () => {
     render(<App />);
     clickNav("Graph");
     expect(await screen.findByRole("heading", { name: "Graph" })).toBeTruthy();
-    expect(await screen.findByText(/illustrative demo — not a live memgraph/i)).toBeTruthy();
+    expect(
+      await screen.findByText(/guided sample while the live network is offline/i),
+    ).toBeTruthy();
     expect(screen.getByTestId("graph-canvas")).toBeTruthy();
     expect(screen.getByPlaceholderText(/search parties/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Parties" })).toBeTruthy();
@@ -325,7 +331,7 @@ describe("App routes", () => {
     render(<App />);
     clickNav("Graph");
     expect(await screen.findByRole("heading", { name: "Graph" })).toBeTruthy();
-    expect(await screen.findByText(/live from memgraph finance projection/i)).toBeTruthy();
+    expect(await screen.findByText(/live network of agencies/i)).toBeTruthy();
     expect(screen.getByTestId("graph-canvas")).toBeTruthy();
   });
 
@@ -336,7 +342,7 @@ describe("App routes", () => {
     render(<App />);
     clickNav("Map");
     expect(await screen.findByRole("heading", { name: "Map" })).toBeTruthy();
-    expect(await screen.findByText(/illustrative demo — not live totals/i)).toBeTruthy();
+    expect(await screen.findByText(/guided sample map/i)).toBeTruthy();
     expect(screen.getByTestId("nigeria-map")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Contract volume" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Anomaly density" })).toBeTruthy();
@@ -350,7 +356,7 @@ describe("App routes", () => {
     window.history.pushState({}, "", "/map?state=BY");
     render(<App />);
     expect(await screen.findByRole("heading", { name: "Map" })).toBeTruthy();
-    expect(await screen.findByText(/illustrative demo — not live totals/i)).toBeTruthy();
+    expect(await screen.findByText(/guided sample map/i)).toBeTruthy();
     const canvas = screen.getByTestId("nigeria-map");
     expect(canvas.getAttribute("data-focus-id")).toBe("BY");
     expect(canvas.getAttribute("data-selected-id")).toBe("BY");
@@ -397,7 +403,7 @@ describe("App routes", () => {
     );
     window.history.pushState({}, "", "/map?year=2026");
     render(<App />);
-    expect(await screen.findByText(/live from public api/i)).toBeTruthy();
+    expect(await screen.findByText(/live map/i)).toBeTruthy();
     expect(screen.getByText(/fiscal year 2026/i)).toBeTruthy();
     expect(screen.getByDisplayValue("2026")).toBeTruthy();
     expect(screen.getByTestId("nigeria-map").getAttribute("data-focus-id")).toBe("");

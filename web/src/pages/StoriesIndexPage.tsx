@@ -59,8 +59,8 @@ export function StoriesIndexPage() {
     <div className="page">
       <h1 className="page__title">Stories</h1>
       <p className="page__lede">
-        Cited narrative investigations. Demo stories are labelled until human-approved publication
-        is available.
+        Investigations you can scroll — every claim points at a source. Demo pieces stay labelled
+        until a human clears them for publication.
       </p>
       {load.kind === "demo" ? (
         <DataModeBanner mode="demo" message={`Showing demo narratives (${load.reason}).`} />

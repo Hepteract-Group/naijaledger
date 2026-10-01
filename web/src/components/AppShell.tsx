@@ -71,7 +71,10 @@ export function AppShell() {
         <div className="site-footer__inner">
           <div>
             <p className="site-footer__brand">NaijaLedger</p>
-            <p>Open civic accountability for Nigeria. Lawful. Nonpartisan. Evidence first.</p>
+            <p>
+              Open civic accountability for Nigeria. Lawful. Nonpartisan. Built for citizens who
+              keep receipts.
+            </p>
           </div>
           <div>
             <p className="site-footer__label">Investigate</p>
