@@ -1,7 +1,7 @@
 # Spec 0040 — BudgIT GovSpend payments ingest
 
 - **Epic / Issue**: E5 / #179 (decision recorded on #172, 2026-10-01)
-- **Status**: Draft
+- **Status**: Approved
 - **Author**: agent
 - **Needs human decision?**: no — founder approved GovSpend on 2026-10-01 and said to proceed without sending the partnership email. Send that email only if the founder later asks for an email trail.
 
@@ -36,7 +36,7 @@ GET https://app.govspend.ng/api/payments/?page=N
   → parse_govspend_page
   → create_extraction(method=json)
   → upsert parties + payments
-  → provenance_edge subject_type=payment, region=payment_no
+  → provenance_edge subject_type=payment, region={"payment_no": "<payment_no>"}
   → follow `next` until null, empty page, or max_pages
 ```
 
@@ -46,7 +46,7 @@ Politeness, because no rate-limit headers were observed (`Cache-Control: max-age
 
 - Wait at least 1 second between page requests.
 - Send `User-Agent: NaijaLedger/govspend`.
-- One retry on HTTP 429 or 5xx, after that wait. Stop on 401 or 403.
+- On HTTP 429 or 5xx, wait 5 seconds and retry that page once. If the retry also fails, stop the job. Stop immediately on 401 or 403.
 - Follow the `next` URL from the body. Do not hard-code `last`.
 
 The collection URL is a constant in code, not a caller-supplied URL.
@@ -67,7 +67,7 @@ The collection URL is a constant in code, not a caller-supplied URL.
 | expected_cadence | 7 days |
 | approved_by | `human:founder-2026-10-01` |
 
-Do not change `approved_by` on the existing approved sources. `ingest_role=leaf` is already in the auto-approve set.
+`apply_seed_catalog` takes one run-wide `approved_by`, default `SEED_APPROVED_BY` (`human:decision-brief-2026-07-07`). Do not pass `human:founder-2026-10-01` as that argument. Add an optional `approved_by` on the seed catalog entry. When the entry sets it, use that value for `approve_source`; otherwise keep the run-wide default. `ingest_role=leaf` is already in the auto-approve set. A fresh seed must leave the July sources on `human:decision-brief-2026-07-07`.
 
 ### 4.2 Page envelope (probed 2026-10-01)
 
@@ -81,7 +81,7 @@ Do not change `approved_by` on the existing approved sources. `ingest_role=leaf`
 }
 ```
 
-`results` length on page 1 was 100. `amount` is a JSON number in naira, not kobo. Parse it with `Decimal` from the raw token. Do not round through binary float.
+`results` length on page 1 was 100. `amount` is a JSON number in naira, not kobo. `parse_govspend_page` must call `json.loads(data, parse_float=Decimal)`. Plain `json.loads` turns the token into a binary float before `Decimal` can see it. `1.005` naira is 101 kobo through `parse_float=Decimal` and 100 kobo through a float parse.
 
 ### 4.3 Row mapping
 
@@ -92,7 +92,7 @@ Do not change `approved_by` on the existing approved sources. `ingest_role=leaf`
 | `amount` | `payments.amount` in kobo: `Decimal` naira × 100, round half up, `currency=NGN` |
 | `description` | `payments.purpose` |
 | `organization_name` | `parties` row, `party_type=agency` (payer). `payments.agency_id` |
-| `payer_code` | `payments.meta.payer_code`. On insert of a new agency, also `parties.identifiers.payer_code`. Do not overwrite identifiers on an existing party. |
+| `payer_code` | `payments.meta.payer_code` on every loaded row. On insert of a new agency, also set `parties.identifiers.payer_code`. If the agency already exists, leave `parties.identifiers` unchanged. Do not call `_merge_identifiers` (`ocds_load.py`) with the incoming code: that helper overwrites the stored value. |
 | `beneficiary_name` | `parties` row, `party_type=company`, when the name is non-blank. `payments.beneficiary_id`. Blank name → `beneficiary_id` null. |
 | — | `payments.contract_id` stays null |
 | — | `payments.meta.attribution = "BudgIT GovSpend (https://www.govspend.ng/)"` |
@@ -102,7 +102,7 @@ Skip the row (count it, do not fail the page) when `payment_no` is blank, `organ
 
 Upsert on `source_ref`. A second load of the same page updates amount, paid_at, purpose, party links, and meta, and does not insert a second `provenance_edges` row for the same extraction + payment.
 
-Provenance: `method=json`, `derivation=extracted`, `region=payment_no`, `subject_type=payment`. The document is the archived page.
+Provenance: `method=json`, `derivation=extracted`, `confidence=1` (required by `ck_extractions_derivation_confidence` when derivation is `extracted`), `subject_type=payment`. `provenance_edges.region` is the JSON object `{"payment_no": "<payment_no>"}`, not a bare string. Widen `ProvenanceContext.region` from `dict[str, float] | None` to `dict[str, str | float] | None` so the payment number fits. Coordinate dicts used by other loaders stay valid. The document is the archived page.
 
 ### 4.4 Functions
 
@@ -116,11 +116,13 @@ load_govspend_payments(connection, rows, *, provenance, page_url) -> LoadSummary
 
 ## 5. Acceptance criteria (testable)
 
-- [ ] Fixture page with two valid rows loads two `payments`, two agency parties, beneficiary parties, and one provenance edge per payment. Amount `22996722.0` naira becomes `2299672200` kobo. `10.5` naira becomes `1050` kobo.
+- [ ] Fixture page with two valid rows loads two `payments`, two agency parties, beneficiary parties, and one provenance edge per payment. Amount `22996722.0` naira becomes `2299672200` kobo. `10.5` naira becomes `1050` kobo. `1.005` naira becomes `101` kobo via `json.loads(..., parse_float=Decimal)`.
+- [ ] Each loaded row has `meta.attribution` = `BudgIT GovSpend (https://www.govspend.ng/)`, `meta.page_url` set to the page URL, and `meta.payer_code` set from the feed. The provenance edge has `confidence=1` and `region={"payment_no": "<payment_no>"}`.
 - [ ] `source_ref` is `govspend:{payment_no}`. Reloading the same fixture does not add a second payment or a second provenance edge.
 - [ ] A row with a blank `payment_no` or a non-numeric `amount` is skipped and counted.
 - [ ] Blank `beneficiary_name` leaves `beneficiary_id` null.
-- [ ] Seed entry matches the table in §4.1. Existing sources keep their `approved_by`.
+- [ ] An existing agency whose stored `payer_code` differs from the row keeps `parties.identifiers` unchanged. The payment row still records the feed's `payer_code` in `meta`.
+- [ ] A fresh seed leaves July sources at `approved_by=human:decision-brief-2026-07-07` and sets the GovSpend row to `human:founder-2026-10-01`.
 - [ ] CLI default `max_pages` is 2. Unit tests do not call the network.
 - [ ] Loader does not request any `/download` path.
 
@@ -128,7 +130,7 @@ load_govspend_payments(connection, rows, *, provenance, page_url) -> LoadSummary
 
 - **Secondary source.** GovSpend is mined from Open Treasury, not the official file. Mitigation: attribution on every row; keep Open Treasury retired until its TLS is fixed; official file stays a separate legal ask.
 - **Name mismatch.** Payer strings may not equal Budget Office agency names, so `budget_payment_mismatch` can miss or false-hit. Mitigation: no fuzzy match in this spec. Matching is a follow-up.
-- **Float money.** JSON numbers are binary floats. Mitigation: `Decimal` parse, half-up to kobo.
+- **Float money.** JSON numbers are binary floats. Mitigation: `json.loads(..., parse_float=Decimal)`, then half-up to kobo.
 - **All beneficiaries stored as companies.** A person paid directly will be typed `company`. Mitigation: accepted for v1; split later if the feed grows a type field.
 - **No published terms of use.** Founder approved use on 2026-10-01 without an email. Mitigation: rate limit, credit, sample cap. Stop the job if the API starts returning 401 or 403.
 - **Layout drift.** Missing `results` fails the page with a clear error rather than writing zero rows silently.
