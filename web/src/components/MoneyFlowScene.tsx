@@ -228,7 +228,6 @@ export function LivingLedger() {
 
   return (
     <div ref={stageRef} className="ledger-stage" aria-hidden>
-      <p className="ledger-stage__badge">Illustrative</p>
       <div className="ledger-stage__floor" />
       <motion.div
         className="ledger-rig"
@@ -281,6 +280,10 @@ export function LivingLedger() {
                 </div>
               ))}
             </dl>
+            {/* Last folio is frontmost (highest z) — disclaimer must sit on that card. */}
+            {index === FOLIOS.length - 1 ? (
+              <p className="ledger-panel__badge">Illustrative</p>
+            ) : null}
             <div className="ledger-panel__glow" />
           </motion.article>
         ))}
