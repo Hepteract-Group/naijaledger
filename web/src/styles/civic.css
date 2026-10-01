@@ -49,11 +49,19 @@
   opacity: 0.9;
 }
 
-.ledger-stage__badge {
+.ledger-rig {
+  position: relative;
+  width: min(96%, 30rem);
+  height: min(62vh, 24rem);
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.ledger-rig__badge {
   position: absolute;
-  z-index: 2;
-  top: 8%;
-  right: 10%;
+  z-index: 4;
+  top: 0;
+  right: 4%;
   margin: 0;
   padding: 0.28rem 0.55rem;
   border-radius: 999px;
@@ -64,14 +72,8 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-}
-
-.ledger-rig {
-  position: relative;
-  width: min(96%, 30rem);
-  height: min(62vh, 24rem);
-  transform-style: preserve-3d;
-  will-change: transform;
+  transform: translateZ(7.5rem);
+  box-shadow: 0 8px 20px color-mix(in srgb, #000 28%, transparent);
 }
 
 .ledger-panel {
