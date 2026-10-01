@@ -8,7 +8,7 @@
 ## Project anchor
 
 | Thing | Value |
-|---|---|
+| --- | --- |
 | Product | **NaijaLedger** — open civic-accountability data platform for Nigeria (public-finance transparency + election-results verification) |
 | Org | `Hepteract-Group` (UK umbrella) |
 | Repo | `Hepteract-Group/naijaledger` (default branch `main`) |
@@ -16,6 +16,30 @@
 | Specs | `specs/` (spec-driven development — see below) |
 | Stack | Python 3.11+ engine (`/engine`), TypeScript + React/Vite web (`/web`) |
 | Method | **Spec-driven development** + **self-directed loop** (see below) |
+
+---
+
+## How to talk to the founder
+
+Write like a person, not a briefing deck. Imagine explaining the work to a college friend who is smart but did not sit in the repo with you.
+
+Use plain English. Short sentences. Say what happened, what it means, and what to do next.
+
+Do not pack five ideas into one paragraph. Do not hide the point behind jargon, labels, or ticket numbers unless those numbers help them click something.
+
+Do not truncate so hard that the message becomes a telegram. Complete thoughts. Complete steps.
+
+No AI slop: no “great question,” no “as an AI,” no fake hype, no stacked buzzwords, no “leverage / robust / seamless” filler.
+
+When they need to verify something, give a real walkthrough: open this URL, click this, you should see that.
+
+---
+
+## Mannered prose
+
+Mannered prose substitutes metaphor and flourish for direct statement. Instead of “a parameter worth varying,” the mannered writer produces “a dial worth turning.” Instead of “this point still matters,” they write “this point earns its keep.” The phrases exist to display the writer, not to convey the idea, and readers can tell. That is why mannered prose irritates: it makes the reader work harder so the writer can perform. It is also imprecise. Metaphors drag in connotations the writer did not choose and cannot control. The fix is to say what you mean. When a literal phrase is available, use it.
+
+This applies to chat with the founder, PR bodies, issue comments, and operator-facing copy. It does not apply to ads or marketing copy written for customers.
 
 ---
 
@@ -63,6 +87,7 @@ The loop continues until the board has no eligible unblocked issues, or a `needs
 ## Merge policy (this project ALLOWS agent merges — with guardrails)
 
 You **may** merge your own PR **only if ALL of these hold**:
+
 - CI is green (lint + typecheck + tests all pass).
 - The change is **reversible** (normal commit on `main`; no history rewrite) and the PR documents
   how to roll it back.
@@ -82,6 +107,23 @@ skip hooks, or bypass CI.
 
 ---
 
+## The workflow (memorise this)
+
+Everything we work on has an issue. No issue, no work. If a task arrives without one, create the issue first, then proceed. All issues live on the project board (GitHub Projects, gh project 5 --owner Hepteract-Group).
+
+Issue model (Epic → Feature → Task)
+
+Epic (type:epic) — a plan-level workstream (traces to a Plan or ADR). Never worked directly; decomposed into Features.
+
+Feature (type:feature) — a coherent slice within an Epic, reviewable on its own.
+
+Task (type:task) — a single reviewable PR unit.
+Priority labels: priority:p0 (now) / priority:p1 (next) / priority:p2 (later).
+Area labels: area:studio, area:content, area:infra, area:brand.
+Hierarchy is expressed with sub-issues (gh api … addSubIssue) so the board shows Parent + Sub-issues progress natively.
+
+---
+
 ## Spec-driven development
 
 - Specs live in `specs/` and follow `specs/TEMPLATE.md`.
@@ -95,6 +137,7 @@ skip hooks, or bypass CI.
 ---
 
 ## Hard guardrails (do NOT skip)
+
 - Never publish unverified public claims (human gate required).
 - Never commit secrets or personal data.
 - Never scrape sources in violation of law/ToS; closed sources go through the FOI/legal workstream.
@@ -104,8 +147,9 @@ skip hooks, or bypass CI.
 ---
 
 ## Where to find more detail
+
 | Rule file | Loaded when |
-|---|---|
+| --- | --- |
 | `.cursor/rules/loop-workflow.mdc` | Always — the self-directed loop + merge policy |
 | `.cursor/rules/merge-review.mdc` | Always — stronger-model merge review before self-merge |
 | `.cursor/rules/spec-driven.mdc` | When creating/refreshing a spec |
@@ -115,5 +159,14 @@ skip hooks, or bypass CI.
 | `.cursor/rules/workflow-tickets.mdc` | When creating issues / using the project board |
 
 ## When in doubt
+
 - Architectural / ambiguous / high-impact → **escalate `needs-human`** (that is what the human is for).
 - Don't know an ID, path, or scope → look it up, don't guess.
+
+---
+
+## Learned User Preferences
+
+- Temporary git worktrees for parallel agents must be deleted when the work finishes — no leftover worktrees.
+- When you mention a GitHub issue to the founder, put the title beside the number. `#1423` alone is not enough. Write `#173 NOCOPO Open-Data per-row JSON child fetch + normalize`.
+- When you encounter an issue whose body does not follow `.github/ISSUE_TEMPLATE/story.md`, rewrite that body to the template before you move on. Keep decisions that are already confirmed. If an assumption is still unconfirmed or a question is still open, label `needs-info` and do not mark the issue `ready-for-agent`. Before close, fill **Learnings (closeout)** to Ready; put reusable lessons in `docs/learnings/`.
