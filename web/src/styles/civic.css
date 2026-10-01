@@ -20,7 +20,7 @@
 
 .civic-map-wrap {
   position: absolute;
-  inset: 8% 4% 12% 28%;
+  inset: 4% 0 8% 32%;
   z-index: 1;
   pointer-events: none;
   display: grid;
@@ -28,10 +28,10 @@
 }
 
 .civic-map {
-  width: min(100%, 42rem);
+  width: min(100%, 48rem);
   height: auto;
-  max-height: 78%;
-  filter: drop-shadow(0 0 28px color-mix(in srgb, var(--accent) 35%, transparent));
+  max-height: 85%;
+  filter: drop-shadow(0 0 36px color-mix(in srgb, var(--accent) 45%, transparent));
 }
 
 .civic-hero {
@@ -51,12 +51,13 @@
   pointer-events: none;
   background:
     linear-gradient(
-      105deg,
-      color-mix(in srgb, var(--bg) 90%, transparent) 0%,
-      color-mix(in srgb, var(--bg) 48%, transparent) 46%,
-      color-mix(in srgb, var(--bg) 8%, transparent) 78%
+      100deg,
+      color-mix(in srgb, var(--bg) 92%, transparent) 0%,
+      color-mix(in srgb, var(--bg) 55%, transparent) 38%,
+      color-mix(in srgb, var(--bg) 5%, transparent) 68%,
+      transparent 86%
     ),
-    linear-gradient(0deg, var(--bg) 0%, transparent 46%);
+    linear-gradient(0deg, var(--bg) 0%, transparent 40%);
 }
 
 .civic-hero__copy {
@@ -74,7 +75,7 @@
   gap: var(--space-2);
   margin: 0 0 var(--space-5);
   font-family: var(--font-display);
-  font-size: clamp(2.8rem, 9vw, 6.4rem);
+  font-size: clamp(2.6rem, 8vw, 5.2rem);
   font-weight: 800;
   line-height: 0.9;
   letter-spacing: -0.055em;
