@@ -250,7 +250,6 @@ export function LivingLedger() {
         }
         transition={reduce ? undefined : { duration: 14, repeat: Infinity, ease: "easeInOut" }}
       >
-        <p className="ledger-rig__badge">Illustrative</p>
         {FOLIOS.map((panel, index) => (
           <motion.article
             key={panel.key}
@@ -281,6 +280,9 @@ export function LivingLedger() {
                 </div>
               ))}
             </dl>
+            {index === FOLIOS.length - 1 ? (
+              <p className="ledger-panel__badge">Illustrative</p>
+            ) : null}
             <div className="ledger-panel__glow" />
           </motion.article>
         ))}
