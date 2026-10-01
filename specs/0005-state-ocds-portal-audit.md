@@ -3,7 +3,7 @@
 - **Epic / Issue**: follow-up to E2.3 / fetch failures
 - **Status**: Implemented (v5 — NOCOPO Open-Data, retire Open Treasury 2026-07-08)
 - **Author**: agent
-- **Needs human decision?**: partial — alternate federal payments source when Open Treasury returns
+- **Needs human decision?**: no — federal payments alternate decided 2026-10-01 (BudgIT GovSpend, `specs/0040-govspend-payments.md`)
 
 ## 1. Important constraint (current product)
 
