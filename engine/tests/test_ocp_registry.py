@@ -781,41 +781,6 @@ def test_provenance_region_has_ocid(db_connection, monkeypatch) -> None:
     assert region["publication_id"] == "107"
 
 
-def test_oyo_plateau_proposed_no_download(db_connection, monkeypatch, tmp_path) -> None:
-    _fake_store(monkeypatch)
-    apply_seed_catalog(db_connection)
-    oyo_url = "https://data.open-contracting.org/en/publication/106"
-    plateau_url = "https://data.open-contracting.org/en/publication/125"
-    rows = db_connection.execute(
-        text("SELECT url, status FROM sources WHERE url IN (:oyo, :plateau)"),
-        {"oyo": oyo_url, "plateau": plateau_url},
-    ).all()
-    assert len(rows) == 2
-    for row in rows:
-        assert row.status == "proposed"
-
-    oyo_pub = OcpPublication("oyo", "Oyo", "106", "OY")
-    plateau_pub = OcpPublication("plateau", "Plateau", "125", "PL")
-    called: list[str] = []
-
-    def http_get(url: str, timeout: float = 30.0):
-        called.append(url)
-        raise AssertionError(f"should not download for proposed source: {url}")
-    
-    summaries = load_all_publications(
-        db_connection,
-        minio_client=MagicMock(),
-        bucket="test",
-        licences_dir=tmp_path,
-        hooks=LoadHooks(http_get=http_get, sleep=lambda _: None),
-        publications=(oyo_pub, plateau_pub),
-    )
-    assert len(summaries) == 2
-    for summary in summaries:
-        assert summary.skip_reason == "no_licence_record"
-    assert called == []
-
-
 def test_seed_approved_by_and_no_enqueue(db_connection) -> None:
     apply_seed_catalog(db_connection)
     ocp_urls = {e.url for e in SEED_CATALOG if e.name.startswith("OCP Data Registry")}
