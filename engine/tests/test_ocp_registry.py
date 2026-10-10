@@ -1,0 +1,604 @@
+"""Fixture tests for OCP state bulk load (spec 0041 / #203)."""
+
+from __future__ import annotations
+
+import gzip
+import json
+from datetime import date
+from pathlib import Path
+from unittest.mock import MagicMock
+
+import httpx
+from sqlalchemy import text
+
+from naijaledger.finance.ocds import normalize_ocds_release
+from naijaledger.finance.ocds_load import load_normalized_release
+from naijaledger.finance.ocds_models import (
+    NormalizedAward,
+    NormalizedParty,
+    NormalizedRelease,
+    NormalizedTender,
+)
+from naijaledger.finance.ocp_load import LoadHooks, load_all_publications, load_publication_body
+from naijaledger.finance.ocp_registry import (
+    OcpPublication,
+    flatten_compiled_release,
+    licence_matches_record,
+    parse_licence_field,
+    parse_licence_record,
+    prepare_release_dict,
+    publication_download_url,
+    publication_page_url,
+)
+from naijaledger.jobs.service import enqueue_due_fetch_jobs
+from naijaledger.seeds.catalog import SEED_APPROVED_BY, SEED_CATALOG
+from naijaledger.seeds.run import apply_seed_catalog
+from naijaledger.sources.models import SourceCreate
+from naijaledger.sources.service import approve_source, create_source
+
+_FIXTURES = Path(__file__).parent / "fixtures"
+_LICENCE_PHRASE = "Open Data Commons Public Domain Dedication and Licence (PDDL)"
+
+
+def _write_licence(tmp_path: Path, slug: str, publication_id: str) -> Path:
+    path = tmp_path / f"ocp-state-{slug}.md"
+    path.write_text(
+        f"""# Licence record — {slug}
+
+- **Publication URL**: https://data.open-contracting.org/en/publication/{publication_id}
+- **Download URL**: https://data.open-contracting.org/en/publication/{publication_id}/download?name=full.jsonl.gz
+- **Licence phrase as read**: {_LICENCE_PHRASE}
+- **Date read**: 2026-10-10
+- **Signed by**: human:founder-2026-10-10
+""",
+        encoding="utf-8",
+    )
+    return path
+
+
+def _seed_source(db_connection, publication: OcpPublication):
+    source = create_source(
+        db_connection,
+        SourceCreate(
+            name=f"OCP {publication.state_name}",
+            jurisdiction="state",
+            region=publication.state_name,
+            category="procurement",
+            url=publication_download_url(publication.publication_id),
+            fetch_method="api",
+            format="json",
+            expected_cadence=None,
+            added_by="test",
+            ingest_role="leaf",
+        ),
+    )
+    approve_source(db_connection, source.id, approved_by="human:issue-203")
+    return source
+
+
+def _fake_store(monkeypatch):
+    def store(minio_client, bucket, body, content_type="application/octet-stream"):
+        digest = f"sha256/{len(body)}"
+        return {"archive_key": digest, "content_hash": digest[7:]}
+
+    monkeypatch.setattr("naijaledger.fetch.capture.store_raw_bytes", store)
+
+
+def test_flatten_edo_required_for_supplier() -> None:
+    raw = json.loads(gzip.open(_FIXTURES / "ocp_edo.jsonl.gz", "rt").readline())
+    assert raw["awards"][0].get("suppliers") is None
+    flat = flatten_compiled_release(raw)
+    assert flat["awards"][0]["suppliers"][0]["name"] == "SOLWIN ENGINEERING COMPANY LIMITED"
+    prepared = prepare_release_dict(raw)
+    release = normalize_ocds_release(prepared)
+    assert release.awards[0].value_amount == 18383599000
+    assert "SOLWIN" in release.awards[0].supplier_ref or any(
+        "SOLWIN" in p.canonical_name for p in release.parties.values()
+    )
+
+
+def test_parse_licence_field_ignores_nav_phrase() -> None:
+    html = (_FIXTURES / "ocp_page_nav_only_pddl.html").read_text(encoding="utf-8")
+    field = parse_licence_field(html)
+    assert field is None or not field.strip()
+
+
+def test_licence_matches_short_form() -> None:
+    record = parse_licence_record(
+        f"**Licence phrase as read**: {_LICENCE_PHRASE}\n"
+        "**Publication URL**: https://example.test\n"
+        "**Date read**: 2026-10-10\n"
+        "**Signed by**: human:test\n"
+    )
+    assert record is not None
+    assert licence_matches_record("public domain dedication (pddl)", record)
+
+
+def test_load_flat_idempotent(db_connection, monkeypatch, tmp_path) -> None:
+    _fake_store(monkeypatch)
+    pub = OcpPublication("abia", "Abia", "107", "AB")
+    source = _seed_source(db_connection, pub)
+    body = (_FIXTURES / "ocp_flat.jsonl.gz").read_bytes()
+    hooks = LoadHooks(events=[])
+    first = load_publication_body(
+        db_connection,
+        source,
+        pub,
+        body,
+        retrieved_on=date(2023, 4, 26),
+        minio_client=MagicMock(),
+        bucket="test",
+        hooks=hooks,
+    )
+    assert first.skip_reason == ""
+    assert first.releases == 1
+    assert first.awards_written == 1
+    tenders = db_connection.execute(text("SELECT count(*) FROM tenders")).scalar_one()
+    awards = db_connection.execute(text("SELECT count(*) FROM awards")).scalar_one()
+    contracts = db_connection.execute(text("SELECT count(*) FROM contracts")).scalar_one()
+    second = load_publication_body(
+        db_connection,
+        source,
+        pub,
+        body,
+        retrieved_on=date(2023, 4, 26),
+        minio_client=MagicMock(),
+        bucket="test",
+        hooks=LoadHooks(),
+    )
+    assert second.awards_written == 1
+    assert db_connection.execute(text("SELECT count(*) FROM tenders")).scalar_one() == tenders
+    assert db_connection.execute(text("SELECT count(*) FROM awards")).scalar_one() == awards
+    assert db_connection.execute(text("SELECT count(*) FROM contracts")).scalar_one() == contracts
+
+
+def test_load_edo_contract_and_meta(db_connection, monkeypatch) -> None:
+    _fake_store(monkeypatch)
+    pub = OcpPublication("edo", "Edo", "102", "ED")
+    source = _seed_source(db_connection, pub)
+    body = (_FIXTURES / "ocp_edo.jsonl.gz").read_bytes()
+    summary = load_publication_body(
+        db_connection,
+        source,
+        pub,
+        body,
+        retrieved_on=date(2022, 6, 3),
+        minio_client=MagicMock(),
+        bucket="test",
+        hooks=LoadHooks(),
+    )
+    assert summary.awards_written == 1
+    assert summary.awards_positive_amount == 1
+    row = db_connection.execute(
+        text(
+            """
+            SELECT t.state_code, t.value_amount, t.meta, a.value_amount AS award_amount,
+                   p.canonical_name
+            FROM tenders t
+            JOIN awards a ON a.tender_id = t.id
+            JOIN parties p ON p.id = a.supplier_id
+            WHERE t.ocid = 'ocds-fmoaoq-edsg-dca8-00002'
+            """
+        )
+    ).one()
+    assert row.state_code == "ED"
+    assert row.award_amount == 18383599000
+    assert row.canonical_name == "SOLWIN ENGINEERING COMPANY LIMITED"
+    assert row.meta["ocp_publication_id"] == "102"
+    assert row.meta["ocp_retrieved_on"] == "2022-06-03"
+    assert row.meta["source_kind"] == "ocp_registry"
+    assert "Open Contracting Partnership" in row.meta["attribution"]
+    contracts = db_connection.execute(text("SELECT count(*) FROM contracts")).scalar_one()
+    assert contracts == 1
+    second = load_publication_body(
+        db_connection,
+        source,
+        pub,
+        body,
+        retrieved_on=date(2022, 6, 3),
+        minio_client=MagicMock(),
+        bucket="test",
+        hooks=LoadHooks(),
+    )
+    assert db_connection.execute(text("SELECT count(*) FROM awards")).scalar_one() == 1
+    assert db_connection.execute(text("SELECT count(*) FROM contracts")).scalar_one() == 1
+    assert second.awards_written == 1
+
+
+def test_zero_amount_counted(db_connection, monkeypatch) -> None:
+    _fake_store(monkeypatch)
+    pub = OcpPublication("abia", "Abia", "107", "AB")
+    source = _seed_source(db_connection, pub)
+    summary = load_publication_body(
+        db_connection,
+        source,
+        pub,
+        (_FIXTURES / "ocp_zero.jsonl.gz").read_bytes(),
+        retrieved_on=date(2023, 4, 26),
+        minio_client=MagicMock(),
+        bucket="test",
+        hooks=LoadHooks(),
+    )
+    assert summary.awards_written == 1
+    assert summary.awards_positive_amount == 0
+    amount = db_connection.execute(text("SELECT value_amount FROM awards")).scalar_one()
+    assert amount == 0
+
+
+def test_missing_award_id_fallback(db_connection, monkeypatch) -> None:
+    _fake_store(monkeypatch)
+    pub = OcpPublication("abia", "Abia", "107", "AB")
+    source = _seed_source(db_connection, pub)
+    body = (_FIXTURES / "ocp_missing_award_id.jsonl.gz").read_bytes()
+    load_publication_body(
+        db_connection,
+        source,
+        pub,
+        body,
+        retrieved_on=date(2023, 4, 26),
+        minio_client=MagicMock(),
+        bucket="test",
+        hooks=LoadHooks(),
+    )
+    meta = db_connection.execute(text("SELECT meta FROM awards")).scalar_one()
+    assert meta["ocds_award_id"] == "ocds-test-noid-00001:award:0"
+    load_publication_body(
+        db_connection,
+        source,
+        pub,
+        body,
+        retrieved_on=date(2023, 4, 26),
+        minio_client=MagicMock(),
+        bucket="test",
+        hooks=LoadHooks(),
+    )
+    assert db_connection.execute(text("SELECT count(*) FROM awards")).scalar_one() == 1
+
+
+def test_tender_only(db_connection, monkeypatch) -> None:
+    _fake_store(monkeypatch)
+    pub = OcpPublication("abia", "Abia", "107", "AB")
+    source = _seed_source(db_connection, pub)
+    summary = load_publication_body(
+        db_connection,
+        source,
+        pub,
+        (_FIXTURES / "ocp_tender_only.jsonl.gz").read_bytes(),
+        retrieved_on=date(2024, 4, 7),
+        minio_client=MagicMock(),
+        bucket="test",
+        hooks=LoadHooks(),
+    )
+    assert summary.releases == 1
+    assert summary.awards_written == 0
+    assert db_connection.execute(text("SELECT count(*) FROM tenders")).scalar_one() == 1
+
+
+def test_archive_before_parse(db_connection, monkeypatch) -> None:
+    _fake_store(monkeypatch)
+    pub = OcpPublication("abia", "Abia", "107", "AB")
+    source = _seed_source(db_connection, pub)
+    hooks = LoadHooks()
+    load_publication_body(
+        db_connection,
+        source,
+        pub,
+        (_FIXTURES / "ocp_flat.jsonl.gz").read_bytes(),
+        retrieved_on=date(2023, 4, 26),
+        minio_client=MagicMock(),
+        bucket="test",
+        hooks=hooks,
+    )
+    assert hooks.events.index("archive_done") < hooks.events.index("parse_start")
+
+
+def test_null_amount_preserves_stored(db_connection, monkeypatch) -> None:
+    _fake_store(monkeypatch)
+    pub = OcpPublication("edo", "Edo", "102", "ED")
+    source = _seed_source(db_connection, pub)
+    load_publication_body(
+        db_connection,
+        source,
+        pub,
+        (_FIXTURES / "ocp_edo.jsonl.gz").read_bytes(),
+        retrieved_on=date(2022, 6, 3),
+        minio_client=MagicMock(),
+        bucket="test",
+        hooks=LoadHooks(),
+    )
+    # second load with null tender value via prepared release path: update meta omit retrieved
+    parties = {
+        "a": NormalizedParty(
+            party_type="agency",
+            canonical_name="Directorate of Central Administration",
+        ),
+    }
+    release = NormalizedRelease(
+        ocid="ocds-fmoaoq-edsg-dca8-00002",
+        parties=parties,
+        tender=NormalizedTender(
+            ocid="ocds-fmoaoq-edsg-dca8-00002",
+            agency_ref="a",
+            title="CONNECTION OF EDSG LOCATIONS",
+            method="direct",
+            value_amount=None,
+            currency="NGN",
+            state_code="ED",
+            meta={"source_kind": "ocp_registry"},
+        ),
+        awards=[],
+        contracts=[],
+    )
+    load_normalized_release(db_connection, release)
+    row = db_connection.execute(
+        text(
+            "SELECT value_amount, meta FROM tenders WHERE ocid = 'ocds-fmoaoq-edsg-dca8-00002'"
+        )
+    ).one()
+    assert row.value_amount == 18383599000
+    assert row.meta["ocp_retrieved_on"] == "2022-06-03"
+
+
+def test_live_portal_beats_archive(db_connection, monkeypatch) -> None:
+    _fake_store(monkeypatch)
+    pub = OcpPublication("edo", "Edo", "102", "ED")
+    source = _seed_source(db_connection, pub)
+    load_publication_body(
+        db_connection,
+        source,
+        pub,
+        (_FIXTURES / "ocp_edo.jsonl.gz").read_bytes(),
+        retrieved_on=date(2022, 6, 3),
+        minio_client=MagicMock(),
+        bucket="test",
+        hooks=LoadHooks(),
+    )
+    parties = {
+        "a": NormalizedParty(
+            party_type="agency",
+            canonical_name="Directorate of Central Administration",
+        ),
+    }
+    live = NormalizedRelease(
+        ocid="ocds-fmoaoq-edsg-dca8-00002",
+        parties=parties,
+        tender=NormalizedTender(
+            ocid="ocds-fmoaoq-edsg-dca8-00002",
+            agency_ref="a",
+            title="Live fresher title",
+            method="direct",
+            value_amount=9990000,
+            currency="NGN",
+            state_code="ED",
+            meta={"source_kind": "live_portal"},
+        ),
+        awards=[],
+        contracts=[],
+    )
+    load_normalized_release(db_connection, live)
+    # archive reload must not overwrite
+    load_publication_body(
+        db_connection,
+        source,
+        pub,
+        (_FIXTURES / "ocp_edo.jsonl.gz").read_bytes(),
+        retrieved_on=date(2022, 6, 3),
+        minio_client=MagicMock(),
+        bucket="test",
+        hooks=LoadHooks(),
+    )
+    row = db_connection.execute(
+        text("SELECT title, value_amount, meta FROM tenders WHERE ocid = :ocid"),
+        {"ocid": "ocds-fmoaoq-edsg-dca8-00002"},
+    ).one()
+    assert row.title == "Live fresher title"
+    assert row.value_amount == 9990000
+    assert row.meta["source_kind"] == "live_portal"
+    assert row.meta["ocp_retrieved_on"] == "2022-06-03"
+
+
+def test_award_dedupe_ignores_supplier_string(db_connection, monkeypatch) -> None:
+    _fake_store(monkeypatch)
+    pub = OcpPublication("abia", "Abia", "107", "AB")
+    source = _seed_source(db_connection, pub)
+    load_publication_body(
+        db_connection,
+        source,
+        pub,
+        (_FIXTURES / "ocp_flat.jsonl.gz").read_bytes(),
+        retrieved_on=date(2023, 4, 26),
+        minio_client=MagicMock(),
+        bucket="test",
+        hooks=LoadHooks(),
+    )
+    parties = {
+        "a": NormalizedParty(party_type="agency", canonical_name="Test Agency"),
+        "s": NormalizedParty(party_type="company", canonical_name="Flat Supplier Limited"),
+    }
+    release = NormalizedRelease(
+        ocid="ocds-test-flat-00001",
+        parties=parties,
+        tender=NormalizedTender(
+            ocid="ocds-test-flat-00001",
+            agency_ref="a",
+            title="Flat road works",
+            method="open",
+            value_amount=100000,
+            currency="NGN",
+            meta={"source_kind": "ocp_registry"},
+        ),
+        awards=[
+            NormalizedAward(
+                ocds_award_id="ocds-test-flat-00001-award",
+                supplier_ref="s",
+                value_amount=100000,
+                currency="NGN",
+                meta={"source_kind": "ocp_registry"},
+            )
+        ],
+    )
+    load_normalized_release(db_connection, release)
+    assert db_connection.execute(text("SELECT count(*) FROM awards")).scalar_one() == 1
+
+
+def _http_factory(pages: dict[str, tuple[int, str | bytes]]):
+    def http_get(url: str, timeout: float = 30.0):
+        status, body = pages[url]
+        if isinstance(body, str):
+            return httpx.Response(status, text=body, request=httpx.Request("GET", url))
+        return httpx.Response(status, content=body, request=httpx.Request("GET", url))
+
+    return http_get
+
+
+def test_gate_no_licence_record(db_connection, monkeypatch, tmp_path) -> None:
+    _fake_store(monkeypatch)
+    pub = OcpPublication("abia", "Abia", "107", "AB")
+    _seed_source(db_connection, pub)
+    called: list[str] = []
+
+    def http_get(url: str, timeout: float = 30.0):
+        called.append(url)
+        raise AssertionError("should not download")
+
+    summaries = load_all_publications(
+        db_connection,
+        minio_client=MagicMock(),
+        bucket="test",
+        licences_dir=tmp_path,
+        hooks=LoadHooks(http_get=http_get, sleep=lambda _: None),
+        publications=(pub,),
+    )
+    assert summaries[0].skip_reason == "no_licence_record"
+    assert called == []
+
+
+def test_gate_empty_licence_and_other(db_connection, monkeypatch, tmp_path) -> None:
+    _fake_store(monkeypatch)
+    pub = OcpPublication("abia", "Abia", "107", "AB")
+    _seed_source(db_connection, pub)
+    _write_licence(tmp_path, "abia", "107")
+    page = publication_page_url("107")
+    download = publication_download_url("107")
+
+    empty = (_FIXTURES / "ocp_page_empty_licence.html").read_text(encoding="utf-8")
+    summaries = load_all_publications(
+        db_connection,
+        minio_client=MagicMock(),
+        bucket="test",
+        licences_dir=tmp_path,
+        hooks=LoadHooks(
+            http_get=_http_factory({page: (200, empty)}),
+            sleep=lambda _: None,
+        ),
+        publications=(pub,),
+    )
+    assert summaries[0].skip_reason == "no_open_licence"
+
+    other = (_FIXTURES / "ocp_page_other_licence.html").read_text(encoding="utf-8")
+    summaries = load_all_publications(
+        db_connection,
+        minio_client=MagicMock(),
+        bucket="test",
+        licences_dir=tmp_path,
+        hooks=LoadHooks(
+            http_get=_http_factory({page: (200, other), download: (200, b"nope")}),
+            sleep=lambda _: None,
+        ),
+        publications=(pub,),
+    )
+    assert summaries[0].skip_reason == "licence_mismatch"
+
+
+def test_fetch_failed_retry_and_auth_stop(db_connection, monkeypatch, tmp_path) -> None:
+    _fake_store(monkeypatch)
+    pubs = (
+        OcpPublication("abia", "Abia", "107", "AB"),
+        OcpPublication("edo", "Edo", "102", "ED"),
+    )
+    for pub in pubs:
+        _seed_source(db_connection, pub)
+        _write_licence(tmp_path, pub.slug, pub.publication_id)
+    pddl = (_FIXTURES / "ocp_page_pddl.html").read_text(encoding="utf-8")
+    attempts: dict[str, int] = {}
+
+    def http_get(url: str, timeout: float = 30.0):
+        attempts[url] = attempts.get(url, 0) + 1
+        if "download" in url and "107" in url:
+            return httpx.Response(500, request=httpx.Request("GET", url))
+        if url.endswith("/102"):
+            return httpx.Response(403, request=httpx.Request("GET", url))
+        return httpx.Response(200, text=pddl, request=httpx.Request("GET", url))
+
+    summaries = load_all_publications(
+        db_connection,
+        minio_client=MagicMock(),
+        bucket="test",
+        licences_dir=tmp_path,
+        hooks=LoadHooks(http_get=http_get, sleep=lambda _: None),
+        publications=pubs,
+    )
+    assert summaries[0].skip_reason == "fetch_failed"
+    assert attempts[publication_download_url("107")] == 2
+    # stopped before/at edo page auth
+    assert len(summaries) == 2
+    assert summaries[1].skip_reason == "fetch_failed"
+
+
+def test_compressed_cap(db_connection, monkeypatch, tmp_path) -> None:
+    _fake_store(monkeypatch)
+    pub = OcpPublication("abia", "Abia", "107", "AB")
+    _seed_source(db_connection, pub)
+    _write_licence(tmp_path, "abia", "107")
+    pddl = (_FIXTURES / "ocp_page_pddl.html").read_text(encoding="utf-8")
+    page = publication_page_url("107")
+    download = publication_download_url("107")
+    huge = b"x" * (50 * 1024 * 1024 + 1)
+    summaries = load_all_publications(
+        db_connection,
+        minio_client=MagicMock(),
+        bucket="test",
+        licences_dir=tmp_path,
+        hooks=LoadHooks(
+            http_get=_http_factory({page: (200, pddl), download: (200, huge)}),
+            sleep=lambda _: None,
+        ),
+        publications=(pub,),
+    )
+    assert summaries[0].skip_reason == "fetch_failed"
+
+
+def test_seed_approved_by_and_no_enqueue(db_connection) -> None:
+    apply_seed_catalog(db_connection)
+    ocp_urls = {
+        e.url for e in SEED_CATALOG if e.name.startswith("OCP Data Registry")
+    }
+    rows = db_connection.execute(
+        text("SELECT url, approved_by, expected_cadence FROM sources WHERE url = ANY(:urls)"),
+        {"urls": list(ocp_urls)},
+    ).all()
+    assert len(rows) == 9
+    for row in rows:
+        assert row.approved_by == "human:issue-203"
+        assert row.expected_cadence is None
+    july = db_connection.execute(
+        text(
+            "SELECT approved_by FROM sources WHERE url LIKE '%nocopo%' OR name LIKE 'Ekiti%'"
+        )
+    ).all()
+    assert any(r.approved_by == SEED_APPROVED_BY for r in july)
+    summary = enqueue_due_fetch_jobs(db_connection)
+    ocp_source_ids = {
+        str(r.id)
+        for r in db_connection.execute(
+            text("SELECT id FROM sources WHERE name LIKE 'OCP Data Registry%'")
+        ).all()
+    }
+    job_subjects = {
+        str(r.subject_id)
+        for r in db_connection.execute(
+            text("SELECT subject_id FROM jobs WHERE kind = 'fetch_source'")
+        ).all()
+    }
+    assert ocp_source_ids.isdisjoint(job_subjects)
+    assert summary["inserted"] >= 0
