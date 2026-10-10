@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 from uuid import UUID
 
@@ -20,6 +21,8 @@ from naijaledger.finance.ocds import normalize_ocds_document
 from naijaledger.finance.ocds_load import load_normalized_release
 from naijaledger.finance.ocds_models import ProvenanceContext
 from naijaledger.sources.service import get_source
+
+logger = logging.getLogger("naijaledger.finance.normalize_load")
 
 
 def load_ocds_package(
@@ -55,17 +58,33 @@ def load_ocds_package(
     tenders = 0
     parties = 0
     awards = 0
+    contracts = 0
+    awards_skipped = 0
+    contracts_skipped = 0
     for release in releases:
         result = load_normalized_release(connection, release, provenance=provenance)
         tenders += result.tenders_upserted
         parties += result.parties_upserted
         awards += len(result.award_ids)
+        contracts += len(result.contract_ids)
+        awards_skipped += result.awards_skipped
+        contracts_skipped += result.contracts_skipped
+    if awards_skipped or contracts_skipped:
+        logger.warning(
+            "OCDS package skipped rows document_id=%s awards_skipped=%s contracts_skipped=%s",
+            document_id,
+            awards_skipped,
+            contracts_skipped,
+        )
     return {
         "extraction_id": str(extraction.id),
         "release_count": len(releases),
         "tenders_upserted": tenders,
         "parties_upserted": parties,
         "awards_upserted": awards,
+        "contracts_upserted": contracts,
+        "awards_skipped": awards_skipped,
+        "contracts_skipped": contracts_skipped,
     }
 
 

@@ -203,8 +203,20 @@ def test_load_edo_contract_and_meta(db_connection, monkeypatch) -> None:
     assert row.meta["ocp_retrieved_on"] == "2022-06-03"
     assert row.meta["source_kind"] == "ocp_registry"
     assert "Open Contracting Partnership" in row.meta["attribution"]
-    contracts = db_connection.execute(text("SELECT count(*) FROM contracts")).scalar_one()
-    assert contracts == 1
+    contract = db_connection.execute(
+        text(
+            """
+            SELECT c.meta->>'ocds_contract_id' AS cid,
+                   c.meta->>'ocds_contract_id_raw' AS raw,
+                   a.meta->>'ocds_award_id' AS award_id
+            FROM contracts c
+            JOIN awards a ON a.id = c.award_id
+            """
+        )
+    ).one()
+    assert contract.cid == "ocds-fmoaoq-edsg-dca8-00002:ocds-fmoaoq-edsg-dca8-00002-contract"
+    assert contract.raw == "ocds-fmoaoq-edsg-dca8-00002-contract"
+    assert contract.award_id == "ocds-fmoaoq-edsg-dca8-00002-award"
     second = load_publication_body(
         db_connection,
         source,
@@ -484,6 +496,33 @@ def test_gate_no_licence_record(db_connection, monkeypatch, tmp_path) -> None:
     )
     assert summaries[0].skip_reason == "no_licence_record"
     assert called == []
+
+
+def test_gate_nav_only_pddl_does_not_download(db_connection, monkeypatch, tmp_path) -> None:
+    _fake_store(monkeypatch)
+    pub = OcpPublication("abia", "Abia", "107", "AB")
+    _seed_source(db_connection, pub)
+    _write_licence(tmp_path, "abia", "107")
+    page = publication_page_url("107")
+    nav = (_FIXTURES / "ocp_page_nav_only_pddl.html").read_text(encoding="utf-8")
+    called: list[str] = []
+
+    def http_get(url: str, timeout: float = 30.0):
+        called.append(url)
+        if url == page:
+            return httpx.Response(200, text=nav, request=httpx.Request("GET", url))
+        raise AssertionError(f"unexpected download {url}")
+
+    summaries = load_all_publications(
+        db_connection,
+        minio_client=MagicMock(),
+        bucket="test",
+        licences_dir=tmp_path,
+        hooks=LoadHooks(http_get=http_get, sleep=lambda _: None),
+        publications=(pub,),
+    )
+    assert summaries[0].skip_reason == "no_open_licence"
+    assert called == [page]
 
 
 def test_gate_empty_licence_and_other(db_connection, monkeypatch, tmp_path) -> None:

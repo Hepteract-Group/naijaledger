@@ -230,6 +230,15 @@ def _gate_publication(
     record = load_licence_record(licences_dir, publication.slug)
     if record is None:
         return None, None, "no_licence_record"
+    expected_page = publication_page_url(publication.publication_id).rstrip("/")
+    if record.publication_url.rstrip("/") != expected_page:
+        logger.warning(
+            "OCP licence record URL mismatch slug=%s record=%s expected=%s",
+            publication.slug,
+            record.publication_url,
+            expected_page,
+        )
+        return None, None, "no_licence_record"
 
     page_result = _request_with_retry(
         hooks,
@@ -326,26 +335,27 @@ def load_publication_body(
             if max_releases is not None and summary.releases >= max_releases:
                 break
             try:
-                prepared = prepare_release_dict(raw)
-                normalized = normalize_ocds_release(prepared)
-                stamp_normalized_release(
-                    normalized,
-                    state_code=publication.state_code,
-                    publication_id=publication.publication_id,
-                    retrieved_on=retrieved_on,
-                )
-                provenance = ProvenanceContext(
-                    document_id=document_id,
-                    extraction_id=extraction.id,
-                    method="json",
-                    derivation="extracted",
-                    confidence=1.0,
-                    region={
-                        "ocid": normalized.ocid,
-                        "publication_id": publication.publication_id,
-                    },
-                )
-                result = load_normalized_release(connection, normalized, provenance=provenance)
+                with connection.begin_nested():
+                    prepared = prepare_release_dict(raw)
+                    normalized = normalize_ocds_release(prepared)
+                    stamp_normalized_release(
+                        normalized,
+                        state_code=publication.state_code,
+                        publication_id=publication.publication_id,
+                        retrieved_on=retrieved_on,
+                    )
+                    provenance = ProvenanceContext(
+                        document_id=document_id,
+                        extraction_id=extraction.id,
+                        method="json",
+                        derivation="extracted",
+                        confidence=1.0,
+                        region={
+                            "ocid": normalized.ocid,
+                            "publication_id": publication.publication_id,
+                        },
+                    )
+                    result = load_normalized_release(connection, normalized, provenance=provenance)
             except Exception:
                 logger.exception(
                     "OCP release load failed publication_id=%s ocid=%s",
@@ -356,7 +366,8 @@ def load_publication_body(
             summary.releases += 1
             summary.awards_written += len(result.award_ids)
             summary.awards_skipped += result.awards_skipped
-            for award in normalized.awards:
+            # After one-row-per-award-id normalize, award_ids aligns with normalized.awards.
+            for award in normalized.awards[: len(result.award_ids)]:
                 if award.value_amount is not None and award.value_amount > 0:
                     summary.awards_positive_amount += 1
     except ValueError as exc:

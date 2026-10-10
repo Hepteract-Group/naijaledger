@@ -134,7 +134,11 @@ def licence_field_is_pddl(field: str) -> bool:
 
 
 def licence_matches_record(field: str, record: LicenceRecord) -> bool:
-    if licence_field_is_pddl(field):
+    """PDDL on the page is required; the signed phrase detects drift / mismatch."""
+    if not licence_field_is_pddl(field):
+        return False
+    # Short-form PDDL on the page is enough when the signed record is also PDDL.
+    if licence_field_is_pddl(record.phrase):
         return True
     return field.strip().casefold() == record.phrase.strip().casefold()
 
@@ -206,22 +210,12 @@ def copy_contract_suppliers_from_awards(release: dict[str, Any]) -> dict[str, An
     return out
 
 
-def namespace_contract_id(ocid: str, raw_id: str) -> str:
-    """Upsert identity for contracts: ``{ocid}:{publisher_id}``.
-
-    Publisher contract ids are only unique inside a release. Live loaders
-    (#198 / #199) must use the same namespaced form so archive and live converge.
-    """
-    raw = raw_id.strip()
-    if not ocid:
-        return raw
-    prefix = f"{ocid}:"
-    if raw.startswith(prefix):
-        return raw
-    return f"{prefix}{raw}"
-
-
 def ensure_ocds_ids(release: dict[str, Any]) -> dict[str, Any]:
+    """Fill missing award/contract publisher ids before normalize.
+
+    Contract namespacing (``{ocid}:{id}``) is applied in ``normalize_ocds_release``
+    so every caller of the shared normalizer gets the same upsert identity.
+    """
     out = dict(release)
     ocid = str(out.get("ocid") or "").strip()
     awards = out.get("awards")
@@ -242,12 +236,8 @@ def ensure_ocds_ids(release: dict[str, Any]) -> dict[str, Any]:
             if not isinstance(contract, dict):
                 continue
             item = dict(contract)
-            raw = item.get("id")
-            if raw is None or not str(raw).strip():
-                raw_id = f"contract:{index}"
-            else:
-                raw_id = str(raw).strip()
-            item["id"] = namespace_contract_id(ocid, raw_id)
+            if item.get("id") is None or not str(item.get("id")).strip():
+                item["id"] = f"contract:{index}"
             fixed_contracts.append(item)
         out["contracts"] = fixed_contracts
     return out
