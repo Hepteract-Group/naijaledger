@@ -26,15 +26,16 @@ _MONTHS = {
 # Real OCP pages use <dt>License:</dt><dd>…</dd> in the publication metadata block.
 _LICENCE_DT_DD = re.compile(r"(?is)<dt[^>]*>\s*Licen[cs]e\s*:?\s*</dt>\s*<dd[^>]*>(.*?)</dd>")
 # Real OCP pages use <dt>Last retrieved:</dt><dd>Mon D, YYYY</dd>.
+# Tolerate trailing tooltip markup inside the <dt> (same pattern as other OCP labels).
 _LAST_RETRIEVED_DT_DD = re.compile(
-    r"(?is)<dt[^>]*>\s*Last retrieved\s*:?\s*</dt>\s*<dd[^>]*>(.*?)</dd>"
+    r"(?is)<dt[^>]*>\s*Last retrieved\s*:?\s*(?:(?!</dt>).)*</dt>\s*<dd[^>]*>(.*?)</dd>"
 )
 _LAST_RETRIEVED_INLINE = re.compile(
-    r"Last retrieved:\s*([A-Za-z]{3})\s+(\d{1,2}),\s+(\d{4})",
+    r"Last retrieved:\s*([A-Za-z]{3,})\s+(\d{1,2}),\s+(\d{4})",
     re.IGNORECASE,
 )
 _LAST_RETRIEVED_DATE = re.compile(
-    r"([A-Za-z]{3})\s+(\d{1,2}),\s+(\d{4})",
+    r"([A-Za-z]{3,})\s+(\d{1,2}),\s+(\d{4})",
     re.IGNORECASE,
 )
 _TAG = re.compile(r"<[^>]+>")
@@ -155,7 +156,10 @@ def _date_from_month_day_year(month_token: str, day: str, year: str) -> date | N
     month = _MONTHS.get(month_token[:3].lower())
     if month is None:
         return None
-    return date(int(year), month, int(day))
+    try:
+        return date(int(year), month, int(day))
+    except ValueError:
+        return None
 
 
 def parse_last_retrieved(html: str) -> date | None:

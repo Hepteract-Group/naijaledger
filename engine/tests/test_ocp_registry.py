@@ -159,6 +159,31 @@ def test_parse_last_retrieved_inline_fallback() -> None:
     assert parse_last_retrieved(html) == date(2024, 9, 9)
 
 
+def test_parse_last_retrieved_full_month_name() -> None:
+    html = "<p>Last retrieved: June 3, 2022</p>"
+    assert parse_last_retrieved(html) == date(2022, 6, 3)
+
+
+def test_parse_last_retrieved_empty_dd_returns_none() -> None:
+    html = "<dl><dt>Last retrieved:</dt><dd>-</dd></dl>"
+    assert parse_last_retrieved(html) is None
+
+
+def test_parse_last_retrieved_impossible_date_returns_none() -> None:
+    html = "<dl><dt>Last retrieved:</dt><dd>Feb 31, 2022</dd></dl>"
+    assert parse_last_retrieved(html) is None
+
+
+def test_parse_last_retrieved_dt_with_trailing_markup() -> None:
+    html = """
+    <dl>
+      <dt>Last retrieved: <a href="#">?</a></dt>
+      <dd>Apr 26, 2023</dd>
+    </dl>
+    """
+    assert parse_last_retrieved(html) == date(2023, 4, 26)
+
+
 def test_load_flat_idempotent(db_connection, monkeypatch, tmp_path) -> None:
     _fake_store(monkeypatch)
     pub = OcpPublication("abia", "Abia", "107", "AB")
