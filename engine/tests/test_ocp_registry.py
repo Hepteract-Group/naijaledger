@@ -727,7 +727,7 @@ def test_corrupt_line_no_partial_commits(db_connection, monkeypatch, tmp_path) -
     """Blocker 2 extended: corrupt line rolls back all releases, no partial commit."""
     _fake_store(monkeypatch)
     pub = OcpPublication("abia", "Abia", "107", "AB")
-    source = _seed_source(db_connection, pub)
+    _seed_source(db_connection, pub)
     _write_licence(tmp_path, pub.slug, pub.publication_id)
     pddl = (_FIXTURES / "ocp_page_pddl.html").read_text(encoding="utf-8")
     valid_release = (_FIXTURES / "ocp_flat.jsonl.gz").read_bytes()

@@ -368,7 +368,9 @@ def load_publication_body(
                                 "publication_id": publication.publication_id,
                             },
                         )
-                        result = load_normalized_release(connection, normalized, provenance=provenance)
+                        result = load_normalized_release(
+                            connection, normalized, provenance=provenance
+                        )
                 except Exception:
                     logger.exception(
                         "OCP release load failed publication_id=%s ocid=%s",
