@@ -467,7 +467,7 @@ def test_award_dedupe_ignores_supplier_string(db_connection, monkeypatch) -> Non
             )
         ],
     )
-    load_normalized_release(db_connection, release)
+    load_normalized_release(db_connection, release, identity="ocp")
     assert db_connection.execute(text("SELECT count(*) FROM awards")).scalar_one() == 1
 
 
@@ -735,7 +735,7 @@ def test_corrupt_line_no_partial_commits(db_engine, monkeypatch, tmp_path) -> No
 
     with db_engine.begin() as setup_conn:
         source = _seed_source(setup_conn, pub)
-        document_id = source.document_id
+        source_id = source.id
 
     _write_licence(tmp_path, pub.slug, pub.publication_id)
     pddl = (_FIXTURES / "ocp_page_pddl.html").read_text(encoding="utf-8")
@@ -769,9 +769,13 @@ def test_corrupt_line_no_partial_commits(db_engine, monkeypatch, tmp_path) -> No
         after_contracts = after_conn.execute(text("SELECT COUNT(*) FROM contracts")).scalar()
         failed_count = after_conn.execute(
             text(
-                "SELECT COUNT(*) FROM extractions WHERE status = 'failed' AND document_id = :doc_id"
+                """
+                SELECT COUNT(*) FROM extractions e
+                JOIN documents d ON e.document_id = d.id
+                WHERE e.status = 'failed' AND d.source_id = :source_id
+                """
             ),
-            {"doc_id": document_id},
+            {"source_id": source_id},
         ).scalar()
 
     assert after_tenders == before_tenders
