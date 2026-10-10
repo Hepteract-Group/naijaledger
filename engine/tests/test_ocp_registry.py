@@ -908,6 +908,105 @@ def test_nocopo_reload_no_duplicates(db_connection, monkeypatch) -> None:
     ).fetchall()
     assert len(supplier_ids) == 2
 
+    # Verify distinct supplier count
+    distinct_award_suppliers = db_connection.execute(
+        text("SELECT COUNT(DISTINCT supplier_id) FROM awards WHERE tender_id = :tid"),
+        {"tid": result1.tender_id},
+    ).scalar()
+    assert distinct_award_suppliers == 2
+
+    distinct_contract_suppliers = db_connection.execute(
+        text("SELECT COUNT(DISTINCT supplier_id) FROM contracts WHERE agency_id = :aid"),
+        {"aid": agency_uuid},
+    ).scalar()
+    assert distinct_contract_suppliers == 2
+
+
+def test_legacy_idless_award_contract_inserts(db_connection, monkeypatch) -> None:
+    """Legacy identity inserts id-less awards and contracts (base behavior)."""
+    from naijaledger.finance.ocds_load import load_normalized_release
+    from naijaledger.finance.ocds_models import (
+        NormalizedAward,
+        NormalizedContract,
+        NormalizedParty,
+        NormalizedRelease,
+        NormalizedTender,
+    )
+
+    _fake_store(monkeypatch)
+
+    buyer = NormalizedParty(
+        party_type="agency",
+        party_ref="NG-MDAs:TB",
+        canonical_name="Test Agency B",
+        identifier_scheme="NG-MDAs",
+        identifier_id="TB",
+    )
+    supplier = NormalizedParty(
+        party_type="company",
+        party_ref="supplier:3",
+        canonical_name="Supplier 3",
+        identifier_scheme=None,
+        identifier_id=None,
+    )
+
+    tender = NormalizedTender(
+        ocds_tender_id="t2",
+        ocid="ocds-test-legacy-002",
+        title="Test Tender 2",
+        agency_ref="NG-MDAs:TB",
+        value_amount=10000,
+        currency="NGN",
+        method="open",
+    )
+
+    award_idless = NormalizedAward(
+        ocds_award_id=None,
+        supplier_ref="supplier:3",
+        value_amount=2000,
+        currency="NGN",
+    )
+
+    contract_idless = NormalizedContract(
+        ocds_contract_id=None,
+        award_ref=None,
+        supplier_ref="supplier:3",
+        agency_ref="NG-MDAs:TB",
+        value_amount=2000,
+        currency="NGN",
+    )
+
+    release = NormalizedRelease(
+        ocid="ocds-test-legacy-002",
+        parties={"NG-MDAs:TB": buyer, "supplier:3": supplier},
+        tender=tender,
+        awards=[award_idless],
+        contracts=[contract_idless],
+        skipped=[],
+    )
+
+    result = load_normalized_release(db_connection, release, provenance=None, identity="legacy")
+
+    # Both id-less award and contract should be inserted under legacy identity
+    assert len(result.award_ids) == 1
+    assert result.awards_inserted == 1
+
+    tender_id = result.tender_id
+    assert tender_id is not None
+
+    award_count = db_connection.execute(
+        text("SELECT COUNT(*) FROM awards WHERE tender_id = :tid"),
+        {"tid": tender_id},
+    ).scalar()
+    assert award_count == 1
+
+    agency_uuid = result.party_ids.get("NG-MDAs:TB")
+    contract_count = db_connection.execute(
+        text("SELECT COUNT(*) FROM contracts WHERE agency_id = :aid"),
+        {"aid": agency_uuid},
+    ).scalar()
+    assert contract_count == 1
+
 
 def test_short_contract_ids_do_not_collide(db_connection, monkeypatch) -> None:
     _fake_store(monkeypatch)

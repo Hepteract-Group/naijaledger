@@ -1,7 +1,7 @@
 """Thin OCDS load into canonical finance tables (E5.2 / E5.3 / #203)."""
 
 import json
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from sqlalchemy import String, bindparam, text
@@ -281,13 +281,13 @@ def _upsert_award(
     tender_id: UUID,
     supplier_id: UUID,
     ocds_award_id: str | None,
-    identity: str = "legacy",
+    identity: Literal["legacy", "ocp"] = "legacy",
     value_amount: int | None,
     currency: str,
     awarded_at: Any,
     meta: dict[str, Any],
 ) -> tuple[UUID, bool] | None:
-    if ocds_award_id is None:
+    if ocds_award_id is None and identity == "ocp":
         return None
 
     if identity == "legacy":
@@ -338,10 +338,9 @@ def _upsert_award(
             """
             update_params = {
                 "id": existing.id,
-                "value_amount": _pick_value(existing.value_amount, value_amount, protect=protect),
-                "currency": _pick_value(existing.currency, currency, protect=protect)
-                or existing.currency,
-                "awarded_at": _pick_value(existing.awarded_at, awarded_at, protect=protect),
+                "value_amount": value_amount,
+                "currency": currency or existing.currency,
+                "awarded_at": awarded_at,
                 "meta": json.dumps(merged_meta),
             }
         else:
@@ -398,7 +397,7 @@ def _upsert_contract(
     award_id: UUID | None,
     supplier_id: UUID,
     agency_id: UUID,
-    identity: str = "legacy",
+    identity: Literal["legacy", "ocp"] = "legacy",
     ocds_contract_id: str | None,
     value_amount: int | None,
     currency: str,
@@ -407,7 +406,7 @@ def _upsert_contract(
     status: str | None,
     meta: dict[str, Any],
 ) -> tuple[UUID, bool] | None:
-    if ocds_contract_id is None:
+    if ocds_contract_id is None and identity == "ocp":
         return None
 
     if identity == "legacy":
@@ -447,7 +446,6 @@ def _upsert_contract(
         protect = _protect_live_from_archive(existing_meta, meta)
         merged_meta = _shallow_merge_meta(existing_meta, meta, protect=protect) or {}
         existing_period = existing.period if isinstance(existing.period, dict) else None
-        picked_period = _pick_value(existing_period, period, protect=protect)
 
         if identity == "legacy":
             update_sql = """
@@ -464,16 +462,16 @@ def _upsert_contract(
             """
             update_params = {
                 "id": existing.id,
-                "award_id": _pick_value(existing.award_id, award_id, protect=protect),
-                "value_amount": _pick_value(existing.value_amount, value_amount, protect=protect),
-                "currency": _pick_value(existing.currency, currency, protect=protect)
-                or existing.currency,
-                "signed_at": _pick_value(existing.signed_at, signed_at, protect=protect),
-                "period": json.dumps(picked_period) if picked_period is not None else None,
-                "status": _pick_value(existing.status, status, protect=protect),
+                "award_id": award_id,
+                "value_amount": value_amount,
+                "currency": currency or existing.currency,
+                "signed_at": signed_at,
+                "period": json.dumps(period) if period is not None else None,
+                "status": status,
                 "meta": json.dumps(merged_meta),
             }
         else:
+            picked_period = _pick_value(existing_period, period, protect=protect)
             update_sql = """
                 UPDATE contracts
                 SET award_id = :award_id,
@@ -536,7 +534,7 @@ def load_normalized_release(
     release: NormalizedRelease,
     *,
     provenance: ProvenanceContext | None = None,
-    identity: str = "legacy",
+    identity: Literal["legacy", "ocp"] = "legacy",
 ) -> LoadResult:
     party_ids: dict[str, UUID] = {}
     edge_ids: list[UUID] = []
