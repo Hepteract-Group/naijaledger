@@ -2,15 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import datetime
 from uuid import uuid4
 
 import pytest
 from sqlalchemy import text
-
-from naijaledger.db.connection import create_db_engine
-from naijaledger.finance.ocds import normalize_ocds_release
-from naijaledger.finance.ocds_load import load_normalized_release
 
 
 def test_migration_0014_backfills_and_dedupes(db_connection) -> None:
