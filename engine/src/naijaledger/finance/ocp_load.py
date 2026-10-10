@@ -15,7 +15,8 @@ from typing import Any
 
 import httpx
 from minio import Minio
-from sqlalchemy.engine import Connection
+from sqlalchemy import text
+from sqlalchemy.engine import Connection, Engine
 
 from naijaledger.extractions.models import ExtractionCreate
 from naijaledger.extractions.service import create_extraction
@@ -58,7 +59,9 @@ class PublicationSummary:
     releases: int = 0
     awards_written: int = 0
     awards_positive_amount: int = 0
+    awards_skipped: int = 0
     skip_reason: str = ""
+    auth_stop: bool = False
 
 
 @dataclass
@@ -103,16 +106,15 @@ def _request_with_retry(
     *,
     timeout: float,
 ) -> httpx.Response | str:
-    """Return response or skip_reason / raise SystemExit-style stop token."""
-    last_error: Exception | None = None
+    """Return response, or a skip/stop reason string."""
     for attempt in range(2):
         try:
             response = _get(hooks, client, url, timeout=timeout)
         except (httpx.TimeoutException, httpx.TransportError) as exc:
-            last_error = exc
             if attempt == 0:
                 hooks.sleep(5)
                 continue
+            logger.warning("OCP request transport failure url=%s err=%s", url, exc)
             return "fetch_failed"
         if response.status_code in {401, 403}:
             return "stop_auth"
@@ -120,11 +122,84 @@ def _request_with_retry(
             if attempt == 0:
                 hooks.sleep(5)
                 continue
+            logger.warning(
+                "OCP request retry exhausted url=%s status=%s", url, response.status_code
+            )
             return "fetch_failed"
         if response.status_code >= 400:
+            logger.warning("OCP request HTTP error url=%s status=%s", url, response.status_code)
             return "fetch_failed"
         return response
-    return "fetch_failed" if last_error is not None else "fetch_failed"
+    return "fetch_failed"
+
+
+def _download_body_capped(
+    hooks: LoadHooks,
+    client: httpx.Client | None,
+    url: str,
+    *,
+    timeout: float,
+) -> tuple[httpx.Response, bytes] | str:
+    """Fetch download bytes with a compressed-size cap (stream when no test hook)."""
+    if hooks.http_get is not None:
+        result = _request_with_retry(hooks, client, url, timeout=timeout)
+        if isinstance(result, str):
+            return result
+        body = result.content
+        if len(body) > MAX_COMPRESSED_BYTES:
+            logger.warning("OCP download exceeded compressed cap url=%s bytes=%s", url, len(body))
+            return "fetch_failed"
+        return result, body
+
+    assert client is not None
+    last_error: Exception | None = None
+    for attempt in range(2):
+        try:
+            with client.stream("GET", url, timeout=timeout, follow_redirects=True) as response:
+                if response.status_code in {401, 403}:
+                    return "stop_auth"
+                if response.status_code == 429 or response.status_code >= 500:
+                    if attempt == 0:
+                        hooks.sleep(5)
+                        continue
+                    logger.warning(
+                        "OCP download retry exhausted url=%s status=%s",
+                        url,
+                        response.status_code,
+                    )
+                    return "fetch_failed"
+                if response.status_code >= 400:
+                    logger.warning(
+                        "OCP download HTTP error url=%s status=%s", url, response.status_code
+                    )
+                    return "fetch_failed"
+                chunks: list[bytes] = []
+                total = 0
+                for chunk in response.iter_bytes():
+                    total += len(chunk)
+                    if total > MAX_COMPRESSED_BYTES:
+                        logger.warning(
+                            "OCP download exceeded compressed cap url=%s bytes=%s", url, total
+                        )
+                        return "fetch_failed"
+                    chunks.append(chunk)
+                body = b"".join(chunks)
+                frozen = httpx.Response(
+                    response.status_code,
+                    headers=response.headers,
+                    content=body,
+                    request=response.request,
+                )
+                return frozen, body
+        except (httpx.TimeoutException, httpx.TransportError) as exc:
+            last_error = exc
+            if attempt == 0:
+                hooks.sleep(5)
+                continue
+            logger.warning("OCP download transport failure url=%s err=%s", url, exc)
+            return "fetch_failed"
+    logger.warning("OCP download failed url=%s err=%s", url, last_error)
+    return "fetch_failed"
 
 
 def _iter_jsonl_gz(body: bytes) -> Iterator[dict[str, Any]]:
@@ -139,10 +214,10 @@ def _iter_jsonl_gz(body: bytes) -> Iterator[dict[str, Any]]:
             decompressed += len(line)
             if decompressed > MAX_DECOMPRESSED_BYTES:
                 raise ValueError("decompressed_too_large")
-            text = line.decode("utf-8").strip()
-            if not text:
+            line_text = line.decode("utf-8").strip()
+            if not line_text:
                 continue
-            yield json.loads(text)
+            yield json.loads(line_text)
 
 
 def _gate_publication(
@@ -175,6 +250,9 @@ def _gate_publication(
 
     retrieved = parse_last_retrieved(page_result.text)
     if retrieved is None:
+        logger.warning(
+            "OCP page missing Last retrieved publication_id=%s", publication.publication_id
+        )
         return None, None, "fetch_failed"
     return record, retrieved, ""
 
@@ -190,6 +268,8 @@ def load_publication_body(
     bucket: str,
     hooks: LoadHooks | None = None,
     max_releases: int | None = None,
+    status_code: int = 200,
+    headers: dict[str, Any] | None = None,
 ) -> PublicationSummary:
     hooks = hooks or LoadHooks()
     summary = PublicationSummary(
@@ -206,9 +286,9 @@ def load_publication_body(
         source,
         url=download_url,
         requested_at=now_utc(),
-        status_code=200,
+        status_code=status_code,
         body=body,
-        headers={"content-type": "application/gzip"},
+        headers=headers or {"content-type": "application/gzip"},
         error=None,
         minio_client=minio_client,
         bucket=bucket,
@@ -224,15 +304,6 @@ def load_publication_body(
         return summary
 
     document_id = capture["document_id"]
-    try:
-        releases = list(_iter_jsonl_gz(body))
-    except ValueError:
-        summary.skip_reason = "fetch_failed"
-        return summary
-
-    if max_releases is not None:
-        releases = releases[:max_releases]
-
     hooks.events.append("parse_start")
     extraction = create_extraction(
         connection,
@@ -243,41 +314,214 @@ def load_publication_body(
             derivation="extracted",
             confidence=1.0,
             ok=True,
-            payload={"release_count": len(releases), "publication_id": publication.publication_id},
+            payload={"release_count": 0, "publication_id": publication.publication_id},
             content_type="application/gzip",
             content_type_conf=1.0,
             status="parsed",
         ),
     )
 
-    for raw in releases:
-        prepared = prepare_release_dict(raw)
-        normalized = normalize_ocds_release(prepared)
-        stamp_normalized_release(
-            normalized,
-            state_code=publication.state_code,
-            publication_id=publication.publication_id,
-            retrieved_on=retrieved_on,
+    try:
+        for raw in _iter_jsonl_gz(body):
+            if max_releases is not None and summary.releases >= max_releases:
+                break
+            try:
+                prepared = prepare_release_dict(raw)
+                normalized = normalize_ocds_release(prepared)
+                stamp_normalized_release(
+                    normalized,
+                    state_code=publication.state_code,
+                    publication_id=publication.publication_id,
+                    retrieved_on=retrieved_on,
+                )
+                provenance = ProvenanceContext(
+                    document_id=document_id,
+                    extraction_id=extraction.id,
+                    method="json",
+                    derivation="extracted",
+                    confidence=1.0,
+                    region={
+                        "ocid": normalized.ocid,
+                        "publication_id": publication.publication_id,
+                    },
+                )
+                result = load_normalized_release(connection, normalized, provenance=provenance)
+            except Exception:
+                logger.exception(
+                    "OCP release load failed publication_id=%s ocid=%s",
+                    publication.publication_id,
+                    raw.get("ocid") if isinstance(raw, dict) else None,
+                )
+                continue
+            summary.releases += 1
+            summary.awards_written += len(result.award_ids)
+            summary.awards_skipped += result.awards_skipped
+            for award in normalized.awards:
+                if award.value_amount is not None and award.value_amount > 0:
+                    summary.awards_positive_amount += 1
+    except ValueError as exc:
+        logger.warning(
+            "OCP body parse failed publication_id=%s err=%s",
+            publication.publication_id,
+            exc,
         )
-        provenance = ProvenanceContext(
-            document_id=document_id,
-            extraction_id=extraction.id,
-            method="json",
-            derivation="extracted",
-            confidence=1.0,
-            region={
-                "ocid": normalized.ocid,
-                "publication_id": publication.publication_id,
-            },
-        )
-        result = load_normalized_release(connection, normalized, provenance=provenance)
-        summary.releases += 1
-        summary.awards_written += len(result.award_ids)
-        for award in normalized.awards:
-            if award.value_amount is not None and award.value_amount > 0:
-                summary.awards_positive_amount += 1
+        summary.skip_reason = "fetch_failed"
+        return summary
+
+    connection.execute(
+        text(
+            """
+            UPDATE extractions
+            SET payload = jsonb_set(
+                COALESCE(payload, '{}'::jsonb),
+                '{release_count}',
+                to_jsonb(CAST(:release_count AS int))
+            )
+            WHERE id = :id
+            """
+        ),
+        {"id": extraction.id, "release_count": summary.releases},
+    )
 
     return summary
+
+
+def load_one_publication(
+    connection: Connection,
+    publication: OcpPublication,
+    *,
+    minio_client: Minio,
+    bucket: str,
+    licences_dir: Path,
+    hooks: LoadHooks,
+    client: httpx.Client | None,
+    max_releases: int | None = None,
+) -> PublicationSummary:
+    summary = PublicationSummary(
+        state=publication.state_name,
+        publication_id=publication.publication_id,
+        retrieved_on="",
+    )
+    _record, retrieved, reason = _gate_publication(
+        publication,
+        licences_dir=licences_dir,
+        hooks=hooks,
+        client=client,
+    )
+    if reason == "stop_auth":
+        summary.skip_reason = "fetch_failed"
+        summary.auth_stop = True
+        logger.error(
+            "OCP registry returned 401/403; stopping job publication_id=%s",
+            publication.publication_id,
+        )
+        return summary
+    if reason:
+        summary.skip_reason = reason
+        if reason == "fetch_failed":
+            logger.warning(
+                "OCP gate fetch_failed publication_id=%s state=%s",
+                publication.publication_id,
+                publication.state_name,
+            )
+        return summary
+    assert retrieved is not None
+
+    source = find_source_for_publication(connection, publication)
+    if source is None or source.status != "approved":
+        summary.skip_reason = "fetch_failed"
+        logger.warning(
+            "OCP publication has no approved source row publication_id=%s status=%s",
+            publication.publication_id,
+            getattr(source, "status", None),
+        )
+        return summary
+
+    download_result = _download_body_capped(
+        hooks,
+        client,
+        publication_download_url(publication.publication_id),
+        timeout=DOWNLOAD_TIMEOUT_S,
+    )
+    if download_result == "stop_auth":
+        summary.skip_reason = "fetch_failed"
+        summary.auth_stop = True
+        logger.error(
+            "OCP registry returned 401/403 on download; stopping job publication_id=%s",
+            publication.publication_id,
+        )
+        return summary
+    if isinstance(download_result, str):
+        summary.skip_reason = download_result
+        return summary
+    response, body = download_result
+
+    return load_publication_body(
+        connection,
+        source,
+        publication,
+        body,
+        retrieved_on=retrieved,
+        minio_client=minio_client,
+        bucket=bucket,
+        hooks=hooks,
+        max_releases=max_releases,
+        status_code=response.status_code,
+        headers=dict(response.headers),
+    )
+
+
+def _run_publications(
+    *,
+    open_connection: Callable[[], Any],
+    minio_client: Minio,
+    bucket: str,
+    licences_dir: Path,
+    hooks: LoadHooks,
+    max_releases: int | None,
+    publications: tuple[OcpPublication, ...],
+) -> list[PublicationSummary]:
+    summaries: list[PublicationSummary] = []
+    client: httpx.Client | None = None
+    if hooks.http_get is None:
+        client = httpx.Client(headers={"User-Agent": USER_AGENT})
+
+    try:
+        for index, publication in enumerate(publications):
+            if index > 0:
+                hooks.sleep(1)
+            with open_connection() as connection:
+                loaded = load_one_publication(
+                    connection,
+                    publication,
+                    minio_client=minio_client,
+                    bucket=bucket,
+                    licences_dir=licences_dir,
+                    hooks=hooks,
+                    client=client,
+                    max_releases=max_releases,
+                )
+                summaries.append(loaded)
+            if loaded.auth_stop:
+                break
+    finally:
+        if client is not None:
+            client.close()
+
+    return summaries
+
+
+class _SharedConnection:
+    """Context manager that yields an existing connection without closing it."""
+
+    def __init__(self, connection: Connection) -> None:
+        self._connection = connection
+
+    def __enter__(self) -> Connection:
+        return self._connection
+
+    def __exit__(self, *args: object) -> None:
+        return None
 
 
 def load_all_publications(
@@ -290,82 +534,40 @@ def load_all_publications(
     max_releases: int | None = None,
     publications: tuple[OcpPublication, ...] | None = None,
 ) -> list[PublicationSummary]:
+    """Load publications sharing one connection (unit tests)."""
     hooks = hooks or LoadHooks()
-    pubs = publications or PUBLICATIONS
-    summaries: list[PublicationSummary] = []
-    client: httpx.Client | None = None
-    if hooks.http_get is None:
-        client = httpx.Client(headers={"User-Agent": USER_AGENT})
+    return _run_publications(
+        open_connection=lambda: _SharedConnection(connection),
+        minio_client=minio_client,
+        bucket=bucket,
+        licences_dir=licences_dir,
+        hooks=hooks,
+        max_releases=max_releases,
+        publications=publications or PUBLICATIONS,
+    )
 
-    try:
-        for index, publication in enumerate(pubs):
-            if index > 0:
-                hooks.sleep(1)
-            summary = PublicationSummary(
-                state=publication.state_name,
-                publication_id=publication.publication_id,
-                retrieved_on="",
-            )
-            record, retrieved, reason = _gate_publication(
-                publication,
-                licences_dir=licences_dir,
-                hooks=hooks,
-                client=client,
-            )
-            if reason == "stop_auth":
-                summary.skip_reason = "fetch_failed"
-                summaries.append(summary)
-                logger.error("OCP registry returned 401/403; stopping job")
-                break
-            if reason:
-                summary.skip_reason = reason
-                summaries.append(summary)
-                continue
-            assert record is not None and retrieved is not None
 
-            source = find_source_for_publication(connection, publication)
-            if source is None or source.status != "approved":
-                summary.skip_reason = "fetch_failed"
-                summaries.append(summary)
-                continue
-
-            download_result = _request_with_retry(
-                hooks,
-                client,
-                publication_download_url(publication.publication_id),
-                timeout=DOWNLOAD_TIMEOUT_S,
-            )
-            if download_result == "stop_auth":
-                summary.skip_reason = "fetch_failed"
-                summaries.append(summary)
-                break
-            if isinstance(download_result, str):
-                summary.skip_reason = download_result
-                summaries.append(summary)
-                continue
-            body = download_result.content
-            if len(body) > MAX_COMPRESSED_BYTES:
-                summary.skip_reason = "fetch_failed"
-                summaries.append(summary)
-                continue
-
-            loaded = load_publication_body(
-                connection,
-                source,
-                publication,
-                body,
-                retrieved_on=retrieved,
-                minio_client=minio_client,
-                bucket=bucket,
-                hooks=hooks,
-                max_releases=max_releases,
-            )
-            summaries.append(loaded)
-    finally:
-        if client is not None:
-            client.close()
-
-    return summaries
+def run_load_job(
+    engine: Engine,
+    *,
+    minio_client: Minio,
+    bucket: str,
+    licences_dir: Path,
+    hooks: LoadHooks | None = None,
+    max_releases: int | None = None,
+    publications: tuple[OcpPublication, ...] | None = None,
+) -> list[PublicationSummary]:
+    """One transaction per publication so a late failure does not roll back earlier states."""
+    hooks = hooks or LoadHooks()
+    return _run_publications(
+        open_connection=engine.begin,
+        minio_client=minio_client,
+        bucket=bucket,
+        licences_dir=licences_dir,
+        hooks=hooks,
+        max_releases=max_releases,
+        publications=publications or PUBLICATIONS,
+    )
 
 
 def format_summary_line(summary: PublicationSummary) -> str:

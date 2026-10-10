@@ -90,12 +90,17 @@ Never insert an award when `ocds_award_id` is null. Live loaders (#198, #199) mu
 
 Shared upsert lookup key for this workstream: `(agency_id, meta->>'ocds_contract_id')` — not supplier. Supplier may update on the existing row.
 
+Publisher contract ids are only unique inside a release (Nigerian files commonly emit `"1"`, `"0001"`, or a short suffix). To keep distinct contracts from colliding under the same procuring entity, **always store a namespaced identity**:
+
+- `meta.ocds_contract_id` = `{ocid}:{publisher_id}`
+- `meta.ocds_contract_id_raw` = the publisher’s original id (for display / debugging)
+
 Every contract written by this loader must have a non-null `ocds_contract_id`:
 
-- Prefer the release contract’s `id`.
-- If missing, set `ocds_contract_id` to `{ocid}:contract:{index}`.
+- Prefer the release contract’s `id`, then namespace it as `{ocid}:{id}` (no double-prefix if already namespaced).
+- If missing, set the publisher id to `contract:{index}` and store `ocds_contract_id` as `{ocid}:contract:{index}`.
 
-Never insert a contract when `ocds_contract_id` is null. Live loaders (#198, #199) must emit the same `ocds_contract_id` when the portal prints one; otherwise `{ocid}:contract:0` for a single-contract HTML row. Prefer the archive file’s real contract id over inventing a fallback when both sources cover the same `ocid`.
+Never insert a contract when `ocds_contract_id` is null. Live loaders (#198, #199) **must use the same namespaced form** so archive and live converge: when the portal prints a contract id, emit `{ocid}:{that_id}`; otherwise `{ocid}:contract:0` for a single-contract HTML row. Prefer the archive file’s real publisher id (namespaced) over inventing a fallback when both sources cover the same `ocid`.
 
 #### Null-never-erases and meta merge
 

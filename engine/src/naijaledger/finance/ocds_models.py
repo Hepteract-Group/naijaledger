@@ -83,3 +83,5 @@ class LoadResult(BaseModel):
     tenders_upserted: int = 0
     awards_inserted: int = 0
     contracts_inserted: int = 0
+    awards_skipped: int = 0
+    contracts_skipped: int = 0

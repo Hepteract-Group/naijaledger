@@ -103,6 +103,21 @@ def test_parse_licence_field_ignores_nav_phrase() -> None:
     assert field is None or not field.strip()
 
 
+def test_parse_licence_field_real_edo_page() -> None:
+    html = (_FIXTURES / "ocp_page_edo_real.html").read_text(encoding="utf-8")
+    field = parse_licence_field(html)
+    assert field is not None
+    assert "Public Domain Dedication" in field
+    record = parse_licence_record(
+        f"**Licence phrase as read**: {_LICENCE_PHRASE}\n"
+        "**Publication URL**: https://data.open-contracting.org/en/publication/102\n"
+        "**Date read**: 2026-10-10\n"
+        "**Signed by**: human:test\n"
+    )
+    assert record is not None
+    assert licence_matches_record(field, record)
+
+
 def test_licence_matches_short_form() -> None:
     record = parse_licence_record(
         f"**Licence phrase as read**: {_LICENCE_PHRASE}\n"
@@ -513,6 +528,7 @@ def test_fetch_failed_retry_and_auth_stop(db_connection, monkeypatch, tmp_path) 
     pubs = (
         OcpPublication("abia", "Abia", "107", "AB"),
         OcpPublication("edo", "Edo", "102", "ED"),
+        OcpPublication("enugu", "Enugu", "104", "EN"),
     )
     for pub in pubs:
         _seed_source(db_connection, pub)
@@ -524,7 +540,7 @@ def test_fetch_failed_retry_and_auth_stop(db_connection, monkeypatch, tmp_path) 
         attempts[url] = attempts.get(url, 0) + 1
         if "download" in url and "107" in url:
             return httpx.Response(500, request=httpx.Request("GET", url))
-        if url.endswith("/102"):
+        if url.rstrip("/").endswith("/102") and "download" not in url:
             return httpx.Response(403, request=httpx.Request("GET", url))
         return httpx.Response(200, text=pddl, request=httpx.Request("GET", url))
 
@@ -538,9 +554,11 @@ def test_fetch_failed_retry_and_auth_stop(db_connection, monkeypatch, tmp_path) 
     )
     assert summaries[0].skip_reason == "fetch_failed"
     assert attempts[publication_download_url("107")] == 2
-    # stopped before/at edo page auth
     assert len(summaries) == 2
     assert summaries[1].skip_reason == "fetch_failed"
+    assert summaries[1].auth_stop is True
+    # Third publication must never be requested after auth stop.
+    assert publication_page_url("104") not in attempts
 
 
 def test_compressed_cap(db_connection, monkeypatch, tmp_path) -> None:
@@ -564,6 +582,79 @@ def test_compressed_cap(db_connection, monkeypatch, tmp_path) -> None:
         publications=(pub,),
     )
     assert summaries[0].skip_reason == "fetch_failed"
+
+
+def test_decompressed_cap(db_connection, monkeypatch, tmp_path) -> None:
+    _fake_store(monkeypatch)
+    monkeypatch.setattr("naijaledger.finance.ocp_load.MAX_DECOMPRESSED_BYTES", 50)
+    pub = OcpPublication("abia", "Abia", "107", "AB")
+    source = _seed_source(db_connection, pub)
+    summary = load_publication_body(
+        db_connection,
+        source,
+        pub,
+        (_FIXTURES / "ocp_flat.jsonl.gz").read_bytes(),
+        retrieved_on=date(2023, 4, 26),
+        minio_client=MagicMock(),
+        bucket="test",
+        hooks=LoadHooks(),
+    )
+    assert summary.skip_reason == "fetch_failed"
+
+
+def test_short_contract_ids_do_not_collide(db_connection, monkeypatch) -> None:
+    _fake_store(monkeypatch)
+    pub = OcpPublication("abia", "Abia", "107", "AB")
+    source = _seed_source(db_connection, pub)
+    summary = load_publication_body(
+        db_connection,
+        source,
+        pub,
+        (_FIXTURES / "ocp_contract_collide.jsonl.gz").read_bytes(),
+        retrieved_on=date(2023, 4, 26),
+        minio_client=MagicMock(),
+        bucket="test",
+        hooks=LoadHooks(),
+    )
+    assert summary.skip_reason == ""
+    assert summary.releases == 2
+    rows = db_connection.execute(
+        text(
+            """
+            SELECT meta->>'ocds_contract_id' AS cid,
+                   meta->>'ocds_contract_id_raw' AS raw
+            FROM contracts
+            ORDER BY cid
+            """
+        )
+    ).all()
+    assert len(rows) == 2
+    assert {r.cid for r in rows} == {
+        "ocds-test-collide-a:1",
+        "ocds-test-collide-b:1",
+    }
+    assert {r.raw for r in rows} == {"1"}
+
+
+def test_provenance_region_has_ocid(db_connection, monkeypatch) -> None:
+    _fake_store(monkeypatch)
+    pub = OcpPublication("abia", "Abia", "107", "AB")
+    source = _seed_source(db_connection, pub)
+    load_publication_body(
+        db_connection,
+        source,
+        pub,
+        (_FIXTURES / "ocp_flat.jsonl.gz").read_bytes(),
+        retrieved_on=date(2023, 4, 26),
+        minio_client=MagicMock(),
+        bucket="test",
+        hooks=LoadHooks(),
+    )
+    region = db_connection.execute(
+        text("SELECT region FROM provenance_edges WHERE subject_type = 'award' LIMIT 1")
+    ).scalar_one()
+    assert region["ocid"] == "ocds-test-flat-00001"
+    assert region["publication_id"] == "107"
 
 
 def test_seed_approved_by_and_no_enqueue(db_connection) -> None:

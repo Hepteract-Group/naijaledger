@@ -23,11 +23,13 @@ _MONTHS = {
     "dec": 12,
 }
 
-_LICENCE_FIELD = re.compile(r"(?is)licen[cs]e\s*:\s*([^<\n]+)")
+# Real OCP pages use <dt>License:</dt><dd>…</dd> in the publication metadata block.
+_LICENCE_DT_DD = re.compile(r"(?is)<dt[^>]*>\s*Licen[cs]e\s*:?\s*</dt>\s*<dd[^>]*>(.*?)</dd>")
 _LAST_RETRIEVED = re.compile(
     r"Last retrieved:\s*([A-Za-z]{3})\s+(\d{1,2}),\s+(\d{4})",
     re.IGNORECASE,
 )
+_TAG = re.compile(r"<[^>]+>")
 _MD_FIELD = re.compile(r"^(?:[-*]\s+)?\*\*(.+?)\*\*:\s*(.+)$", re.MULTILINE)
 
 ATTRIBUTION = "Open Contracting Partnership Data Registry (https://data.open-contracting.org/)"
@@ -113,10 +115,16 @@ def load_licence_record(licences_dir: Path, slug: str) -> LicenceRecord | None:
 
 
 def parse_licence_field(html: str) -> str | None:
-    match = _LICENCE_FIELD.search(html)
+    """Read the publication metadata licence value from a labelled <dt>/<dd> pair.
+
+    Fail closed if that structure is missing. Does not scan the rest of the page
+    for the phrase (footer CC notices must not open the gate).
+    """
+    match = _LICENCE_DT_DD.search(html)
     if match is None:
         return None
-    value = re.sub(r"\s+", " ", match.group(1)).strip()
+    text = _TAG.sub(" ", match.group(1))
+    value = re.sub(r"\s+", " ", text).strip()
     return value or None
 
 
@@ -198,6 +206,21 @@ def copy_contract_suppliers_from_awards(release: dict[str, Any]) -> dict[str, An
     return out
 
 
+def namespace_contract_id(ocid: str, raw_id: str) -> str:
+    """Upsert identity for contracts: ``{ocid}:{publisher_id}``.
+
+    Publisher contract ids are only unique inside a release. Live loaders
+    (#198 / #199) must use the same namespaced form so archive and live converge.
+    """
+    raw = raw_id.strip()
+    if not ocid:
+        return raw
+    prefix = f"{ocid}:"
+    if raw.startswith(prefix):
+        return raw
+    return f"{prefix}{raw}"
+
+
 def ensure_ocds_ids(release: dict[str, Any]) -> dict[str, Any]:
     out = dict(release)
     ocid = str(out.get("ocid") or "").strip()
@@ -219,8 +242,12 @@ def ensure_ocds_ids(release: dict[str, Any]) -> dict[str, Any]:
             if not isinstance(contract, dict):
                 continue
             item = dict(contract)
-            if item.get("id") is None or not str(item.get("id")).strip():
-                item["id"] = f"{ocid}:contract:{index}"
+            raw = item.get("id")
+            if raw is None or not str(raw).strip():
+                raw_id = f"contract:{index}"
+            else:
+                raw_id = str(raw).strip()
+            item["id"] = namespace_contract_id(ocid, raw_id)
             fixed_contracts.append(item)
         out["contracts"] = fixed_contracts
     return out
@@ -239,8 +266,9 @@ def stamp_normalized_release(
     publication_id: str,
     retrieved_on: date,
 ) -> Any:
-    """Mutate NormalizedRelease tender/award/contract meta and tender.state_code."""
+    """Stamp OCP meta onto a NormalizedRelease (mutates in place for call-site simplicity)."""
     retrieved = retrieved_on.isoformat()
+    ocid = str(getattr(release, "ocid", "") or "")
     if release.tender is not None:
         release.tender.state_code = state_code
         tender_meta = dict(release.tender.meta or {})
@@ -260,5 +288,10 @@ def stamp_normalized_release(
     for contract in release.contracts:
         contract_meta = dict(contract.meta or {})
         contract_meta["source_kind"] = SOURCE_KIND
+        cid = contract.ocds_contract_id
+        if cid and ocid:
+            prefix = f"{ocid}:"
+            if cid.startswith(prefix):
+                contract_meta["ocds_contract_id_raw"] = cid[len(prefix) :]
         contract.meta = contract_meta
     return release

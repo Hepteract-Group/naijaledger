@@ -9,7 +9,7 @@ from pathlib import Path
 from naijaledger.archive.storage import create_minio_client
 from naijaledger.config import load_settings
 from naijaledger.db.connection import create_db_engine
-from naijaledger.finance.ocp_load import format_summary_line, load_all_publications
+from naijaledger.finance.ocp_load import format_summary_line, run_load_job
 from naijaledger.finance.ocp_registry import default_licences_dir
 
 logger = logging.getLogger("naijaledger.finance.ocp_load")
@@ -41,14 +41,13 @@ def run(argv: list[str] | None = None) -> None:
     engine = create_db_engine()
     licences_dir = args.licences_dir or default_licences_dir()
     minio = create_minio_client(settings)
-    with engine.begin() as connection:
-        summaries = load_all_publications(
-            connection,
-            minio_client=minio,
-            bucket=settings.minio_bucket,
-            licences_dir=licences_dir,
-            max_releases=args.max_releases,
-        )
+    summaries = run_load_job(
+        engine,
+        minio_client=minio,
+        bucket=settings.minio_bucket,
+        licences_dir=licences_dir,
+        max_releases=args.max_releases,
+    )
     print(
         "state\tpublication_id\tretrieved_on\treleases\t"
         "awards_written\tawards_positive_amount\tskip_reason"

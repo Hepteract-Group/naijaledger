@@ -24,6 +24,9 @@ def _merge_identifiers(existing: dict[str, Any] | None, incoming: dict[str, Any]
     return merged
 
 
+_ARCHIVE_META_KEYS = ("ocp_publication_id", "ocp_retrieved_on", "attribution")
+
+
 def _shallow_merge_meta(
     existing: dict[str, Any] | None,
     incoming: dict[str, Any] | None,
@@ -38,6 +41,12 @@ def _shallow_merge_meta(
     # Archive must not demote a live row's source_kind (spec 0041 §3.1).
     if protect and existing.get("source_kind") == "live_portal":
         merged["source_kind"] = "live_portal"
+        # Do not stamp archive-only keys onto a live row; keep any already present.
+        for key in _ARCHIVE_META_KEYS:
+            if key in existing:
+                merged[key] = existing[key]
+            else:
+                merged.pop(key, None)
     return merged
 
 
@@ -218,7 +227,8 @@ def _upsert_tender(
                 "title": _pick_value(existing.title, title, protect=protect),
                 "method": _pick_value(existing.method, method, protect=protect),
                 "value_amount": _pick_value(existing.value_amount, value_amount, protect=protect),
-                "currency": currency or existing.currency,
+                "currency": _pick_value(existing.currency, currency, protect=protect)
+                or existing.currency,
                 "bidding_opens_at": _pick_value(
                     existing.bidding_opens_at, bidding_opens_at, protect=protect
                 ),
@@ -314,7 +324,8 @@ def _upsert_award(
                 "id": existing.id,
                 "supplier_id": supplier_id,
                 "value_amount": _pick_value(existing.value_amount, value_amount, protect=protect),
-                "currency": currency or existing.currency,
+                "currency": _pick_value(existing.currency, currency, protect=protect)
+                or existing.currency,
                 "awarded_at": _pick_value(existing.awarded_at, awarded_at, protect=protect),
                 "meta": json.dumps(merged_meta),
             },
@@ -404,7 +415,8 @@ def _upsert_contract(
                 "award_id": _pick_value(existing.award_id, award_id, protect=protect),
                 "supplier_id": supplier_id,
                 "value_amount": _pick_value(existing.value_amount, value_amount, protect=protect),
-                "currency": currency or existing.currency,
+                "currency": _pick_value(existing.currency, currency, protect=protect)
+                or existing.currency,
                 "signed_at": _pick_value(existing.signed_at, signed_at, protect=protect),
                 "period": json.dumps(picked_period) if picked_period is not None else None,
                 "status": _pick_value(existing.status, status, protect=protect),
@@ -511,6 +523,7 @@ def load_normalized_release(
                 meta=meta,
             )
             if upserted is None:
+                result.awards_skipped += 1
                 continue
             award_id, inserted = upserted
             result.award_ids.append(award_id)
@@ -544,6 +557,7 @@ def load_normalized_release(
             meta=meta,
         )
         if upserted is None:
+            result.contracts_skipped += 1
             continue
         contract_id, inserted = upserted
         result.contract_ids.append(contract_id)
