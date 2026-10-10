@@ -697,9 +697,7 @@ def test_single_line_too_large(db_connection, monkeypatch, tmp_path) -> None:
     assert summary.skip_reason == "fetch_failed"
 
 
-def test_corrupt_json_line_marks_extraction_failed(
-    db_connection, monkeypatch
-) -> None:
+def test_corrupt_json_line_marks_extraction_failed(db_connection, monkeypatch) -> None:
     """Blocker 2: corrupt JSON line marks extraction failed."""
     _fake_store(monkeypatch)
     pub = OcpPublication("abia", "Abia", "107", "AB")
@@ -826,9 +824,7 @@ def test_seed_approved_by_and_no_enqueue(db_connection) -> None:
     assert summary["inserted"] >= 0
 
 
-def test_oyo_plateau_proposed_no_download(
-    db_connection, monkeypatch, tmp_path
-) -> None:
+def test_oyo_plateau_proposed_no_download(db_connection, monkeypatch, tmp_path) -> None:
     """Non-blocking: Oyo and Plateau stay proposed and never downloaded."""
     _fake_store(monkeypatch)
     apply_seed_catalog(db_connection)
