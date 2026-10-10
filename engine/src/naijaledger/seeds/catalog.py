@@ -279,7 +279,7 @@ _OCP_STATE_BULK_SOURCES: list[SourceCreate] = [
         expected_cadence=None,
         added_by=SEED_ADDED_BY,
         ingest_role="leaf",
-        approved_by="human:issue-203",
+        approved_by=None,
     ),
     SourceCreate(
         name="OCP Data Registry — Plateau awards",
@@ -292,7 +292,7 @@ _OCP_STATE_BULK_SOURCES: list[SourceCreate] = [
         expected_cadence=None,
         added_by=SEED_ADDED_BY,
         ingest_role="leaf",
-        approved_by="human:issue-203",
+        approved_by=None,
     ),
 ]
 

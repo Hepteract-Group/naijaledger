@@ -143,6 +143,9 @@ A probe of the Edo file on 2026-10-10: 466 releases, 466 inner awards, every one
 
 Do not search the whole HTML document for the phrase. Parse the publication page’s licence field (the labelled “License” / “Licence” value on the OCP publication page). Fail closed if that field cannot be located.
 
+The signed licence record phrase must be PDDL (contain "public domain dedication" after case folding). Non-PDDL signed records produce `skip_reason=licence_not_pddl` and do not download, even if signed.
+
+
 A field matches the signed PDDL record when, after trimming and case-folding, it equals the signed phrase or contains `public domain dedication` (short form). `licence_mismatch` is only for a located licence field that names a **different** licence (for example Creative Commons or “All rights reserved”). A page that only mentions PDDL in a nav link or related-publications block must produce `skip_reason=no_open_licence`.
 
 ### 3.4 Oyo and Plateau
@@ -232,7 +235,7 @@ Print one line per publication, including the two that were not downloaded:
 state publication_id retrieved_on releases awards_written awards_positive_amount skip_reason
 ```
 
-`skip_reason` is empty on success; otherwise one of `no_licence_record`, `no_open_licence`, `licence_mismatch`, or `fetch_failed`.
+`skip_reason` is empty on success; otherwise one of `no_licence_record`, `licence_not_pddl`, `no_open_licence`, `licence_mismatch`, or `fetch_failed`.
 
 ## 5. Acceptance criteria (testable)
 
@@ -243,6 +246,7 @@ state publication_id retrieved_on releases awards_written awards_positive_amount
 - [ ] An award with a missing `id` still writes once, with `meta.ocds_award_id = "{ocid}:award:0"`, and a second load does not insert another award.
 - [ ] A tender-only release writes a tender and zero awards.
 - [ ] Missing `docs/licences/ocp-state-{slug}.md` produces `skip_reason=no_licence_record` and does not call the downloader.
+- [ ] A signed licence record whose phrase is not PDDL produces `skip_reason=licence_not_pddl` and does not call the downloader.
 - [ ] A publication page fixture whose licence field is empty or absent produces `skip_reason=no_open_licence` and does not call the downloader.
 - [ ] A publication page fixture that mentions “Public Domain Dedication” only outside the licence field produces `skip_reason=no_open_licence` and does not call the downloader.
 - [ ] A page whose licence field names a different licence (not PDDL / not containing “public domain dedication”) produces `skip_reason=licence_mismatch` and does not call the downloader.
@@ -255,7 +259,7 @@ state publication_id retrieved_on releases awards_written awards_positive_amount
 - [ ] `tenders.meta` contains `ocp_publication_id`, `ocp_retrieved_on` (`2022-06-03` for publication 102), `source_kind=ocp_registry`, and `attribution`.
 - [ ] Updating that tender with a payload whose amount is null and whose `meta` omits `ocp_retrieved_on` leaves both the stored amount and `ocp_retrieved_on` in place.
 - [ ] A stored tender with `source_kind=live_portal` and a non-null amount is not overwritten by a later archive load with a different non-null amount for the same `ocid`.
-- [ ] A fresh seed leaves July sources on `human:decision-brief-2026-07-07` and sets the nine new rows to `human:issue-203`. The nine rows have `expected_cadence` null. Seeding them and calling `enqueue_due_fetch_jobs` queues no `fetch_source` job for those source ids.
+- [ ] A fresh seed leaves July sources on `human:decision-brief-2026-07-07` and sets seven rows to `human:issue-203` and two rows (Oyo, Plateau) to `approved_by=None` (proposed). The nine rows have `expected_cadence` null. Seeding them and calling `enqueue_due_fetch_jobs` queues no `fetch_source` job for those source ids.
 - [ ] Existing Ekiti / portal-load unit tests still pass after the shared null-never-erases and meta shallow-merge change.
 - [ ] Unit tests use fixtures only.
 
@@ -274,9 +278,13 @@ state publication_id retrieved_on releases awards_written awards_positive_amount
 
 ## 7. Decisions (founder 2026-10-10)
 
-### 7.1 Licence gate
+### 7.1 Licence gate and publication status
 
 Each state needs a short signed record before download: publication URL, exact licence phrase as read, date read, signer. Phrase + date is enough content. Records: `docs/licences/ocp-state-{slug}.md`. The HTML licence-field parse remains fail-closed and must match the signed phrase.
+
+**PDDL-only gate**: The signed record phrase must be PDDL. Non-PDDL licences stay closed even if signed.
+
+**Oyo and Plateau demotion**: Oyo and Plateau are demoted from `approved` to `proposed` status (seed catalog `approved_by=None`) because they have never been fetched and lack signed PDDL licence records.
 
 ### 7.2 Stale amounts in public views
 

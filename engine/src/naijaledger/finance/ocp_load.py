@@ -33,6 +33,7 @@ from naijaledger.finance.ocp_registry import (
     USER_AGENT,
     LicenceRecord,
     OcpPublication,
+    licence_field_is_pddl,
     licence_matches_record,
     load_licence_record,
     parse_last_retrieved,
@@ -230,6 +231,13 @@ def _gate_publication(
     record = load_licence_record(licences_dir, publication.slug)
     if record is None:
         return None, None, "no_licence_record"
+    if not licence_field_is_pddl(record.phrase):
+        logger.warning(
+            "OCP signed licence record is not PDDL slug=%s phrase=%s",
+            publication.slug,
+            record.phrase,
+        )
+        return None, None, "licence_not_pddl"
     expected_page = publication_page_url(publication.publication_id).rstrip("/")
     if record.publication_url.rstrip("/") != expected_page:
         logger.warning(

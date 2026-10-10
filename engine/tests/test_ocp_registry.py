@@ -562,6 +562,40 @@ def test_gate_empty_licence_and_other(db_connection, monkeypatch, tmp_path) -> N
     assert summaries[0].skip_reason == "licence_mismatch"
 
 
+def test_gate_signed_non_pddl_blocked(db_connection, monkeypatch, tmp_path) -> None:
+    _fake_store(monkeypatch)
+    pub = OcpPublication("abia", "Abia", "107", "AB")
+    _seed_source(db_connection, pub)
+    non_pddl_record = tmp_path / "ocp-state-abia.md"
+    non_pddl_record.write_text(
+        """# Licence record — abia
+
+- **Publication URL**: https://data.open-contracting.org/en/publication/107
+- **Download URL**: https://data.open-contracting.org/en/publication/107/download?name=full.jsonl.gz
+- **Licence phrase as read**: Creative Commons Attribution 4.0 International
+- **Date read**: 2026-10-10
+- **Signed by**: human:founder-2026-10-10
+""",
+        encoding="utf-8",
+    )
+    called: list[str] = []
+
+    def http_get(url: str, timeout: float = 30.0):
+        called.append(url)
+        raise AssertionError("should not download when signed record is not PDDL")
+
+    summaries = load_all_publications(
+        db_connection,
+        minio_client=MagicMock(),
+        bucket="test",
+        licences_dir=tmp_path,
+        hooks=LoadHooks(http_get=http_get, sleep=lambda _: None),
+        publications=(pub,),
+    )
+    assert summaries[0].skip_reason == "licence_not_pddl"
+    assert called == []
+
+
 def test_fetch_failed_retry_and_auth_stop(db_connection, monkeypatch, tmp_path) -> None:
     _fake_store(monkeypatch)
     pubs = (
@@ -700,13 +734,22 @@ def test_seed_approved_by_and_no_enqueue(db_connection) -> None:
     apply_seed_catalog(db_connection)
     ocp_urls = {e.url for e in SEED_CATALOG if e.name.startswith("OCP Data Registry")}
     rows = db_connection.execute(
-        text("SELECT url, approved_by, expected_cadence FROM sources WHERE url = ANY(:urls)"),
+        text("SELECT url, name, approved_by, expected_cadence FROM sources WHERE url = ANY(:urls)"),
         {"urls": list(ocp_urls)},
     ).all()
     assert len(rows) == 9
+    approved_count = 0
+    proposed_count = 0
     for row in rows:
-        assert row.approved_by == "human:issue-203"
         assert row.expected_cadence is None
+        if "Oyo" in row.name or "Plateau" in row.name:
+            assert row.approved_by is None
+            proposed_count += 1
+        else:
+            assert row.approved_by == "human:issue-203"
+            approved_count += 1
+    assert approved_count == 7
+    assert proposed_count == 2
     july = db_connection.execute(
         text("SELECT approved_by FROM sources WHERE url LIKE '%nocopo%' OR name LIKE 'Ekiti%'")
     ).all()
