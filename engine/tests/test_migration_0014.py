@@ -23,14 +23,14 @@ def test_migration_0014_backfills_and_dedupes(db_connection) -> None:
     db_connection.execute(
         text(
             """
-            INSERT INTO parties (id, name, role, created_at, updated_at)
-            VALUES (:id, :name, :role, NOW(), NOW())
+            INSERT INTO parties (id, canonical_name, party_type, created_at, updated_at)
+            VALUES (:id, :name, :party_type, NOW(), NOW())
             """
         ),
         [
-            {"id": supplier1_id, "name": "Supplier 1", "role": "supplier"},
-            {"id": supplier2_id, "name": "Supplier 2", "role": "supplier"},
-            {"id": agency_id, "name": "Agency", "role": "buyer"},
+            {"id": supplier1_id, "name": "Supplier 1", "party_type": "company"},
+            {"id": supplier2_id, "name": "Supplier 2", "party_type": "company"},
+            {"id": agency_id, "name": "Agency", "party_type": "agency"},
         ],
     )
 
