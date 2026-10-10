@@ -325,7 +325,7 @@ def _upsert_award(
         existing_meta = _as_meta_dict(existing.meta)
         protect = _protect_live_from_archive(existing_meta, meta)
         merged_meta = _shallow_merge_meta(existing_meta, meta, protect=protect) or {}
-        
+
         if identity == "legacy":
             update_sql = """
                 UPDATE awards
@@ -364,7 +364,7 @@ def _upsert_award(
                 "awarded_at": _pick_value(existing.awarded_at, awarded_at, protect=protect),
                 "meta": json.dumps(merged_meta),
             }
-        
+
         connection.execute(text(update_sql), update_params)
         return existing.id, False
 
@@ -448,7 +448,7 @@ def _upsert_contract(
         merged_meta = _shallow_merge_meta(existing_meta, meta, protect=protect) or {}
         existing_period = existing.period if isinstance(existing.period, dict) else None
         picked_period = _pick_value(existing_period, period, protect=protect)
-        
+
         if identity == "legacy":
             update_sql = """
                 UPDATE contracts
@@ -499,7 +499,7 @@ def _upsert_contract(
                 "status": _pick_value(existing.status, status, protect=protect),
                 "meta": json.dumps(merged_meta),
             }
-        
+
         connection.execute(text(update_sql), update_params)
         return existing.id, False
 
