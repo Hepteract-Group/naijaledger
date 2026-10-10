@@ -42,7 +42,7 @@ for each publication in the table below:
   if the licence field is not Open Data Commons Public Domain Dedication and Licence (PDDL):
       record skip_reason=no_open_licence and do not download
       continue
-  if the page phrase does not match the signed record’s phrase:
+  if the page licence field names a different licence than the signed record (see §3.3):
       record skip_reason=licence_mismatch and do not download
       continue
   parse "Last retrieved: Mon D, YYYY"
@@ -77,23 +77,25 @@ Politeness:
 
 #### Award
 
-Shared upsert key: `(tender_id, supplier_id, meta->>'ocds_award_id')`.
+Shared upsert lookup key for this workstream: `(tender_id, meta->>'ocds_award_id')` — not supplier. Supplier may update on the existing row. That keeps archive and live from double-counting when the same award id arrives with a slightly different company string.
 
 Every award written by this loader must have a non-null `ocds_award_id`:
 
 - Prefer the release award’s `id` (after Edo flatten: the **inner** id).
 - If that id is missing, set `ocds_award_id` to `{ocid}:award:{index}` where `index` is the zero-based position in the flattened `awards` list.
 
-Never insert an award when `ocds_award_id` is null. Live loaders (#198, #199) must emit the same key for the same contract (use the portal’s OCDS award id when present; otherwise `{ocid}:award:0` for a single-award HTML row).
+Never insert an award when `ocds_award_id` is null. Live loaders (#198, #199) must emit the same `ocds_award_id` for the same contract (portal OCDS award id when present; otherwise `{ocid}:award:0` for a single-award HTML row) and must resolve the supplier through the same party get-or-create path as `load_normalized_release` (`party_type` + `lower(canonical_name)` after strip).
 
 #### Contract
 
-Shared upsert key: `(agency_id, supplier_id, meta->>'ocds_contract_id')`.
+Shared upsert lookup key for this workstream: `(agency_id, meta->>'ocds_contract_id')` — not supplier. Supplier may update on the existing row.
 
 Every contract written by this loader must have a non-null `ocds_contract_id`:
 
 - Prefer the release contract’s `id`.
 - If missing, set `ocds_contract_id` to `{ocid}:contract:{index}`.
+
+Never insert a contract when `ocds_contract_id` is null. Live loaders (#198, #199) must emit the same `ocds_contract_id` when the portal prints one; otherwise `{ocid}:contract:0` for a single-contract HTML row. Prefer the archive file’s real contract id over inventing a fallback when both sources cover the same `ocid`.
 
 #### Null-never-erases and meta merge
 
@@ -134,11 +136,15 @@ A probe of the Edo file on 2026-10-10: 466 releases, 466 inner awards, every one
 
 ### 3.3 Licence gate
 
-Do not search the whole HTML document for the phrase. Parse the publication page’s licence field (the labelled “License” / “Licence” value on the OCP publication page). Fail closed if that field cannot be located. Treat the row as loadable only when that field is the Open Data Commons Public Domain Dedication and Licence (PDDL), including the common short form that contains “Public Domain Dedication”. A page that only mentions PDDL in a nav link or related-publications block must produce `skip_reason=no_open_licence`.
+Do not search the whole HTML document for the phrase. Parse the publication page’s licence field (the labelled “License” / “Licence” value on the OCP publication page). Fail closed if that field cannot be located.
 
-### 3.4 Oyo
+A field matches the signed PDDL record when, after trimming and case-folding, it equals the signed phrase or contains `public domain dedication` (short form). `licence_mismatch` is only for a located licence field that names a **different** licence (for example Creative Commons or “All rights reserved”). A page that only mentions PDDL in a nav link or related-publications block must produce `skip_reason=no_open_licence`.
 
-Oyo’s first release has a tender title and no `awards` array. If a later page’s licence field states PDDL, the loader writes the tender and writes zero awards, and the summary shows `awards_written=0`. Until that licence line exists, do not download the file. The summary row is still required, with `skip_reason=no_open_licence`.
+### 3.4 Oyo and Plateau
+
+Neither state has a signed licence record on this branch. Gate order applies: summary rows use `skip_reason=no_licence_record` and do not download.
+
+Oyo’s first release has a tender title and no `awards` array. If a later founder-signed record is added **and** the page licence field matches PDDL under §3.3, the loader may write the tender with zero awards (`awards_written=0`). If a record is signed and the page still lacks PDDL, the summary uses `skip_reason=no_open_licence`.
 
 ## 4. Data contracts / schemas
 
@@ -153,8 +159,8 @@ Oyo’s first release has a tender title and no `awards` array. If a later page�
 | Enugu | 104 | EN | PDDL | 2024-09-09 | load |
 | Gombe | 103 | GO | PDDL | 2023-07-19 | load |
 | Osun | 118 | OS | PDDL | 2026-10-05 | load |
-| Oyo | 106 | OY | none stated | 2024-04-07 | summary only |
-| Plateau | 125 | PL | `License: -` | 2025-11-12 | summary only |
+| Oyo | 106 | OY | none stated | 2024-04-07 | summary only (`no_licence_record`) |
+| Plateau | 125 | PL | `License: -` | 2025-11-12 | summary only (`no_licence_record`) |
 
 Page URL: `https://data.open-contracting.org/en/publication/{id}`.
 
@@ -199,6 +205,8 @@ Use `amount_to_kobo` (`Decimal`, half up). Do not parse the amount with a binary
 | publication id | `tenders.meta.ocp_publication_id` (string) |
 | Last retrieved, ISO date | `tenders.meta.ocp_retrieved_on` |
 | — | `tenders.meta.source_kind` = `ocp_registry` |
+| — | `awards.meta.source_kind` = `ocp_registry` |
+| — | `contracts.meta.source_kind` = `ocp_registry` |
 | — | `tenders.meta.attribution` = `Open Contracting Partnership Data Registry (https://data.open-contracting.org/)` |
 
 Sample that the Edo fixture must use: amount `183835990` NGN → `18383599000` kobo, supplier `SOLWIN ENGINEERING COMPANY LIMITED`, agency `Directorate of Central Administration`, `state_code` `ED`.
@@ -232,7 +240,8 @@ state publication_id retrieved_on releases awards_written awards_positive_amount
 - [ ] Missing `docs/licences/ocp-state-{slug}.md` produces `skip_reason=no_licence_record` and does not call the downloader.
 - [ ] A publication page fixture whose licence field is empty or absent produces `skip_reason=no_open_licence` and does not call the downloader.
 - [ ] A publication page fixture that mentions “Public Domain Dedication” only outside the licence field produces `skip_reason=no_open_licence` and does not call the downloader.
-- [ ] A page whose licence field differs from the signed record’s phrase produces `skip_reason=licence_mismatch` and does not call the downloader.
+- [ ] A page whose licence field names a different licence (not PDDL / not containing “public domain dedication”) produces `skip_reason=licence_mismatch` and does not call the downloader.
+- [ ] A second award payload with the same `ocds_award_id` and a different supplier display string updates the existing award; it does not insert a second award.
 - [ ] Contract for public surfaces: any fixture or schema test for a public award/tender payload that includes an amount from `source_kind=ocp_registry` also includes `ocp_retrieved_on` (enforced in the follow-up public API/UI issue).
 - [ ] The load archives the gzip bytes and writes a fetch record before any normalize/load call (assert order with a fake HTTP client and spies).
 - [ ] A download that fails twice (429 or 5xx) produces a summary row with `skip_reason=fetch_failed` and continues to the next state. A 401 or 403 stops the job.
@@ -251,7 +260,7 @@ state publication_id retrieved_on releases awards_written awards_positive_amount
 | --- | --- |
 | A naive reader stores the Edo wrapper and drops the supplier | Fixture that fails unless the inner award is used |
 | Zero-naira rows look like real prices in a total | Summary splits positive amounts; store 0 as published, do not drop the supplier |
-| Osun or Ebonyi live load duplicates the archive | Same `ocid` and same award/contract keys; second-load count criteria |
+| Osun or Ebonyi live load duplicates the archive | Same `ocid`; award/contract lookup by OCDS id without supplier; live loaders share party get-or-create |
 | Archive overwrites a fresher live amount | `source_kind`; live beats archive when both non-null |
 | Oyo or Plateau get copied with no licence | Licence-field parse, fail closed; substring outside that field refuses |
 | `api` seeds enqueue failing fetch jobs | `expected_cadence` unset; criterion that enqueue creates none |
