@@ -15,7 +15,7 @@ class ProvenanceContext(BaseModel):
     derivation: ExtractionDerivation
     confidence: float = Field(ge=0.0, le=1.0)
     page: int | None = None
-    region: dict[str, float] | None = None
+    region: dict[str, Any] | None = None
 
 
 class NormalizedParty(BaseModel):
@@ -83,3 +83,5 @@ class LoadResult(BaseModel):
     tenders_upserted: int = 0
     awards_inserted: int = 0
     contracts_inserted: int = 0
+    awards_skipped: int = 0
+    contracts_skipped: int = 0

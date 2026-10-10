@@ -1,4 +1,4 @@
-.PHONY: install install-engine install-web lint typecheck test format dev-engine dev-web generate-api docker-up docker-down docker-ps docker-config migrate seed-sources health-monitor archive-init fetch-sources jobs-enqueue jobs-work portal-load-ekiti
+.PHONY: install install-engine install-web lint typecheck test format dev-engine dev-web generate-api docker-up docker-down docker-ps docker-config migrate seed-sources health-monitor archive-init fetch-sources jobs-enqueue jobs-work portal-load-ekiti ocp-load
 
 DATABASE_URL ?= postgresql+psycopg://naijaledger:naijaledger@localhost:5432/naijaledger
 export DATABASE_URL
@@ -90,3 +90,8 @@ jobs-work: archive-init
 # Vertical slice ops wrapper (prefer jobs: fetch_source → normalize_load).
 portal-load-ekiti: seed-sources archive-init
 	cd engine && uv run naijaledger-portal-load --max-rows $${MAX_ROWS:-100}
+
+# OCP Data Registry state bulk awards (spec 0041). Requires signed docs/licences/ocp-state-*.md.
+# Optional: MAX_RELEASES=N make ocp-load
+ocp-load: seed-sources archive-init
+	cd engine && uv run naijaledger-ocp-load $(if $(MAX_RELEASES),--max-releases $(MAX_RELEASES),)

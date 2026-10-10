@@ -26,6 +26,8 @@ class SourceCreate(BaseModel):
     expected_cadence: timedelta | None = None
     added_by: str | None = None
     ingest_role: IngestRole = "leaf"
+    # Not a DB column — used by apply_seed_catalog for per-entry approve_source.
+    approved_by: str | None = None
 
 
 class SourceUpdate(BaseModel):
