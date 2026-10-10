@@ -675,6 +675,56 @@ def test_decompressed_cap(db_connection, monkeypatch, tmp_path) -> None:
     assert summary.skip_reason == "fetch_failed"
 
 
+def test_single_line_too_large(db_connection, monkeypatch, tmp_path) -> None:
+    """Blocker 3: over-long line hits bounded readline and fails without inflating."""
+    _fake_store(monkeypatch)
+    monkeypatch.setattr("naijaledger.finance.ocp_load.MAX_DECOMPRESSED_BYTES", 100)
+    pub = OcpPublication("abia", "Abia", "107", "AB")
+    source = _seed_source(db_connection, pub)
+    body = gzip.compress(b"A" * 200)
+    summary = load_publication_body(
+        db_connection,
+        source,
+        pub,
+        body,
+        retrieved_on=date(2023, 4, 26),
+        minio_client=MagicMock(),
+        bucket="test",
+        hooks=LoadHooks(),
+    )
+    assert summary.skip_reason == "fetch_failed"
+
+
+def test_corrupt_json_line_marks_extraction_failed(
+    db_connection, monkeypatch
+) -> None:
+    """Blocker 2: corrupt JSON line marks extraction failed."""
+    _fake_store(monkeypatch)
+    pub = OcpPublication("abia", "Abia", "107", "AB")
+    source = _seed_source(db_connection, pub)
+    line1 = b'{"ocid":"ocds-test-001","id":"1","tag":["tender"],'
+    line2 = b'"tender":{"id":"t1","title":"Valid"}}\n'
+    valid_line = line1 + line2
+    corrupt_line = b'{"ocid":"bad","broken json\n'
+    body = gzip.compress(valid_line + corrupt_line)
+    summary = load_publication_body(
+        db_connection,
+        source,
+        pub,
+        body,
+        retrieved_on=date(2023, 4, 26),
+        minio_client=MagicMock(),
+        bucket="test",
+        hooks=LoadHooks(),
+    )
+    assert summary.skip_reason == "fetch_failed"
+    query = "SELECT ok, status, payload FROM extractions ORDER BY created_at DESC LIMIT 1"
+    extraction_row = db_connection.execute(text(query)).one()
+    assert extraction_row.ok is False
+    assert extraction_row.status == "failed"
+    assert "error" in extraction_row.payload
+
+
 def test_short_contract_ids_do_not_collide(db_connection, monkeypatch) -> None:
     _fake_store(monkeypatch)
     pub = OcpPublication("abia", "Abia", "107", "AB")
@@ -769,3 +819,41 @@ def test_seed_approved_by_and_no_enqueue(db_connection) -> None:
     }
     assert ocp_source_ids.isdisjoint(job_subjects)
     assert summary["inserted"] >= 0
+
+
+def test_oyo_plateau_proposed_no_download(
+    db_connection, monkeypatch, tmp_path
+) -> None:
+    """Non-blocking: Oyo and Plateau stay proposed and never downloaded."""
+    _fake_store(monkeypatch)
+    apply_seed_catalog(db_connection)
+    oyo_url = "https://data.open-contracting.org/en/publication/106"
+    plateau_url = "https://data.open-contracting.org/en/publication/125"
+    rows = db_connection.execute(
+        text("SELECT url, status FROM sources WHERE url IN (:oyo, :plateau)"),
+        {"oyo": oyo_url, "plateau": plateau_url},
+    ).all()
+    assert len(rows) == 2
+    for row in rows:
+        assert row.status == "proposed"
+
+    oyo_pub = OcpPublication("oyo", "Oyo", "106", "OY")
+    plateau_pub = OcpPublication("plateau", "Plateau", "125", "PL")
+    called: list[str] = []
+
+    def http_get(url: str, timeout: float = 30.0):
+        called.append(url)
+        raise AssertionError(f"should not download for proposed source: {url}")
+
+    summaries = load_all_publications(
+        db_connection,
+        minio_client=MagicMock(),
+        bucket="test",
+        licences_dir=tmp_path,
+        hooks=LoadHooks(http_get=http_get, sleep=lambda _: None),
+        publications=(oyo_pub, plateau_pub),
+    )
+    assert len(summaries) == 2
+    for summary in summaries:
+        assert summary.skip_reason == "no_licence_record"
+    assert called == []
