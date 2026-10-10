@@ -325,25 +325,27 @@ def load_publication_body(
 
     document_id = capture["document_id"]
     hooks.events.append("parse_start")
-    extraction = create_extraction(
-        connection,
-        ExtractionCreate(
-            document_id=document_id,
-            method="json",
-            method_version="ocp-registry-bulk-1",
-            derivation="extracted",
-            confidence=1.0,
-            ok=True,
-            payload={"release_count": 0, "publication_id": publication.publication_id},
-            content_type="application/gzip",
-            content_type_conf=1.0,
-            status="parsed",
-        ),
-    )
 
     failed_releases = 0
+    extraction_id = None
     try:
         with connection.begin_nested():
+            extraction = create_extraction(
+                connection,
+                ExtractionCreate(
+                    document_id=document_id,
+                    method="json",
+                    method_version="ocp-registry-bulk-1",
+                    derivation="extracted",
+                    confidence=1.0,
+                    ok=True,
+                    payload={"release_count": 0, "publication_id": publication.publication_id},
+                    content_type="application/gzip",
+                    content_type_conf=1.0,
+                    status="parsed",
+                ),
+            )
+            extraction_id = extraction.id
             for raw in _iter_jsonl_gz(body):
                 if max_releases is not None and summary.releases >= max_releases:
                     break
@@ -427,7 +429,7 @@ def load_publication_body(
             """
         ),
         {
-            "id": extraction.id,
+            "id": extraction_id,
             "release_count": summary.releases,
             "failed_releases": failed_releases,
         },
