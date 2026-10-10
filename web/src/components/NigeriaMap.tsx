@@ -7,6 +7,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import {
   columnFillColor,
   elevationForMetric,
+  formatArchiveAsOf,
   formatMetricValue,
   maxMetric,
   metricIntensity,
@@ -147,8 +148,10 @@ export function NigeriaMap({
       if (!row) {
         return null;
       }
+      const archiveNote = formatArchiveAsOf(row);
+      const archiveHtml = archiveNote ? `<br/><span>${escapeHtml(archiveNote)}</span>` : "";
       return {
-        html: `<strong>${escapeHtml(row.name)}</strong><br/>${escapeHtml(metricLabel(metric))}: ${escapeHtml(formatMetricValue(row, metric))}`,
+        html: `<strong>${escapeHtml(row.name)}</strong><br/>${escapeHtml(metricLabel(metric))}: ${escapeHtml(formatMetricValue(row, metric))}${archiveHtml}`,
         style: {
           background: "var(--bg-elevated, #fff)",
           color: "var(--ink, #14261c)",

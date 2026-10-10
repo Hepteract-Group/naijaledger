@@ -14,6 +14,8 @@ export type PublicTender = {
   state_code: string | null;
   lga: string | null;
   fiscal_year: number | null;
+  /** ISO date when amount is from OCP archive (source_kind=ocp_registry). */
+  ocp_retrieved_on: string | null;
   created_at: string;
   updated_at: string;
 };

@@ -262,7 +262,7 @@ state publication_id retrieved_on releases awards_written awards_positive_amount
 - [ ] A publication page fixture that mentions “Public Domain Dedication” only outside the licence field produces `skip_reason=no_open_licence` and does not call the downloader.
 - [ ] A page whose licence field names a different licence (not PDDL / not containing “public domain dedication”) produces `skip_reason=licence_mismatch` and does not call the downloader.
 - [ ] A second award payload with the same `ocds_award_id` and a different supplier display string updates the existing award; it does not insert a second award.
-- [ ] Contract for public surfaces: any fixture or schema test for a public award/tender payload that includes an amount from `source_kind=ocp_registry` also includes `ocp_retrieved_on` (enforced in the follow-up public API/UI issue).
+- [x] Contract for public surfaces: any fixture or schema test for a public award/tender payload that includes an amount from `source_kind=ocp_registry` also includes `ocp_retrieved_on` (spec 0042 / #206).
 - [ ] The load archives the gzip bytes and writes a fetch record before any normalize/load call (assert order with a fake HTTP client and spies).
 - [ ] A download that fails twice (429 or 5xx) produces a summary row with `skip_reason=fetch_failed` and continues to the next state. A 401 or 403 stops the job.
 - [ ] A response larger than 50 MiB compressed, or more than 200 MiB decompressed, produces `skip_reason=fetch_failed`.

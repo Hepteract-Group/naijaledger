@@ -9,6 +9,7 @@ import { InfoTip } from "../components/InfoTip";
 import { NigeriaMap } from "../components/NigeriaMap";
 import { geoYearFacetPatch, parseFacetYear, parseGeoYearFacets } from "../explore/facets";
 import {
+  formatArchiveAsOf,
   formatMetricValue,
   listStateMetrics,
   maxMetric,
@@ -72,6 +73,9 @@ export function MapPage() {
           anomaly_density: item.anomaly_density,
           tender_count: item.tender_count,
           open_flag_count: item.open_flag_count,
+          ocp_archive_tender_count: item.ocp_archive_tender_count,
+          ocp_retrieved_on_min: item.ocp_retrieved_on_min,
+          ocp_retrieved_on_max: item.ocp_retrieved_on_max,
           source: "live",
         }));
         setLoad({ kind: "live", rows });
@@ -101,6 +105,7 @@ export function MapPage() {
     selected && rows.some((row) => row.id === selected.id)
       ? rankForMetric(rows, metric, selected.id)
       : null;
+  const selectedArchiveNote = selected ? formatArchiveAsOf(selected) : null;
   useEffect(() => {
     if (!focusId) {
       return;
@@ -242,6 +247,9 @@ export function MapPage() {
                   {metricLabel(metric)}
                   {selected.source === "live" ? "" : " (demo)"}
                 </p>
+                {selectedArchiveNote ? (
+                  <p className="map-fact__archive">{selectedArchiveNote}</p>
+                ) : null}
                 {rank !== null ? (
                   <p className="map-fact__rank">
                     Rank {rank} of {rows.length}
