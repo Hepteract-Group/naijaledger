@@ -678,7 +678,9 @@ def test_decompressed_cap(db_connection, monkeypatch, tmp_path) -> None:
 def test_single_line_too_large(db_connection, monkeypatch, tmp_path) -> None:
     """Blocker 3: over-long line hits bounded readline and fails without inflating."""
     _fake_store(monkeypatch)
-    monkeypatch.setattr("naijaledger.finance.ocp_load.MAX_DECOMPRESSED_BYTES", 100)
+    monkeypatch.setattr(
+        "naijaledger.finance.ocp_load.MAX_DECOMPRESSED_BYTES", 100
+    )
     pub = OcpPublication("abia", "Abia", "107", "AB")
     source = _seed_source(db_connection, pub)
     body = gzip.compress(b"A" * 200)
