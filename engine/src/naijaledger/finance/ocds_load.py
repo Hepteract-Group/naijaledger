@@ -263,7 +263,9 @@ def _upsert_tender(
                     "agency_id": agency_id,
                     "title": _pick_value(existing.title, title, protect=protect),
                     "method": _pick_value(existing.method, method, protect=protect),
-                    "value_amount": _pick_value(existing.value_amount, value_amount, protect=protect),
+                    "value_amount": _pick_value(
+                        existing.value_amount, value_amount, protect=protect
+                    ),
                     "currency": _pick_value(existing.currency, currency, protect=protect)
                     or existing.currency,
                     "bidding_opens_at": _pick_value(

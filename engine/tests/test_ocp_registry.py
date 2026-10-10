@@ -1119,7 +1119,7 @@ def test_legacy_overwrites_with_none_and_replaces_meta(db_connection, monkeypatc
         skipped=[],
     )
 
-    result2 = load_normalized_release(db_connection, release2, provenance=None, identity="legacy")
+    load_normalized_release(db_connection, release2, provenance=None, identity="legacy")
 
     # Verify tender: null value_amount, changed title, meta replaced
     tender_row = db_connection.execute(
