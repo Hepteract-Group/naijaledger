@@ -732,10 +732,10 @@ def test_corrupt_line_no_partial_commits(db_engine, monkeypatch, tmp_path) -> No
     """Blocker 2 extended: corrupt line rolls back all releases, no partial commit."""
     _fake_store(monkeypatch)
     pub = OcpPublication("abia", "Abia", "107", "AB")
-    
+
     with db_engine.begin() as setup_conn:
         _seed_source(setup_conn, pub)
-    
+
     _write_licence(tmp_path, pub.slug, pub.publication_id)
     pddl = (_FIXTURES / "ocp_page_pddl.html").read_text(encoding="utf-8")
     valid_release = (_FIXTURES / "ocp_flat.jsonl.gz").read_bytes()
@@ -780,9 +780,9 @@ def test_nocopo_reload_no_duplicates(db_connection, monkeypatch) -> None:
     """Regression: NOCOPO-style re-load matches old identity keys, no duplicates."""
     from naijaledger.finance.ocds import normalize_ocds_release
     from naijaledger.finance.ocds_load import load_normalized_release
-    
+
     _fake_store(monkeypatch)
-    
+
     # Simulate NOCOPO-style load with old identity semantics
     release_dict = {
         "ocid": "ocds-test-nocopo-001",
@@ -811,31 +811,31 @@ def test_nocopo_reload_no_duplicates(db_connection, monkeypatch) -> None:
             }
         ],
     }
-    
+
     # First load
     normalized1 = normalize_ocds_release(release_dict)
     result1 = load_normalized_release(db_connection, normalized1, provenance=None)
-    
+
     # Re-load same data
     normalized2 = normalize_ocds_release(release_dict)
     result2 = load_normalized_release(db_connection, normalized2, provenance=None)
-    
+
     # Should update existing rows, not create duplicates
     assert result1.tender_id == result2.tender_id
     assert result1.award_ids == result2.award_ids
-    
+
     # Verify no duplicates in database
     tender_count = db_connection.execute(
         text("SELECT COUNT(*) FROM tenders WHERE ocid = 'ocds-test-nocopo-001'")
     ).scalar()
     assert tender_count == 1
-    
+
     award_count = db_connection.execute(
         text("SELECT COUNT(*) FROM awards WHERE tender_id = :tid"),
         {"tid": result1.tender_id},
     ).scalar()
     assert award_count == 1
-    
+
     contract_count = db_connection.execute(
         text("SELECT COUNT(*) FROM contracts WHERE agency_id = :aid"),
         {"aid": normalized1.tender.agency_ref if normalized1.tender else None},
