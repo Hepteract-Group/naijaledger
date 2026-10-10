@@ -209,12 +209,15 @@ def _iter_jsonl_gz(body: bytes) -> Iterator[dict[str, Any]]:
     decompressed = 0
     with gzip.GzipFile(fileobj=io.BytesIO(body)) as gz:
         while True:
-            line = gz.readline()
+            remaining = MAX_DECOMPRESSED_BYTES - decompressed
+            if remaining <= 0:
+                raise ValueError("decompressed_too_large")
+            line = gz.readline(remaining + 1)
             if not line:
                 break
+            if len(line) > remaining:
+                raise ValueError("line_too_large")
             decompressed += len(line)
-            if decompressed > MAX_DECOMPRESSED_BYTES:
-                raise ValueError("decompressed_too_large")
             line_text = line.decode("utf-8").strip()
             if not line_text:
                 continue
@@ -338,6 +341,7 @@ def load_publication_body(
         ),
     )
 
+    failed_releases = 0
     try:
         for raw in _iter_jsonl_gz(body):
             if max_releases is not None and summary.releases >= max_releases:
@@ -370,6 +374,7 @@ def load_publication_body(
                     publication.publication_id,
                     raw.get("ocid") if isinstance(raw, dict) else None,
                 )
+                failed_releases += 1
                 continue
             summary.releases += 1
             summary.awards_written += len(result.award_ids)
@@ -380,9 +385,30 @@ def load_publication_body(
                     summary.awards_positive_amount += 1
     except ValueError as exc:
         logger.warning(
-            "OCP body parse failed publication_id=%s err=%s",
+            "OCP body parse failed publication_id=%s err=%s releases_ok=%s",
             publication.publication_id,
             exc,
+            summary.releases,
+        )
+        connection.execute(
+            text(
+                """
+                UPDATE extractions
+                SET ok = false,
+                    status = 'failed',
+                    payload = jsonb_set(
+                        jsonb_set(
+                            COALESCE(payload, '{}'::jsonb),
+                            '{release_count}',
+                            to_jsonb(CAST(:release_count AS int))
+                        ),
+                        '{error}',
+                        to_jsonb(CAST(:error AS text))
+                    )
+                WHERE id = :id
+                """
+            ),
+            {"id": extraction.id, "release_count": summary.releases, "error": str(exc)},
         )
         summary.skip_reason = "fetch_failed"
         return summary
@@ -392,14 +418,18 @@ def load_publication_body(
             """
             UPDATE extractions
             SET payload = jsonb_set(
-                COALESCE(payload, '{}'::jsonb),
-                '{release_count}',
-                to_jsonb(CAST(:release_count AS int))
+                jsonb_set(
+                    COALESCE(payload, '{}'::jsonb),
+                    '{release_count}',
+                    to_jsonb(CAST(:release_count AS int))
+                ),
+                '{failed_releases}',
+                to_jsonb(CAST(:failed_releases AS int))
             )
             WHERE id = :id
             """
         ),
-        {"id": extraction.id, "release_count": summary.releases},
+        {"id": extraction.id, "release_count": summary.releases, "failed_releases": failed_releases},
     )
 
     return summary
