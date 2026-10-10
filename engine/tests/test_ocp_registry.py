@@ -680,8 +680,11 @@ def test_single_line_too_large(db_connection, monkeypatch, tmp_path) -> None:
     monkeypatch.setattr("naijaledger.finance.ocp_load.MAX_DECOMPRESSED_BYTES", 100)
     pub = OcpPublication("abia", "Abia", "107", "AB")
     source = _seed_source(db_connection, pub)
-    prefix = b'{"ocid":"x","id":"y","tag":["tender"],"tender":{"id":"z","title":"'
-    huge_line = prefix + b"A" * 200 + b'"}}\n'
+    huge_line = (
+        b'{"ocid":"x","id":"y","tag":["tender"],"tender":{"id":"z","title":"'
+        + b"A" * 200
+        + b'"}}\n'
+    )
     body = gzip.compress(huge_line)
     summary = load_publication_body(
         db_connection,
