@@ -10,7 +10,9 @@ def test_seed_catalog_is_idempotent(db_connection) -> None:
     first = apply_seed_catalog(db_connection)
     second = apply_seed_catalog(db_connection)
     auto_approve_count = sum(
-        1 for entry in SEED_CATALOG if entry.ingest_role in SEED_AUTO_APPROVE_ROLES
+        1
+        for entry in SEED_CATALOG
+        if entry.ingest_role in SEED_AUTO_APPROVE_ROLES and entry.approved_by is not None
     )
 
     assert first["created"] == len(SEED_CATALOG)
@@ -23,10 +25,14 @@ def test_seed_catalog_is_idempotent(db_connection) -> None:
 def test_seed_catalog_entries_are_approved(db_connection) -> None:
     apply_seed_catalog(db_connection)
     auto_approve_urls = {
-        entry.url for entry in SEED_CATALOG if entry.ingest_role in SEED_AUTO_APPROVE_ROLES
+        entry.url
+        for entry in SEED_CATALOG
+        if entry.ingest_role in SEED_AUTO_APPROVE_ROLES and entry.approved_by is not None
     }
-    discovery_urls = {
-        entry.url for entry in SEED_CATALOG if entry.ingest_role not in SEED_AUTO_APPROVE_ROLES
+    proposed_urls = {
+        entry.url
+        for entry in SEED_CATALOG
+        if entry.ingest_role not in SEED_AUTO_APPROVE_ROLES or entry.approved_by is None
     }
 
     rows = db_connection.execute(text("SELECT url, status, ingest_role FROM sources")).all()
@@ -34,7 +40,7 @@ def test_seed_catalog_entries_are_approved(db_connection) -> None:
     by_url = {row.url: row for row in rows}
     for url in auto_approve_urls:
         assert by_url[url].status == "approved"
-    for url in discovery_urls:
+    for url in proposed_urls:
         assert by_url[url].status == "proposed"
 
 
