@@ -38,11 +38,11 @@ def test_migration_0014_backfills_and_dedupes(db_connection) -> None:
         text(
             """
             INSERT INTO tenders (
-                id, ocid, agency_id, title, published_at,
+                id, ocid, agency_id, title,
                 created_at, updated_at
             )
             VALUES (
-                :id, :ocid, :agency_id, :title, :published_at,
+                :id, :ocid, :agency_id, :title,
                 NOW(), NOW()
             )
             """
@@ -52,7 +52,6 @@ def test_migration_0014_backfills_and_dedupes(db_connection) -> None:
             "ocid": "ocds-test-001",
             "agency_id": agency_id,
             "title": "Test",
-            "published_at": datetime(2023, 1, 1),
         },
     )
 
