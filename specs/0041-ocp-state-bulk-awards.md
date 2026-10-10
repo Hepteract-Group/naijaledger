@@ -1,9 +1,9 @@
 # Spec 0041 — Open Contracting Partnership state bulk awards
 
 - **Epic / Issue**: E5 / #203
-- **Status**: Draft
+- **Status**: Approved
 - **Author**: agent
-- **Needs human decision?**: yes — two questions in §7 (licence gate sign-off; whether stale archive amounts may appear in public views without the retrieval date). Loader code waits on those answers. Spec text below is otherwise ready.
+- **Needs human decision?**: no — §7.1 and §7.2 decided by founder 2026-10-10.
 
 ## 1. Problem
 
@@ -15,10 +15,12 @@ Derives from `docs/architecture/SYSTEM_DESIGN.md` §4.5–4.7 and `specs/0012-oc
 
 - **In scope**
   - Nine seed rows, one per publication below. Seven are loaded. Two are refused for licence.
+  - A checked-in signed licence record per loadable state (`docs/licences/ocp-state-*.md`) before download.
   - Download `full.jsonl.gz`, archive the bytes, flatten the Edo shape, then use the existing Open Contracting Data Standard (OCDS) normalizer (`normalize_ocds_release` / `load_normalized_release`).
   - Stamp `tenders.state_code` from the publication, not from the JSON.
-  - Record the registry’s “Last retrieved” date on each loaded tender.
+  - Record the registry’s “Last retrieved” date on each loaded tender (`meta.ocp_retrieved_on`).
   - One tender per `ocid`, one award per award key, one contract per contract key. A second load does not raise those counts.
+  - Publication rule (§7.2): any public surface that shows an amount from `source_kind=ocp_registry` must show the retrieval date next to that amount. The loader PR stores the field; the public API/UI work is #206, not this loader’s first PR.
   - Fixture tests. No live network in unit tests.
 - **Out of scope**
   - Federal publishers on the same registry, including Nigeria Open Contracting Portal (NOCOPO) publication 64.
@@ -27,16 +29,21 @@ Derives from `docs/architecture/SYSTEM_DESIGN.md` §4.5–4.7 and `specs/0012-oc
   - Ogun (#200). That API has no licence.
   - Emailing state bureaux. Freedom of Information requests.
   - Copying Oyo or Plateau releases into the canonical store.
-  - Surfacing `ocp_retrieved_on` in the public read API or UI. Store it; publication of the date is a follow-up once §7 is answered.
+  - Implementing the public API/UI chrome for the retrieval date in the same PR as the loader (#206).
 
 ## 3. Design
 
 ```text
 for each publication in the table below:
+  require docs/licences/ocp-state-{slug}.md with URL, phrase, date read, signer
+      if missing → skip_reason=no_licence_record, do not download
   GET the publication HTML page (timeout 30s)
   parse the licence field (fail closed if that field is missing)
   if the licence field is not Open Data Commons Public Domain Dedication and Licence (PDDL):
       record skip_reason=no_open_licence and do not download
+      continue
+  if the page phrase does not match the signed record’s phrase:
+      record skip_reason=licence_mismatch and do not download
       continue
   parse "Last retrieved: Mon D, YYYY"
   GET full.jsonl.gz (timeout 60s; max 50 MiB compressed; stream decompress)
@@ -212,7 +219,7 @@ Print one line per publication, including the two that were not downloaded:
 state publication_id retrieved_on releases awards_written awards_positive_amount skip_reason
 ```
 
-`skip_reason` is empty on success, `no_open_licence` for Oyo and Plateau, or `fetch_failed` after the retry or a size/timeout cap.
+`skip_reason` is empty on success; otherwise one of `no_licence_record`, `no_open_licence`, `licence_mismatch`, or `fetch_failed`.
 
 ## 5. Acceptance criteria (testable)
 
@@ -222,8 +229,11 @@ state publication_id retrieved_on releases awards_written awards_positive_amount
 - [ ] An award with `value.amount` `0` is stored as 0 kobo and is still written. The summary counts it in `awards_written` and not in `awards_positive_amount`.
 - [ ] An award with a missing `id` still writes once, with `meta.ocds_award_id = "{ocid}:award:0"`, and a second load does not insert another award.
 - [ ] A tender-only release writes a tender and zero awards.
+- [ ] Missing `docs/licences/ocp-state-{slug}.md` produces `skip_reason=no_licence_record` and does not call the downloader.
 - [ ] A publication page fixture whose licence field is empty or absent produces `skip_reason=no_open_licence` and does not call the downloader.
 - [ ] A publication page fixture that mentions “Public Domain Dedication” only outside the licence field produces `skip_reason=no_open_licence` and does not call the downloader.
+- [ ] A page whose licence field differs from the signed record’s phrase produces `skip_reason=licence_mismatch` and does not call the downloader.
+- [ ] Contract for public surfaces: any fixture or schema test for a public award/tender payload that includes an amount from `source_kind=ocp_registry` also includes `ocp_retrieved_on` (enforced in the follow-up public API/UI issue).
 - [ ] The load archives the gzip bytes and writes a fetch record before any normalize/load call (assert order with a fake HTTP client and spies).
 - [ ] A download that fails twice (429 or 5xx) produces a summary row with `skip_reason=fetch_failed` and continues to the next state. A 401 or 403 stops the job.
 - [ ] A response larger than 50 MiB compressed, or more than 200 MiB decompressed, produces `skip_reason=fetch_failed`.
@@ -245,12 +255,17 @@ state publication_id retrieved_on releases awards_written awards_positive_amount
 | Archive overwrites a fresher live amount | `source_kind`; live beats archive when both non-null |
 | Oyo or Plateau get copied with no licence | Licence-field parse, fail closed; substring outside that field refuses |
 | `api` seeds enqueue failing fetch jobs | `expected_cadence` unset; criterion that enqueue creates none |
-| Stale years get read as current in a public view | Date stored; surfacing is out of scope pending §7 |
+| Stale years get read as current in a public view | §7.2: amount and retrieval date shown together; follow-up issue for API/UI |
 | Shared upsert change breaks Ekiti | Named callers + existing tests must pass |
 
-## 7. Open questions
+## 7. Decisions (founder 2026-10-10)
 
-1. **Licence gate.** Is parsing the publication page’s licence field for Open Data Commons Public Domain Dedication and Licence (PDDL) enough legal basis to ingest and republish those seven states’ awards, or does each publisher need a recorded determination (URL, phrase, date read) that a human signs once?
-2. **Stale amounts in public views.** Six of the seven loadable files stop between 2021 and 2025. May those archive rows feed public-facing claims at all, and if so must `ocp_retrieved_on` be visible wherever an amount is shown?
+### 7.1 Licence gate
 
-Identity and precedence for Osun/Ebonyi (archive vs live) are decided in §3.1. Loader implementation waits on the two questions above.
+Each state needs a short signed record before download: publication URL, exact licence phrase as read, date read, signer. Phrase + date is enough content. Records: `docs/licences/ocp-state-{slug}.md`. The HTML licence-field parse remains fail-closed and must match the signed phrase.
+
+### 7.2 Stale amounts in public views
+
+**Show amount + retrieval date.** Archive rows may appear in public views. Wherever an amount from `source_kind=ocp_registry` is shown (detail page, search hit, public API field, chart tooltip or footnote for a total that includes those rows), the retrieval date (`ocp_retrieved_on`) sits next to that amount or total. Charts that sum archive-only states must not present the sum as current spend without that date.
+
+Identity and precedence for Osun/Ebonyi (archive vs live) are decided in §3.1. No open questions remain for this spec.
