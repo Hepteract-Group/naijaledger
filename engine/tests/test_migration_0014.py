@@ -80,26 +80,27 @@ def test_migration_0014_backfills_and_dedupes(db_connection) -> None:
 
     # Second insert with same ocds_award_id should fail
     with pytest.raises(Exception) as exc_info:
-        db_connection.execute(
-            text(
-                """
-                INSERT INTO awards (
-                    id, tender_id, supplier_id, value_amount, currency,
-                    meta, created_at, updated_at
-                )
-                VALUES (
-                    :id, :tender_id, :supplier_id, 2000, 'NGN',
-                    :meta, NOW(), NOW()
-                )
-                """
-            ),
-            {
-                "id": uuid4(),
-                "tender_id": tender_id,
-                "supplier_id": supplier2_id,
-                "meta": '{"ocds_award_id": "award-1"}',
-            },
-        )
+        with db_connection.begin_nested():
+            db_connection.execute(
+                text(
+                    """
+                    INSERT INTO awards (
+                        id, tender_id, supplier_id, value_amount, currency,
+                        meta, created_at, updated_at
+                    )
+                    VALUES (
+                        :id, :tender_id, :supplier_id, 2000, 'NGN',
+                        :meta, NOW(), NOW()
+                    )
+                    """
+                ),
+                {
+                    "id": uuid4(),
+                    "tender_id": tender_id,
+                    "supplier_id": supplier2_id,
+                    "meta": '{"ocds_award_id": "award-1"}',
+                },
+            )
     assert "unique" in str(exc_info.value).lower()
 
     # Verify the unique index on contracts too
@@ -127,24 +128,25 @@ def test_migration_0014_backfills_and_dedupes(db_connection) -> None:
 
     # Second contract with same (agency_id, ocds_contract_id) should fail
     with pytest.raises(Exception) as exc_info:
-        db_connection.execute(
-            text(
-                """
-                INSERT INTO contracts (
-                    id, supplier_id, agency_id, value_amount, currency,
-                    meta, created_at, updated_at
-                )
-                VALUES (
-                    :id, :supplier_id, :agency_id, 2000, 'NGN',
-                    :meta, NOW(), NOW()
-                )
-                """
-            ),
-            {
-                "id": uuid4(),
-                "supplier_id": supplier2_id,
-                "agency_id": agency_id,
-                "meta": '{"ocds_contract_id": "ocds-test-001:contract-1"}',
-            },
-        )
+        with db_connection.begin_nested():
+            db_connection.execute(
+                text(
+                    """
+                    INSERT INTO contracts (
+                        id, supplier_id, agency_id, value_amount, currency,
+                        meta, created_at, updated_at
+                    )
+                    VALUES (
+                        :id, :supplier_id, :agency_id, 2000, 'NGN',
+                        :meta, NOW(), NOW()
+                    )
+                    """
+                ),
+                {
+                    "id": uuid4(),
+                    "supplier_id": supplier2_id,
+                    "agency_id": agency_id,
+                    "meta": '{"ocds_contract_id": "ocds-test-001:contract-1"}',
+                },
+            )
     assert "unique" in str(exc_info.value).lower()
