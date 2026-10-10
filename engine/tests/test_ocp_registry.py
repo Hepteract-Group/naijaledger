@@ -361,7 +361,7 @@ def test_null_amount_preserves_stored(db_connection, monkeypatch) -> None:
         awards=[],
         contracts=[],
     )
-    load_normalized_release(db_connection, release)
+    load_normalized_release(db_connection, release, identity="ocp")
     row = db_connection.execute(
         text("SELECT value_amount, meta FROM tenders WHERE ocid = 'ocds-fmoaoq-edsg-dca8-00002'")
     ).one()
@@ -405,7 +405,7 @@ def test_live_portal_beats_archive(db_connection, monkeypatch) -> None:
         awards=[],
         contracts=[],
     )
-    load_normalized_release(db_connection, live)
+    load_normalized_release(db_connection, live, identity="ocp")
     # archive reload must not overwrite
     load_publication_body(
         db_connection,
