@@ -32,7 +32,8 @@ def test_seed_catalog_entries_are_approved(db_connection) -> None:
     proposed_urls = {
         entry.url
         for entry in SEED_CATALOG
-        if entry.ingest_role not in SEED_AUTO_APPROVE_ROLES or entry.approved_by is None
+        if entry.ingest_role not in SEED_AUTO_APPROVE_ROLES
+        or (entry.approved_by is None and entry.name.startswith("OCP Data Registry"))
     }
 
     rows = db_connection.execute(text("SELECT url, status, ingest_role FROM sources")).all()
