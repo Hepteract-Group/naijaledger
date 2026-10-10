@@ -1008,6 +1008,149 @@ def test_legacy_idless_award_contract_inserts(db_connection, monkeypatch) -> Non
     assert contract_count == 1
 
 
+def test_legacy_overwrites_with_none_and_replaces_meta(db_connection, monkeypatch) -> None:
+    """Legacy identity overwrites with None values and replaces meta outright."""
+    from naijaledger.finance.ocds_load import load_normalized_release
+    from naijaledger.finance.ocds_models import (
+        NormalizedAward,
+        NormalizedContract,
+        NormalizedParty,
+        NormalizedRelease,
+        NormalizedTender,
+    )
+
+    _fake_store(monkeypatch)
+
+    buyer = NormalizedParty(
+        party_type="agency",
+        party_ref="NG-MDAs:TC",
+        canonical_name="Test Agency C",
+        identifier_scheme="NG-MDAs",
+        identifier_id="TC",
+    )
+    supplier = NormalizedParty(
+        party_type="company",
+        party_ref="supplier:4",
+        canonical_name="Supplier 4",
+        identifier_scheme=None,
+        identifier_id=None,
+    )
+
+    tender1 = NormalizedTender(
+        ocds_tender_id="t3",
+        ocid="ocds-test-legacy-003",
+        title="Original Title",
+        agency_ref="NG-MDAs:TC",
+        value_amount=50000,
+        currency="NGN",
+        method="open",
+        meta={"source_kind": "legacy", "version": 1},
+    )
+
+    award1 = NormalizedAward(
+        ocds_award_id="award-3",
+        supplier_ref="supplier:4",
+        value_amount=3000,
+        currency="NGN",
+        meta={"source_kind": "legacy", "version": 1},
+    )
+
+    contract1 = NormalizedContract(
+        ocds_contract_id="contract-3",
+        award_ref="award-3",
+        supplier_ref="supplier:4",
+        agency_ref="NG-MDAs:TC",
+        value_amount=3000,
+        currency="NGN",
+        meta={"source_kind": "legacy", "version": 1},
+    )
+
+    release1 = NormalizedRelease(
+        ocid="ocds-test-legacy-003",
+        parties={"NG-MDAs:TC": buyer, "supplier:4": supplier},
+        tender=tender1,
+        awards=[award1],
+        contracts=[contract1],
+        skipped=[],
+    )
+
+    # First load
+    result1 = load_normalized_release(db_connection, release1, provenance=None, identity="legacy")
+    tender_id = result1.tender_id
+    award_id = result1.award_ids[0]
+    agency_uuid = result1.party_ids.get("NG-MDAs:TC")
+
+    # Reload with None value_amount and changed title/meta
+    tender2 = NormalizedTender(
+        ocds_tender_id="t3",
+        ocid="ocds-test-legacy-003",
+        title="Changed Title",
+        agency_ref="NG-MDAs:TC",
+        value_amount=None,
+        currency="NGN",
+        method="open",
+        meta={"source_kind": "legacy", "version": 2},
+    )
+
+    award2 = NormalizedAward(
+        ocds_award_id="award-3",
+        supplier_ref="supplier:4",
+        value_amount=None,
+        currency="NGN",
+        meta={"source_kind": "legacy", "version": 2},
+    )
+
+    contract2 = NormalizedContract(
+        ocds_contract_id="contract-3",
+        award_ref="award-3",
+        supplier_ref="supplier:4",
+        agency_ref="NG-MDAs:TC",
+        value_amount=None,
+        currency="NGN",
+        meta={"source_kind": "legacy", "version": 2},
+    )
+
+    release2 = NormalizedRelease(
+        ocid="ocds-test-legacy-003",
+        parties={"NG-MDAs:TC": buyer, "supplier:4": supplier},
+        tender=tender2,
+        awards=[award2],
+        contracts=[contract2],
+        skipped=[],
+    )
+
+    result2 = load_normalized_release(db_connection, release2, provenance=None, identity="legacy")
+
+    # Verify tender: null value_amount, changed title, meta replaced
+    tender_row = db_connection.execute(
+        text("SELECT value_amount, title, meta FROM tenders WHERE id = :tid"),
+        {"tid": tender_id},
+    ).first()
+    assert tender_row.value_amount is None
+    assert tender_row.title == "Changed Title"
+    assert tender_row.meta == {"source_kind": "legacy", "version": 2}
+
+    # Verify award: null value_amount, meta replaced
+    award_row = db_connection.execute(
+        text("SELECT value_amount, meta FROM awards WHERE id = :aid"),
+        {"aid": award_id},
+    ).first()
+    assert award_row.value_amount is None
+    assert award_row.meta == {"ocds_award_id": "award-3", "source_kind": "legacy", "version": 2}
+
+    # Verify contract: null value_amount, meta replaced
+    contract_row = db_connection.execute(
+        text("SELECT value_amount, meta FROM contracts WHERE agency_id = :aid"),
+        {"aid": agency_uuid},
+    ).first()
+    assert contract_row.value_amount is None
+    assert contract_row.meta == {
+        "ocds_contract_id": "contract-3",
+        "source_kind": "legacy",
+        "version": 2,
+    }
+
+
 def test_short_contract_ids_do_not_collide(db_connection, monkeypatch) -> None:
     _fake_store(monkeypatch)
     pub = OcpPublication("abia", "Abia", "107", "AB")

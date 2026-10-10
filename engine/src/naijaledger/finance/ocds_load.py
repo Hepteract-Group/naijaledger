@@ -187,6 +187,7 @@ def _upsert_tender(
     lga: str | None,
     fiscal_year: int | None,
     meta: dict[str, Any] | None,
+    identity: Literal["legacy", "ocp"] = "legacy",
 ) -> UUID:
     existing = connection.execute(
         text(
@@ -199,48 +200,84 @@ def _upsert_tender(
         {"ocid": ocid},
     ).first()
     if existing is not None:
-        existing_meta = _as_meta_dict(existing.meta)
-        protect = _protect_live_from_archive(existing_meta, meta)
-        merged_meta = _shallow_merge_meta(existing_meta, meta, protect=protect)
-        connection.execute(
-            text(
-                """
-                UPDATE tenders
-                SET agency_id = :agency_id,
-                    title = :title,
-                    method = :method,
-                    value_amount = :value_amount,
-                    currency = :currency,
-                    bidding_opens_at = :bidding_opens_at,
-                    bidding_closes_at = :bidding_closes_at,
-                    state_code = :state_code,
-                    lga = :lga,
-                    fiscal_year = :fiscal_year,
-                    meta = CAST(:meta AS jsonb),
-                    updated_at = now()
-                WHERE id = :id
-                """
-            ),
-            {
-                "id": existing.id,
-                "agency_id": agency_id,
-                "title": _pick_value(existing.title, title, protect=protect),
-                "method": _pick_value(existing.method, method, protect=protect),
-                "value_amount": _pick_value(existing.value_amount, value_amount, protect=protect),
-                "currency": _pick_value(existing.currency, currency, protect=protect)
-                or existing.currency,
-                "bidding_opens_at": _pick_value(
-                    existing.bidding_opens_at, bidding_opens_at, protect=protect
+        if identity == "legacy":
+            connection.execute(
+                text(
+                    """
+                    UPDATE tenders
+                    SET agency_id = :agency_id,
+                        title = :title,
+                        method = :method,
+                        value_amount = :value_amount,
+                        currency = :currency,
+                        bidding_opens_at = :bidding_opens_at,
+                        bidding_closes_at = :bidding_closes_at,
+                        state_code = :state_code,
+                        lga = :lga,
+                        fiscal_year = :fiscal_year,
+                        meta = CAST(:meta AS jsonb),
+                        updated_at = now()
+                    WHERE id = :id
+                    """
                 ),
-                "bidding_closes_at": _pick_value(
-                    existing.bidding_closes_at, bidding_closes_at, protect=protect
+                {
+                    "id": existing.id,
+                    "agency_id": agency_id,
+                    "title": title,
+                    "method": method,
+                    "value_amount": value_amount,
+                    "currency": currency,
+                    "bidding_opens_at": bidding_opens_at,
+                    "bidding_closes_at": bidding_closes_at,
+                    "state_code": state_code,
+                    "lga": lga,
+                    "fiscal_year": fiscal_year,
+                    "meta": json.dumps(meta) if meta is not None else None,
+                },
+            )
+        else:
+            existing_meta = _as_meta_dict(existing.meta)
+            protect = _protect_live_from_archive(existing_meta, meta)
+            merged_meta = _shallow_merge_meta(existing_meta, meta, protect=protect)
+            connection.execute(
+                text(
+                    """
+                    UPDATE tenders
+                    SET agency_id = :agency_id,
+                        title = :title,
+                        method = :method,
+                        value_amount = :value_amount,
+                        currency = :currency,
+                        bidding_opens_at = :bidding_opens_at,
+                        bidding_closes_at = :bidding_closes_at,
+                        state_code = :state_code,
+                        lga = :lga,
+                        fiscal_year = :fiscal_year,
+                        meta = CAST(:meta AS jsonb),
+                        updated_at = now()
+                    WHERE id = :id
+                    """
                 ),
-                "state_code": _pick_value(existing.state_code, state_code, protect=protect),
-                "lga": _pick_value(existing.lga, lga, protect=protect),
-                "fiscal_year": _pick_value(existing.fiscal_year, fiscal_year, protect=protect),
-                "meta": json.dumps(merged_meta) if merged_meta is not None else None,
-            },
-        )
+                {
+                    "id": existing.id,
+                    "agency_id": agency_id,
+                    "title": _pick_value(existing.title, title, protect=protect),
+                    "method": _pick_value(existing.method, method, protect=protect),
+                    "value_amount": _pick_value(existing.value_amount, value_amount, protect=protect),
+                    "currency": _pick_value(existing.currency, currency, protect=protect)
+                    or existing.currency,
+                    "bidding_opens_at": _pick_value(
+                        existing.bidding_opens_at, bidding_opens_at, protect=protect
+                    ),
+                    "bidding_closes_at": _pick_value(
+                        existing.bidding_closes_at, bidding_closes_at, protect=protect
+                    ),
+                    "state_code": _pick_value(existing.state_code, state_code, protect=protect),
+                    "lga": _pick_value(existing.lga, lga, protect=protect),
+                    "fiscal_year": _pick_value(existing.fiscal_year, fiscal_year, protect=protect),
+                    "meta": json.dumps(merged_meta) if merged_meta is not None else None,
+                },
+            )
         return existing.id  # type: ignore[no-any-return]
 
     row = connection.execute(
@@ -322,10 +359,6 @@ def _upsert_award(
         where_params,
     ).first()
     if existing is not None:
-        existing_meta = _as_meta_dict(existing.meta)
-        protect = _protect_live_from_archive(existing_meta, meta)
-        merged_meta = _shallow_merge_meta(existing_meta, meta, protect=protect) or {}
-
         if identity == "legacy":
             update_sql = """
                 UPDATE awards
@@ -339,11 +372,14 @@ def _upsert_award(
             update_params = {
                 "id": existing.id,
                 "value_amount": value_amount,
-                "currency": currency or existing.currency,
+                "currency": currency,
                 "awarded_at": awarded_at,
-                "meta": json.dumps(merged_meta),
+                "meta": json.dumps(meta),
             }
         else:
+            existing_meta = _as_meta_dict(existing.meta)
+            protect = _protect_live_from_archive(existing_meta, meta)
+            merged_meta = _shallow_merge_meta(existing_meta, meta, protect=protect) or {}
             update_sql = """
                 UPDATE awards
                 SET supplier_id = :supplier_id,
@@ -442,11 +478,6 @@ def _upsert_contract(
         where_params,
     ).first()
     if existing is not None:
-        existing_meta = _as_meta_dict(existing.meta)
-        protect = _protect_live_from_archive(existing_meta, meta)
-        merged_meta = _shallow_merge_meta(existing_meta, meta, protect=protect) or {}
-        existing_period = existing.period if isinstance(existing.period, dict) else None
-
         if identity == "legacy":
             update_sql = """
                 UPDATE contracts
@@ -464,13 +495,17 @@ def _upsert_contract(
                 "id": existing.id,
                 "award_id": award_id,
                 "value_amount": value_amount,
-                "currency": currency or existing.currency,
+                "currency": currency,
                 "signed_at": signed_at,
                 "period": json.dumps(period) if period is not None else None,
                 "status": status,
-                "meta": json.dumps(merged_meta),
+                "meta": json.dumps(meta),
             }
         else:
+            existing_meta = _as_meta_dict(existing.meta)
+            protect = _protect_live_from_archive(existing_meta, meta)
+            merged_meta = _shallow_merge_meta(existing_meta, meta, protect=protect) or {}
+            existing_period = existing.period if isinstance(existing.period, dict) else None
             picked_period = _pick_value(existing_period, period, protect=protect)
             update_sql = """
                 UPDATE contracts
@@ -573,6 +608,7 @@ def load_normalized_release(
             lga=release.tender.lga,
             fiscal_year=release.tender.fiscal_year,
             meta=release.tender.meta,
+            identity=identity,
         )
         result.tender_id = tender_id
         result.tenders_upserted = 1
