@@ -697,7 +697,7 @@ def test_single_line_too_large(db_connection, monkeypatch, tmp_path) -> None:
     assert summary.skip_reason == "fetch_failed"
 
 
-def test_corrupt_json_line_marks_extraction_failed(db_connection, monkeypatch) -> None:
+def test_corrupt_json_marks_extraction_failed(db_connection, monkeypatch) -> None:
     """Blocker 2: corrupt JSON line marks extraction failed."""
     _fake_store(monkeypatch)
     pub = OcpPublication("abia", "Abia", "107", "AB")
