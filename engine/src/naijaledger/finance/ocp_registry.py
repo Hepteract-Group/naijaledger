@@ -25,8 +25,17 @@ _MONTHS = {
 
 # Real OCP pages use <dt>License:</dt><dd>…</dd> in the publication metadata block.
 _LICENCE_DT_DD = re.compile(r"(?is)<dt[^>]*>\s*Licen[cs]e\s*:?\s*</dt>\s*<dd[^>]*>(.*?)</dd>")
-_LAST_RETRIEVED = re.compile(
-    r"Last retrieved:\s*([A-Za-z]{3})\s+(\d{1,2}),\s+(\d{4})",
+# Real OCP pages use <dt>Last retrieved:</dt><dd>Mon D, YYYY</dd>.
+# Tolerate trailing tooltip markup inside the <dt> (same pattern as other OCP labels).
+_LAST_RETRIEVED_DT_DD = re.compile(
+    r"(?is)<dt[^>]*>\s*Last retrieved\s*:?\s*(?:(?!</dt>).)*</dt>\s*<dd[^>]*>(.*?)</dd>"
+)
+_LAST_RETRIEVED_INLINE = re.compile(
+    r"Last retrieved:\s*([A-Za-z]{3,})\s+(\d{1,2}),\s+(\d{4})",
+    re.IGNORECASE,
+)
+_LAST_RETRIEVED_DATE = re.compile(
+    r"([A-Za-z]{3,})\s+(\d{1,2}),\s+(\d{4})",
     re.IGNORECASE,
 )
 _TAG = re.compile(r"<[^>]+>")
@@ -143,14 +152,29 @@ def licence_matches_record(field: str, record: LicenceRecord) -> bool:
     return field.strip().casefold() == record.phrase.strip().casefold()
 
 
-def parse_last_retrieved(html: str) -> date | None:
-    match = _LAST_RETRIEVED.search(html)
-    if match is None:
-        return None
-    month = _MONTHS.get(match.group(1)[:3].lower())
+def _date_from_month_day_year(month_token: str, day: str, year: str) -> date | None:
+    month = _MONTHS.get(month_token[:3].lower())
     if month is None:
         return None
-    return date(int(match.group(3)), month, int(match.group(2)))
+    try:
+        return date(int(year), month, int(day))
+    except ValueError:
+        return None
+
+
+def parse_last_retrieved(html: str) -> date | None:
+    """Read the publication's Last retrieved date (dt/dd first, then inline text)."""
+    dt_dd = _LAST_RETRIEVED_DT_DD.search(html)
+    if dt_dd is not None:
+        text = _TAG.sub(" ", dt_dd.group(1))
+        text = re.sub(r"\s+", " ", text).strip()
+        match = _LAST_RETRIEVED_DATE.search(text)
+        if match is not None:
+            return _date_from_month_day_year(match.group(1), match.group(2), match.group(3))
+    match = _LAST_RETRIEVED_INLINE.search(html)
+    if match is None:
+        return None
+    return _date_from_month_day_year(match.group(1), match.group(2), match.group(3))
 
 
 def flatten_compiled_release(release: dict[str, Any]) -> dict[str, Any]:
