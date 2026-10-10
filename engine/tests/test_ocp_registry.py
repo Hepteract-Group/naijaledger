@@ -835,7 +835,10 @@ def test_oyo_plateau_proposed_no_download(
     oyo_url = "https://data.open-contracting.org/en/publication/106"
     plateau_url = "https://data.open-contracting.org/en/publication/125"
     rows = db_connection.execute(
-        text("SELECT url, status FROM sources WHERE url IN (:oyo, :plateau)"),
+        text(
+            "SELECT url, status FROM sources "
+            "WHERE url IN (:oyo, :plateau)"
+        ),
         {"oyo": oyo_url, "plateau": plateau_url},
     ).all()
     assert len(rows) == 2
