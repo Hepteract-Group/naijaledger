@@ -392,27 +392,20 @@ def load_publication_body(
             publication.publication_id,
             exc,
         )
-        connection.execute(
-            text(
-                """
-                INSERT INTO extractions (
-                    document_id, method, method_version, derivation,
-                    confidence, ok, status, content_type, content_type_conf,
-                    payload, created_at
-                )
-                VALUES (
-                    :document_id, 'json', 'ocp-registry-bulk-1', 'extracted',
-                    1.0, false, 'failed', 'application/gzip', 1.0,
-                    jsonb_build_object('error', :error, 'publication_id', :publication_id),
-                    NOW()
-                )
-                """
+        create_extraction(
+            connection,
+            ExtractionCreate(
+                document_id=document_id,
+                method="json",
+                method_version="ocp-registry-bulk-1",
+                derivation="extracted",
+                confidence=1.0,
+                ok=False,
+                payload={"error": str(exc), "publication_id": publication.publication_id},
+                content_type="application/gzip",
+                content_type_conf=1.0,
+                status="failed",
             ),
-            {
-                "document_id": document_id,
-                "error": str(exc),
-                "publication_id": publication.publication_id,
-            },
         )
         summary.skip_reason = "fetch_failed"
         return summary
