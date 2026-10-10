@@ -429,7 +429,11 @@ def load_publication_body(
             WHERE id = :id
             """
         ),
-        {"id": extraction.id, "release_count": summary.releases, "failed_releases": failed_releases},
+        {
+            "id": extraction.id,
+            "release_count": summary.releases,
+            "failed_releases": failed_releases,
+        },
     )
 
     return summary

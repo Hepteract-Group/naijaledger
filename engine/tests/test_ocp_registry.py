@@ -680,7 +680,8 @@ def test_single_line_too_large(db_connection, monkeypatch, tmp_path) -> None:
     monkeypatch.setattr("naijaledger.finance.ocp_load.MAX_DECOMPRESSED_BYTES", 100)
     pub = OcpPublication("abia", "Abia", "107", "AB")
     source = _seed_source(db_connection, pub)
-    huge_line = b'{"ocid":"x","id":"y","tag":["tender"],"tender":{"id":"z","title":"' + b"A" * 200 + b'"}}\n'
+    prefix = b'{"ocid":"x","id":"y","tag":["tender"],"tender":{"id":"z","title":"'
+    huge_line = prefix + b"A" * 200 + b'"}}\n'
     body = gzip.compress(huge_line)
     summary = load_publication_body(
         db_connection,
@@ -699,7 +700,10 @@ def test_corrupt_json_line_marks_extraction_failed(db_connection, monkeypatch) -
     _fake_store(monkeypatch)
     pub = OcpPublication("abia", "Abia", "107", "AB")
     source = _seed_source(db_connection, pub)
-    valid_line = b'{"ocid":"ocds-test-001","id":"1","tag":["tender"],"tender":{"id":"t1","title":"Valid"}}\n'
+    valid_line = (
+        b'{"ocid":"ocds-test-001","id":"1","tag":["tender"],'
+        b'"tender":{"id":"t1","title":"Valid"}}\n'
+    )
     corrupt_line = b'{"ocid":"bad","broken json\n'
     body = gzip.compress(valid_line + corrupt_line)
     summary = load_publication_body(
