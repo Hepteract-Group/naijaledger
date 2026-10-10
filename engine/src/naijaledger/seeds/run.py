@@ -256,7 +256,10 @@ def apply_seed_catalog(
                 summary["corrected"] += 1
                 existing = get_source_by_url_and_format(connection, entry.url, entry.format)
                 assert existing is not None
-            if auto_approve:
+            if entry.approved_by is None and existing.status == "approved":
+                demote_to_proposed(connection, existing.id)
+                summary["corrected"] += 1
+            elif auto_approve:
                 if existing.status == "proposed":
                     approve_source(connection, existing.id, approved_by=entry_approved_by)
                     summary["approved"] += 1
