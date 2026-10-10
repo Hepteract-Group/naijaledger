@@ -30,6 +30,7 @@ from naijaledger.finance.ocp_registry import (
     flatten_compiled_release,
     licence_matches_record,
     normalize_ocp_release,
+    parse_last_retrieved,
     parse_licence_field,
     parse_licence_record,
     prepare_release_dict,
@@ -133,6 +134,29 @@ def test_licence_matches_short_form() -> None:
     )
     assert record is not None
     assert licence_matches_record("public domain dedication (pddl)", record)
+
+
+def test_parse_last_retrieved_from_dt_dd() -> None:
+    """Real OCP pages put the date in <dd>, not inline after the label."""
+    html = (_FIXTURES / "ocp_page_edo_real.html").read_text(encoding="utf-8")
+    assert parse_last_retrieved(html) == date(2022, 6, 3)
+
+
+def test_parse_last_retrieved_dt_dd_without_inline() -> None:
+    html = """
+    <dl>
+      <dt>Last retrieved:</dt>
+      <dd>
+        Apr 26, 2023
+      </dd>
+    </dl>
+    """
+    assert parse_last_retrieved(html) == date(2023, 4, 26)
+
+
+def test_parse_last_retrieved_inline_fallback() -> None:
+    html = "<p>Last retrieved: Sep 9, 2024</p>"
+    assert parse_last_retrieved(html) == date(2024, 9, 9)
 
 
 def test_load_flat_idempotent(db_connection, monkeypatch, tmp_path) -> None:

@@ -16,7 +16,8 @@ export default defineConfig({
     },
     proxy: {
       "/api": {
-        target: "http://localhost:8000",
+        // Match engine default / web/.env API_PORT (18000), not the common 8000.
+        target: process.env.VITE_ENGINE_URL ?? "http://localhost:18000",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ""),
       },
