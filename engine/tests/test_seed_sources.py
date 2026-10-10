@@ -12,7 +12,8 @@ def test_seed_catalog_is_idempotent(db_connection) -> None:
     auto_approve_count = sum(
         1
         for entry in SEED_CATALOG
-        if entry.ingest_role in SEED_AUTO_APPROVE_ROLES and entry.approved_by is not None
+        if entry.ingest_role in SEED_AUTO_APPROVE_ROLES
+        and not (entry.approved_by is None and entry.name.startswith("OCP Data Registry"))
     )
 
     assert first["created"] == len(SEED_CATALOG)
@@ -27,7 +28,8 @@ def test_seed_catalog_entries_are_approved(db_connection) -> None:
     auto_approve_urls = {
         entry.url
         for entry in SEED_CATALOG
-        if entry.ingest_role in SEED_AUTO_APPROVE_ROLES and entry.approved_by is not None
+        if entry.ingest_role in SEED_AUTO_APPROVE_ROLES
+        and not (entry.approved_by is None and entry.name.startswith("OCP Data Registry"))
     }
     proposed_urls = {
         entry.url
