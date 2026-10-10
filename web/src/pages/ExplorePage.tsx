@@ -35,11 +35,19 @@ function parseResource(value: string | null): ExploreResource {
   return "parties";
 }
 
-function formatAmount(amount: number | null, currency: string): string {
+function formatAmount(
+  amount: number | null,
+  currency: string,
+  retrievedOn?: string | null,
+): string {
   if (amount == null) {
     return "—";
   }
-  return `${amount.toLocaleString()} ${currency}`;
+  const base = `${amount.toLocaleString()} ${currency}`;
+  if (retrievedOn) {
+    return `${base} · as of ${retrievedOn}`;
+  }
+  return base;
 }
 
 export function ExplorePage() {
@@ -439,7 +447,9 @@ export function ExplorePage() {
                           </td>
                           <td>{[row.state_code, row.lga].filter(Boolean).join(" · ") || "—"}</td>
                           <td>{row.fiscal_year ?? "—"}</td>
-                          <td>{formatAmount(row.value_amount, row.currency)}</td>
+                          <td>
+                            {formatAmount(row.value_amount, row.currency, row.ocp_retrieved_on)}
+                          </td>
                         </tr>
                       ))}
                     {resource === "flags" &&
@@ -495,7 +505,10 @@ export function ExplorePage() {
                         <>
                           <p className="compare-panel__kicker">{row.method ?? "tender"}</p>
                           <p className="compare-panel__name">{row.title}</p>
-                          <p>Value: {formatAmount(row.value_amount, row.currency)}</p>
+                          <p>
+                            Value:{" "}
+                            {formatAmount(row.value_amount, row.currency, row.ocp_retrieved_on)}
+                          </p>
                         </>
                       ) : null}
                       {"rule" in row ? (
@@ -554,7 +567,13 @@ export function ExplorePage() {
                     </div>
                     <div>
                       <dt>Value</dt>
-                      <dd>{formatAmount(detail.row.value_amount, detail.row.currency)}</dd>
+                      <dd>
+                        {formatAmount(
+                          detail.row.value_amount,
+                          detail.row.currency,
+                          detail.row.ocp_retrieved_on,
+                        )}
+                      </dd>
                     </div>
                     <div>
                       <dt>State / LGA</dt>

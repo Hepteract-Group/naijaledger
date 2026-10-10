@@ -9,9 +9,11 @@ import { InfoTip } from "../components/InfoTip";
 import { NigeriaMap } from "../components/NigeriaMap";
 import { geoYearFacetPatch, parseFacetYear, parseGeoYearFacets } from "../explore/facets";
 import {
+  formatArchiveAsOf,
   formatMetricValue,
   listStateMetrics,
   maxMetric,
+  maxMetricRow,
   metricLabel,
   rankForMetric,
   topStates,
@@ -72,6 +74,9 @@ export function MapPage() {
           anomaly_density: item.anomaly_density,
           tender_count: item.tender_count,
           open_flag_count: item.open_flag_count,
+          ocp_archive_tender_count: item.ocp_archive_tender_count,
+          ocp_retrieved_on_min: item.ocp_retrieved_on_min,
+          ocp_retrieved_on_max: item.ocp_retrieved_on_max,
           source: "live",
         }));
         setLoad({ kind: "live", rows });
@@ -97,10 +102,18 @@ export function MapPage() {
   }, [allRows, focusId]);
   const leaders = useMemo(() => topStates(rows, metric, 5), [rows, metric]);
   const ceiling = useMemo(() => maxMetric(allRows, metric), [allRows, metric]);
+  const legendArchiveNote = useMemo(() => {
+    if (metric !== "contract_volume") {
+      return null;
+    }
+    const peak = maxMetricRow(allRows, metric);
+    return peak ? formatArchiveAsOf(peak) : null;
+  }, [allRows, metric]);
   const rank =
     selected && rows.some((row) => row.id === selected.id)
       ? rankForMetric(rows, metric, selected.id)
       : null;
+  const selectedArchiveNote = selected ? formatArchiveAsOf(selected) : null;
   useEffect(() => {
     if (!focusId) {
       return;
@@ -224,6 +237,7 @@ export function MapPage() {
                   ? `₦${(ceiling / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
                   : String(ceiling)
                 : ceiling.toFixed(2)}
+              {legendArchiveNote ? ` · ${legendArchiveNote}` : ""}
             </span>
           </div>
         </section>
@@ -242,6 +256,9 @@ export function MapPage() {
                   {metricLabel(metric)}
                   {selected.source === "live" ? "" : " (demo)"}
                 </p>
+                {selectedArchiveNote ? (
+                  <p className="map-fact__archive">{selectedArchiveNote}</p>
+                ) : null}
                 {rank !== null ? (
                   <p className="map-fact__rank">
                     Rank {rank} of {rows.length}
@@ -286,19 +303,27 @@ export function MapPage() {
           <section className="map-panel">
             <h2 className="map-side__title">Top {leaders.length}</h2>
             <ol className="map-rank">
-              {leaders.map((row, index) => (
-                <li key={row.id}>
-                  <button
-                    type="button"
-                    className={`map-rank__btn${selected?.id === row.id ? " is-active" : ""}`}
-                    onClick={() => onSelectColumn(row)}
-                  >
-                    <span className="map-rank__n">{index + 1}</span>
-                    <span className="map-rank__name">{row.name}</span>
-                    <span className="map-rank__val">{formatMetricValue(row, metric)}</span>
-                  </button>
-                </li>
-              ))}
+              {leaders.map((row, index) => {
+                const archiveNote = metric === "contract_volume" ? formatArchiveAsOf(row) : null;
+                return (
+                  <li key={row.id}>
+                    <button
+                      type="button"
+                      className={`map-rank__btn${selected?.id === row.id ? " is-active" : ""}`}
+                      onClick={() => onSelectColumn(row)}
+                    >
+                      <span className="map-rank__n">{index + 1}</span>
+                      <span className="map-rank__name">{row.name}</span>
+                      <span className="map-rank__val">
+                        {formatMetricValue(row, metric)}
+                        {archiveNote ? (
+                          <span className="map-rank__archive"> · {archiveNote}</span>
+                        ) : null}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
             </ol>
           </section>
 

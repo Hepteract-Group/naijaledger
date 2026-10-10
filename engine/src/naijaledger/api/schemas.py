@@ -64,6 +64,7 @@ class PublicTender(BaseModel):
     state_code: str | None = None
     lga: str | None = None
     fiscal_year: int | None = None
+    ocp_retrieved_on: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -87,6 +88,9 @@ class PublicMapState(BaseModel):
     tender_count: int
     open_flag_count: int
     anomaly_density: float
+    ocp_archive_tender_count: int = 0
+    ocp_retrieved_on_min: str | None = None
+    ocp_retrieved_on_max: str | None = None
 
 
 class PublicGraphNode(BaseModel):
@@ -123,6 +127,7 @@ class PublicAward(BaseModel):
     value_amount: int | None
     currency: str
     awarded_at: datetime | None
+    ocp_retrieved_on: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -138,6 +143,7 @@ class PublicContract(BaseModel):
     currency: str
     signed_at: datetime | None
     status: str | None
+    ocp_retrieved_on: str | None = None
     created_at: datetime
     updated_at: datetime
 

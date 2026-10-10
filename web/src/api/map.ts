@@ -10,6 +10,9 @@ export type PublicMapState = {
   tender_count: number;
   open_flag_count: number;
   anomaly_density: number;
+  ocp_archive_tender_count: number;
+  ocp_retrieved_on_min: string | null;
+  ocp_retrieved_on_max: string | null;
 };
 
 export type MapStatesPage = Page<PublicMapState>;
