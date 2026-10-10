@@ -30,9 +30,7 @@ _LAST_RETRIEVED = re.compile(
 )
 _MD_FIELD = re.compile(r"^(?:[-*]\s+)?\*\*(.+?)\*\*:\s*(.+)$", re.MULTILINE)
 
-ATTRIBUTION = (
-    "Open Contracting Partnership Data Registry (https://data.open-contracting.org/)"
-)
+ATTRIBUTION = "Open Contracting Partnership Data Registry (https://data.open-contracting.org/)"
 SOURCE_KIND = "ocp_registry"
 MAX_COMPRESSED_BYTES = 50 * 1024 * 1024
 MAX_DECOMPRESSED_BYTES = 200 * 1024 * 1024
@@ -91,8 +89,7 @@ class LicenceRecord:
 
 def parse_licence_record(text: str) -> LicenceRecord | None:
     fields = {
-        match.group(1).strip().lower(): match.group(2).strip()
-        for match in _MD_FIELD.finditer(text)
+        match.group(1).strip().lower(): match.group(2).strip() for match in _MD_FIELD.finditer(text)
     }
     phrase = fields.get("licence phrase as read")
     pub_url = fields.get("publication url")

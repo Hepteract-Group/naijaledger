@@ -331,9 +331,7 @@ def test_null_amount_preserves_stored(db_connection, monkeypatch) -> None:
     )
     load_normalized_release(db_connection, release)
     row = db_connection.execute(
-        text(
-            "SELECT value_amount, meta FROM tenders WHERE ocid = 'ocds-fmoaoq-edsg-dca8-00002'"
-        )
+        text("SELECT value_amount, meta FROM tenders WHERE ocid = 'ocds-fmoaoq-edsg-dca8-00002'")
     ).one()
     assert row.value_amount == 18383599000
     assert row.meta["ocp_retrieved_on"] == "2022-06-03"
@@ -570,9 +568,7 @@ def test_compressed_cap(db_connection, monkeypatch, tmp_path) -> None:
 
 def test_seed_approved_by_and_no_enqueue(db_connection) -> None:
     apply_seed_catalog(db_connection)
-    ocp_urls = {
-        e.url for e in SEED_CATALOG if e.name.startswith("OCP Data Registry")
-    }
+    ocp_urls = {e.url for e in SEED_CATALOG if e.name.startswith("OCP Data Registry")}
     rows = db_connection.execute(
         text("SELECT url, approved_by, expected_cadence FROM sources WHERE url = ANY(:urls)"),
         {"urls": list(ocp_urls)},
@@ -582,9 +578,7 @@ def test_seed_approved_by_and_no_enqueue(db_connection) -> None:
         assert row.approved_by == "human:issue-203"
         assert row.expected_cadence is None
     july = db_connection.execute(
-        text(
-            "SELECT approved_by FROM sources WHERE url LIKE '%nocopo%' OR name LIKE 'Ekiti%'"
-        )
+        text("SELECT approved_by FROM sources WHERE url LIKE '%nocopo%' OR name LIKE 'Ekiti%'")
     ).all()
     assert any(r.approved_by == SEED_APPROVED_BY for r in july)
     summary = enqueue_due_fetch_jobs(db_connection)
