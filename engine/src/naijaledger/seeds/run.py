@@ -245,8 +245,8 @@ def apply_seed_catalog(
         existing = get_source_by_url_and_format(connection, entry.url, entry.format)
         auto_approve = entry.ingest_role in SEED_AUTO_APPROVE_ROLES
         entry_approved_by = entry.approved_by or approved_by
-        explicitly_proposed = (
-            entry.approved_by is None and entry.name.startswith("OCP Data Registry")
+        explicitly_proposed = entry.approved_by is None and entry.name.startswith(
+            "OCP Data Registry"
         )
         if existing is not None:
             summary["skipped"] += 1
