@@ -343,72 +343,74 @@ def load_publication_body(
 
     failed_releases = 0
     try:
-        for raw in _iter_jsonl_gz(body):
-            if max_releases is not None and summary.releases >= max_releases:
-                break
-            try:
-                with connection.begin_nested():
-                    prepared = prepare_release_dict(raw)
-                    normalized = normalize_ocds_release(prepared)
-                    stamp_normalized_release(
-                        normalized,
-                        state_code=publication.state_code,
-                        publication_id=publication.publication_id,
-                        retrieved_on=retrieved_on,
+        with connection.begin_nested():
+            for raw in _iter_jsonl_gz(body):
+                if max_releases is not None and summary.releases >= max_releases:
+                    break
+                try:
+                    with connection.begin_nested():
+                        prepared = prepare_release_dict(raw)
+                        normalized = normalize_ocds_release(prepared)
+                        stamp_normalized_release(
+                            normalized,
+                            state_code=publication.state_code,
+                            publication_id=publication.publication_id,
+                            retrieved_on=retrieved_on,
+                        )
+                        provenance = ProvenanceContext(
+                            document_id=document_id,
+                            extraction_id=extraction.id,
+                            method="json",
+                            derivation="extracted",
+                            confidence=1.0,
+                            region={
+                                "ocid": normalized.ocid,
+                                "publication_id": publication.publication_id,
+                            },
+                        )
+                        result = load_normalized_release(connection, normalized, provenance=provenance)
+                except Exception:
+                    logger.exception(
+                        "OCP release load failed publication_id=%s ocid=%s",
+                        publication.publication_id,
+                        raw.get("ocid") if isinstance(raw, dict) else None,
                     )
-                    provenance = ProvenanceContext(
-                        document_id=document_id,
-                        extraction_id=extraction.id,
-                        method="json",
-                        derivation="extracted",
-                        confidence=1.0,
-                        region={
-                            "ocid": normalized.ocid,
-                            "publication_id": publication.publication_id,
-                        },
-                    )
-                    result = load_normalized_release(connection, normalized, provenance=provenance)
-            except Exception:
-                logger.exception(
-                    "OCP release load failed publication_id=%s ocid=%s",
-                    publication.publication_id,
-                    raw.get("ocid") if isinstance(raw, dict) else None,
-                )
-                failed_releases += 1
-                continue
-            summary.releases += 1
-            summary.awards_written += len(result.award_ids)
-            summary.awards_skipped += result.awards_skipped
-            # After one-row-per-award-id normalize, award_ids aligns with normalized.awards.
-            for award in normalized.awards[: len(result.award_ids)]:
-                if award.value_amount is not None and award.value_amount > 0:
-                    summary.awards_positive_amount += 1
+                    failed_releases += 1
+                    continue
+                summary.releases += 1
+                summary.awards_written += len(result.award_ids)
+                summary.awards_skipped += result.awards_skipped
+                # After one-row-per-award-id normalize, award_ids aligns with normalized.awards.
+                for award in normalized.awards[: len(result.award_ids)]:
+                    if award.value_amount is not None and award.value_amount > 0:
+                        summary.awards_positive_amount += 1
     except ValueError as exc:
         logger.warning(
-            "OCP body parse failed publication_id=%s err=%s releases_ok=%s",
+            "OCP body parse failed publication_id=%s err=%s",
             publication.publication_id,
             exc,
-            summary.releases,
         )
         connection.execute(
             text(
                 """
-                UPDATE extractions
-                SET ok = false,
-                    status = 'failed',
-                    payload = jsonb_set(
-                        jsonb_set(
-                            COALESCE(payload, '{}'::jsonb),
-                            '{release_count}',
-                            to_jsonb(CAST(:release_count AS int))
-                        ),
-                        '{error}',
-                        to_jsonb(CAST(:error AS text))
-                    )
-                WHERE id = :id
+                INSERT INTO extractions (
+                    document_id, method, method_version, derivation,
+                    confidence, ok, status, content_type, content_type_conf,
+                    payload, created_at
+                )
+                VALUES (
+                    :document_id, 'json', 'ocp-registry-bulk-1', 'extracted',
+                    1.0, false, 'failed', 'application/gzip', 1.0,
+                    jsonb_build_object('error', :error, 'publication_id', :publication_id),
+                    NOW()
+                )
                 """
             ),
-            {"id": extraction.id, "release_count": summary.releases, "error": str(exc)},
+            {
+                "document_id": document_id,
+                "error": str(exc),
+                "publication_id": publication.publication_id,
+            },
         )
         summary.skip_reason = "fetch_failed"
         return summary

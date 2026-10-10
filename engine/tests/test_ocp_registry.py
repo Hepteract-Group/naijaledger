@@ -723,6 +723,46 @@ def test_corrupt_json_marks_extraction_failed(db_connection, monkeypatch) -> Non
     assert "error" in extraction_row.payload
 
 
+def test_corrupt_line_no_partial_commits(db_connection, monkeypatch, tmp_path) -> None:
+    """Blocker 2 extended: corrupt line rolls back all releases, no partial commit."""
+    _fake_store(monkeypatch)
+    pub = OcpPublication("abia", "Abia", "107", "AB")
+    source = _seed_source(db_connection, pub)
+    _write_licence(tmp_path, pub.slug, pub.publication_id)
+    pddl = (_FIXTURES / "ocp_page_pddl.html").read_text(encoding="utf-8")
+    valid_release = (_FIXTURES / "ocp_flat.jsonl.gz").read_bytes()
+    valid_line = gzip.decompress(valid_release).split(b"\n")[0] + b"\n"
+    corrupt_line = b'{"ocid":"bad","broken json\n'
+    body = gzip.compress(valid_line + corrupt_line)
+
+    def http_get(url: str, timeout: float = 30.0):
+        if "download" in url:
+            return httpx.Response(200, content=body, request=httpx.Request("GET", url))
+        return httpx.Response(200, text=pddl, request=httpx.Request("GET", url))
+
+    before_tenders = db_connection.execute(text("SELECT COUNT(*) FROM tenders")).scalar()
+    before_awards = db_connection.execute(text("SELECT COUNT(*) FROM awards")).scalar()
+    before_contracts = db_connection.execute(text("SELECT COUNT(*) FROM contracts")).scalar()
+
+    summaries = load_all_publications(
+        db_connection,
+        minio_client=MagicMock(),
+        bucket="test",
+        licences_dir=tmp_path,
+        hooks=LoadHooks(http_get=http_get, sleep=lambda _: None),
+        publications=(pub,),
+    )
+    assert summaries[0].skip_reason == "fetch_failed"
+
+    after_tenders = db_connection.execute(text("SELECT COUNT(*) FROM tenders")).scalar()
+    after_awards = db_connection.execute(text("SELECT COUNT(*) FROM awards")).scalar()
+    after_contracts = db_connection.execute(text("SELECT COUNT(*) FROM contracts")).scalar()
+
+    assert after_tenders == before_tenders
+    assert after_awards == before_awards
+    assert after_contracts == before_contracts
+
+
 def test_short_contract_ids_do_not_collide(db_connection, monkeypatch) -> None:
     _fake_store(monkeypatch)
     pub = OcpPublication("abia", "Abia", "107", "AB")
