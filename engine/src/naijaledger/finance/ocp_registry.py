@@ -251,19 +251,19 @@ def prepare_release_dict(release: dict[str, Any]) -> dict[str, Any]:
 
 def normalize_ocp_release(release_dict: dict[str, Any]) -> Any:
     """Normalize OCP release with OCP-specific identity semantics.
-    
+
     OCP uses:
     - One award row per OCDS award ID (first supplier primary, rest in meta)
     - Contract IDs namespaced as {ocid}:{raw_id}
-    
+
     This keeps NOCOPO/Ekiti unchanged (they use the standard normalize_ocds_release).
     """
     from naijaledger.finance.ocds import normalize_ocds_release
     from naijaledger.finance.ocds_models import NormalizedAward, NormalizedContract
-    
+
     normalized = normalize_ocds_release(release_dict)
     ocid = normalized.ocid or ""
-    
+
     # Collapse multi-supplier awards to one row per OCDS ID
     collapsed_awards = []
     seen_award_ids = set()
@@ -271,18 +271,16 @@ def normalize_ocp_release(release_dict: dict[str, Any]) -> Any:
         if award.ocds_award_id in seen_award_ids:
             continue
         seen_award_ids.add(award.ocds_award_id)
-        
+
         # Find all suppliers for this award ID
         suppliers = [
-            a.supplier_ref
-            for a in normalized.awards
-            if a.ocds_award_id == award.ocds_award_id
+            a.supplier_ref for a in normalized.awards if a.ocds_award_id == award.ocds_award_id
         ]
-        
+
         meta = dict(award.meta or {})
         if len(suppliers) > 1:
             meta["additional_supplier_refs"] = suppliers[1:]
-        
+
         collapsed_awards.append(
             NormalizedAward(
                 ocds_award_id=award.ocds_award_id,
@@ -294,7 +292,7 @@ def normalize_ocp_release(release_dict: dict[str, Any]) -> Any:
             )
         )
     normalized.awards = collapsed_awards
-    
+
     # Namespace contract IDs as {ocid}:{raw_id}
     namespaced_contracts = []
     for contract in normalized.contracts:
@@ -303,10 +301,10 @@ def normalize_ocp_release(release_dict: dict[str, Any]) -> Any:
             namespaced_id = f"{ocid}:{raw_id}"
         else:
             namespaced_id = raw_id
-        
+
         meta = dict(contract.meta or {})
         meta["ocds_contract_id_raw"] = raw_id
-        
+
         namespaced_contracts.append(
             NormalizedContract(
                 ocds_contract_id=namespaced_id,
@@ -322,7 +320,7 @@ def normalize_ocp_release(release_dict: dict[str, Any]) -> Any:
             )
         )
     normalized.contracts = namespaced_contracts
-    
+
     return normalized
 
 
