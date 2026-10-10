@@ -272,19 +272,23 @@ def normalize_ocp_release(release_dict: dict[str, Any]) -> Any:
             continue
         seen_award_ids.add(award.ocds_award_id)
 
-        # Find all suppliers for this award ID
-        suppliers = [
+        # Find all suppliers for this award ID (refs → canonical names for meta).
+        supplier_refs = [
             a.supplier_ref for a in normalized.awards if a.ocds_award_id == award.ocds_award_id
         ]
 
         meta = dict(award.meta or {})
-        if len(suppliers) > 1:
-            meta["additional_supplier_refs"] = suppliers[1:]
+        if len(supplier_refs) > 1:
+            names: list[str] = []
+            for ref in supplier_refs[1:]:
+                party = normalized.parties.get(ref)
+                names.append(party.canonical_name if party is not None else ref)
+            meta["additional_supplier_names"] = names
 
         collapsed_awards.append(
             NormalizedAward(
                 ocds_award_id=award.ocds_award_id,
-                supplier_ref=suppliers[0],
+                supplier_ref=supplier_refs[0],
                 value_amount=award.value_amount,
                 currency=award.currency,
                 awarded_at=award.awarded_at,
@@ -337,7 +341,6 @@ def stamp_normalized_release(
 ) -> Any:
     """Stamp OCP meta onto a NormalizedRelease (mutates in place for call-site simplicity)."""
     retrieved = retrieved_on.isoformat()
-    ocid = str(getattr(release, "ocid", "") or "")
     if release.tender is not None:
         release.tender.state_code = state_code
         tender_meta = dict(release.tender.meta or {})
@@ -357,10 +360,6 @@ def stamp_normalized_release(
     for contract in release.contracts:
         contract_meta = dict(contract.meta or {})
         contract_meta["source_kind"] = SOURCE_KIND
-        cid = contract.ocds_contract_id
-        if cid and ocid:
-            prefix = f"{ocid}:"
-            if cid.startswith(prefix):
-                contract_meta["ocds_contract_id_raw"] = cid[len(prefix) :]
+        # ocds_contract_id_raw is set once in normalize_ocp_release; do not recompute.
         contract.meta = contract_meta
     return release

@@ -573,6 +573,17 @@ def load_normalized_release(
     provenance: ProvenanceContext | None = None,
     identity: Literal["legacy", "ocp"] = "legacy",
 ) -> LoadResult:
+    """Upsert a normalized OCDS release into finance tables.
+
+    ``identity`` selects lookup and merge rules (spec 0041 §3.1):
+
+    - ``"legacy"`` (default): prior NOCOPO/Ekiti behaviour — award key includes
+      ``supplier_id``; null may overwrite; ``meta`` replaced wholesale.
+    - ``"ocp"``: OCP bulk / Osun–Ebonyi live convergence — award/contract keyed
+      by OCDS id without supplier; null-never-erases; shallow meta merge; live
+      portal beats archive. Live loaders for the same rows **must** pass
+      ``identity="ocp"``.
+    """
     party_ids: dict[str, UUID] = {}
     edge_ids: list[UUID] = []
     for ref, party in release.parties.items():

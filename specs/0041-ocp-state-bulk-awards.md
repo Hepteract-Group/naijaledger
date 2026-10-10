@@ -71,24 +71,35 @@ Politeness:
 
 ### 3.1 Identity and which value wins
 
+`load_normalized_release` takes `identity: "legacy" | "ocp"` (default `"legacy"`).
+
+| Identity | Who uses it | Award / contract lookup | Null / meta |
+| --- | --- | --- | --- |
+| `"legacy"` | Existing NOCOPO / Ekiti paths (`load_ocds_package`, portal load today) | Unchanged from before this PR (award key includes `supplier_id`; incoming null may overwrite; `meta` replaced wholesale) | Intentionally base-identical |
+| `"ocp"` | This OCP bulk loader, and **must** be used by Osun/Ebonyi live loaders (#198, #199) when they upsert the same rows | Award: `(tender_id, ocds_award_id)` — not supplier. Contract: `(agency_id, ocds_contract_id)` — not supplier. | Null-never-erases; `meta` shallow-merge; live beats archive |
+
+Do not call `load_normalized_release(...)` for Osun/Ebonyi archive-converging loads without `identity="ocp"`. The default would double-count awards when the supplier string drifts and would erase `ocp_retrieved_on` on meta replace.
+
 #### Tender
 
 `tenders.ocid` is unique. The archive and a later live table for the same contract are one tender. Osun and Ebonyi HTML loaders must emit the same `ocid` the registry file uses.
 
-#### Award
+#### Award (`identity="ocp"`)
 
-Shared upsert lookup key for this workstream: `(tender_id, meta->>'ocds_award_id')` — not supplier. Supplier may update on the existing row. That keeps archive and live from double-counting when the same award id arrives with a slightly different company string.
+Lookup key: `(tender_id, meta->>'ocds_award_id')` — not supplier. Supplier may update on the existing row. That keeps archive and live from double-counting when the same award id arrives with a slightly different company string.
 
 Every award written by this loader must have a non-null `ocds_award_id`:
 
 - Prefer the release award’s `id` (after Edo flatten: the **inner** id).
 - If that id is missing, set `ocds_award_id` to `{ocid}:award:{index}` where `index` is the zero-based position in the flattened `awards` list.
 
-Never insert an award when `ocds_award_id` is null. Live loaders (#198, #199) must emit the same `ocds_award_id` for the same contract (portal OCDS award id when present; otherwise `{ocid}:award:0` for a single-award HTML row) and must resolve the supplier through the same party get-or-create path as `load_normalized_release` (`party_type` + `lower(canonical_name)` after strip).
+Never insert an award when `ocds_award_id` is null. Live loaders (#198, #199) must emit the same `ocds_award_id` for the same contract (portal OCDS award id when present; otherwise `{ocid}:award:0` for a single-award HTML row), pass `identity="ocp"`, and resolve the supplier through the same party get-or-create path as `load_normalized_release` (`party_type` + `lower(canonical_name)` after strip).
 
-#### Contract
+Multi-supplier awards collapse to one row under OCP identity: first supplier is primary; other suppliers’ **canonical names** go in `meta.additional_supplier_names`.
 
-Shared upsert lookup key for this workstream: `(agency_id, meta->>'ocds_contract_id')` — not supplier. Supplier may update on the existing row.
+#### Contract (`identity="ocp"`)
+
+Lookup key: `(agency_id, meta->>'ocds_contract_id')` — not supplier. Supplier may update on the existing row.
 
 Publisher contract ids are only unique inside a release (Nigerian files commonly emit `"1"`, `"0001"`, or a short suffix). To keep distinct contracts from colliding under the same procuring entity, **always store a namespaced identity**:
 
@@ -100,28 +111,28 @@ Every contract written by this loader must have a non-null `ocds_contract_id`:
 - Prefer the release contract’s `id`, then namespace it as `{ocid}:{id}` (no double-prefix if already namespaced).
 - If missing, set the publisher id to `contract:{index}` and store `ocds_contract_id` as `{ocid}:contract:{index}`.
 
-Never insert a contract when `ocds_contract_id` is null. Live loaders (#198, #199) **must use the same namespaced form** so archive and live converge: when the portal prints a contract id, emit `{ocid}:{that_id}`; otherwise `{ocid}:contract:0` for a single-contract HTML row. Prefer the archive file’s real publisher id (namespaced) over inventing a fallback when both sources cover the same `ocid`.
+Never insert a contract when `ocds_contract_id` is null. Live loaders (#198, #199) **must use the same namespaced form** and `identity="ocp"` so archive and live converge: when the portal prints a contract id, emit `{ocid}:{that_id}`; otherwise `{ocid}:contract:0` for a single-contract HTML row. Prefer the archive file’s real publisher id (namespaced) over inventing a fallback when both sources cover the same `ocid`.
 
-#### Null-never-erases and meta merge
+#### Null-never-erases and meta merge (`identity="ocp"` only)
 
-Change the shared tender/award/contract upsert used by `load_normalized_release` (callers today: Ekiti HTML portal load and any other path through that function):
+Under `identity="ocp"`:
 
 - A null incoming amount, title, award date, signed date, or `state_code` does not erase a stored non-null value.
 - `meta` is shallow-merged. Keys on the incoming object replace stored keys. Keys the incoming object does not mention stay.
-- A genuine clear of a stored value is out of scope. No silent “set to null” path in this PR.
+- A genuine clear of a stored value is out of scope. No silent “set to null” path for OCP.
 
-Existing portal-load tests must still pass with these merge semantics.
+`identity="legacy"` keeps prior overwrite-with-null and wholesale `meta` replace. Existing Ekiti / portal-load unit tests must still pass under that default.
 
-#### Precedence when both values are non-null
+#### Precedence when both values are non-null (`identity="ocp"`)
 
 Live portal beats archive for the same `ocid` / award key / contract key.
 
 - This loader sets `tenders.meta.source_kind = "ocp_registry"` (and the same key on award/contract meta).
-- Live loaders set `source_kind = "live_portal"`.
+- Live loaders set `source_kind = "live_portal"` and call with `identity="ocp"`.
 - When the stored row already has `source_kind = live_portal`, this archive loader does not replace a non-null amount, title, award date, or signed date with a different non-null value.
 - Same-kind reloads (archive after archive, live after live) update those fields.
-- Null-never-erases still applies in every case.
-- A live loader that never sets `ocp_retrieved_on` must leave that key in place.
+- Null-never-erases still applies for OCP in every case.
+- A live loader that never sets `ocp_retrieved_on` must leave that key in place (shallow merge).
 
 ### 3.2 Edo compiled wrappers
 
@@ -260,7 +271,7 @@ state publication_id retrieved_on releases awards_written awards_positive_amount
 - [ ] Updating that tender with a payload whose amount is null and whose `meta` omits `ocp_retrieved_on` leaves both the stored amount and `ocp_retrieved_on` in place.
 - [ ] A stored tender with `source_kind=live_portal` and a non-null amount is not overwritten by a later archive load with a different non-null amount for the same `ocid`.
 - [ ] A fresh seed leaves July sources on `human:decision-brief-2026-07-07` and sets seven rows to `human:issue-203` and two rows (Oyo, Plateau) to `approved_by=None` (proposed). The nine rows have `expected_cadence` null. Seeding them and calling `enqueue_due_fetch_jobs` queues no `fetch_source` job for those source ids.
-- [ ] Existing Ekiti / portal-load unit tests still pass after the shared null-never-erases and meta shallow-merge change.
+- [ ] Existing Ekiti / portal-load unit tests still pass under default `identity="legacy"` (overwrite-with-null and wholesale meta replace unchanged).
 - [ ] Unit tests use fixtures only.
 
 ## 6. Risks & mitigations
@@ -269,12 +280,13 @@ state publication_id retrieved_on releases awards_written awards_positive_amount
 | --- | --- |
 | A naive reader stores the Edo wrapper and drops the supplier | Fixture that fails unless the inner award is used |
 | Zero-naira rows look like real prices in a total | Summary splits positive amounts; store 0 as published, do not drop the supplier |
-| Osun or Ebonyi live load duplicates the archive | Same `ocid`; award/contract lookup by OCDS id without supplier; live loaders share party get-or-create |
-| Archive overwrites a fresher live amount | `source_kind`; live beats archive when both non-null |
+| Osun or Ebonyi live load duplicates the archive | Same `ocid`; `identity="ocp"`; award/contract lookup by OCDS id without supplier; shared party get-or-create |
+| Archive overwrites a fresher live amount | `identity="ocp"` + `source_kind`; live beats archive when both non-null |
+| Accidental change to NOCOPO/Ekiti upsert semantics | Default `identity="legacy"`; regression tests pin overwrite-with-null and multi-supplier rows |
 | Oyo or Plateau get copied with no licence | Licence-field parse, fail closed; substring outside that field refuses |
 | `api` seeds enqueue failing fetch jobs | `expected_cadence` unset; criterion that enqueue creates none |
 | Stale years get read as current in a public view | §7.2: amount and retrieval date shown together; follow-up issue for API/UI |
-| Shared upsert change breaks Ekiti | Named callers + existing tests must pass |
+| Shared upsert change breaks Ekiti | Default stays `"legacy"`; existing tests must pass |
 
 ## 7. Decisions (founder 2026-10-10)
 

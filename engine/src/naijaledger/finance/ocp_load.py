@@ -384,7 +384,13 @@ def load_publication_body(
                 summary.releases += 1
                 summary.awards_written += len(result.award_ids)
                 summary.awards_skipped += result.awards_skipped
-                # After one-row-per-award-id normalize, award_ids aligns with normalized.awards.
+                if normalized.skipped:
+                    logger.warning(
+                        "OCP normalizer dropped rows publication_id=%s ocid=%s skipped=%s",
+                        publication.publication_id,
+                        normalized.ocid,
+                        normalized.skipped,
+                    )
                 for award in normalized.awards[: len(result.award_ids)]:
                     if award.value_amount is not None and award.value_amount > 0:
                         summary.awards_positive_amount += 1
@@ -396,6 +402,9 @@ def load_publication_body(
             summary.releases,
         )
         summary.releases = 0
+        summary.awards_written = 0
+        summary.awards_positive_amount = 0
+        summary.awards_skipped = 0
         create_extraction(
             connection,
             ExtractionCreate(

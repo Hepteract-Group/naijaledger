@@ -29,6 +29,7 @@ from naijaledger.finance.ocp_registry import (
     OcpPublication,
     flatten_compiled_release,
     licence_matches_record,
+    normalize_ocp_release,
     parse_licence_field,
     parse_licence_record,
     prepare_release_dict,
@@ -754,7 +755,7 @@ def test_corrupt_line_no_partial_commits(db_engine, monkeypatch, tmp_path) -> No
         before_awards = before_conn.execute(text("SELECT COUNT(*) FROM awards")).scalar()
         before_contracts = before_conn.execute(text("SELECT COUNT(*) FROM contracts")).scalar()
 
-    run_load_job(
+    summaries = run_load_job(
         db_engine,
         minio_client=MagicMock(),
         bucket="test",
@@ -782,6 +783,10 @@ def test_corrupt_line_no_partial_commits(db_engine, monkeypatch, tmp_path) -> No
     assert after_awards == before_awards
     assert after_contracts == before_contracts
     assert failed_count == 1
+    assert summaries[0].releases == 0
+    assert summaries[0].awards_written == 0
+    assert summaries[0].awards_positive_amount == 0
+    assert summaries[0].skip_reason == "fetch_failed"
 
 
 def test_nocopo_reload_no_duplicates(db_connection, monkeypatch) -> None:
@@ -1183,6 +1188,59 @@ def test_short_contract_ids_do_not_collide(db_connection, monkeypatch) -> None:
         "ocds-test-collide-b:1",
     }
     assert {r.raw for r in rows} == {"1"}
+
+
+def test_ocp_multi_supplier_award_one_row(db_connection) -> None:
+    raw = {
+        "ocid": "ocds-test-jv-00001",
+        "buyer": {"name": "JV Agency"},
+        "tender": {
+            "id": "t-jv",
+            "title": "Joint venture works",
+            "procuringEntity": {"name": "JV Agency"},
+            "value": {"amount": 500, "currency": "NGN"},
+            "procurementMethod": "open",
+        },
+        "awards": [
+            {
+                "id": "jv-award",
+                "suppliers": [
+                    {"name": "Alpha Construction Ltd"},
+                    {"name": "Beta Partners Ltd"},
+                ],
+                "value": {"amount": 500, "currency": "NGN"},
+            }
+        ],
+        "contracts": [],
+    }
+    prepared = prepare_release_dict(raw)
+    normalized = normalize_ocp_release(prepared)
+    assert len(normalized.awards) == 1
+    assert (normalized.awards[0].meta or {}).get("additional_supplier_names") == [
+        "Beta Partners Ltd"
+    ]
+    from naijaledger.finance.ocp_registry import stamp_normalized_release
+
+    stamp_normalized_release(
+        normalized,
+        state_code="AB",
+        publication_id="107",
+        retrieved_on=date(2023, 4, 26),
+    )
+    result = load_normalized_release(db_connection, normalized, identity="ocp")
+    assert len(result.award_ids) == 1
+    assert db_connection.execute(text("SELECT count(*) FROM awards")).scalar_one() == 1
+    supplier = db_connection.execute(
+        text(
+            """
+            SELECT p.canonical_name, a.meta
+            FROM awards a
+            JOIN parties p ON p.id = a.supplier_id
+            """
+        )
+    ).one()
+    assert supplier.canonical_name == "Alpha Construction Ltd"
+    assert supplier.meta["additional_supplier_names"] == ["Beta Partners Ltd"]
 
 
 def test_provenance_region_has_ocid(db_connection, monkeypatch) -> None:
