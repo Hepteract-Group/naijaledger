@@ -789,15 +789,32 @@ def test_nocopo_reload_no_duplicates(db_connection, monkeypatch) -> None:
         "id": "1",
         "tag": ["tender"],
         "date": "2023-01-01T00:00:00Z",
-        "buyer": {"id": "buyer-1", "name": "Agency"},
+        "buyer": {"id": "buyer-1", "name": "Test Agency"},
+        "parties": [
+            {
+                "id": "buyer-1",
+                "name": "Test Agency",
+                "roles": ["buyer"],
+                "identifier": {"scheme": "NG-MDAs", "id": "TA"},
+            },
+            {
+                "id": "supp-1",
+                "name": "Supplier 1",
+                "roles": ["supplier"],
+            },
+        ],
         "tender": {
             "id": "t1",
             "title": "Test Tender",
             "status": "active",
+            "procurementMethod": "open",
+            "value": {"amount": 5000, "currency": "NGN"},
+            "procuringEntity": {"id": "buyer-1", "name": "Test Agency"},
         },
         "awards": [
             {
                 "id": "award-1",
+                "date": "2023-02-01T00:00:00Z",
                 "suppliers": [{"id": "supp-1", "name": "Supplier 1"}],
                 "value": {"amount": 1000, "currency": "NGN"},
             }
@@ -806,6 +823,7 @@ def test_nocopo_reload_no_duplicates(db_connection, monkeypatch) -> None:
             {
                 "id": "contract-1",
                 "awardID": "award-1",
+                "status": "active",
                 "suppliers": [{"id": "supp-1", "name": "Supplier 1"}],
                 "value": {"amount": 1000, "currency": "NGN"},
             }
