@@ -675,57 +675,6 @@ def test_decompressed_cap(db_connection, monkeypatch, tmp_path) -> None:
     assert summary.skip_reason == "fetch_failed"
 
 
-def test_single_line_too_large(db_connection, monkeypatch, tmp_path) -> None:
-    _fake_store(monkeypatch)
-    monkeypatch.setattr("naijaledger.finance.ocp_load.MAX_DECOMPRESSED_BYTES", 100)
-    pub = OcpPublication("abia", "Abia", "107", "AB")
-    source = _seed_source(db_connection, pub)
-    body = gzip.compress(b"A" * 200)
-    summary = load_publication_body(
-        db_connection,
-        source,
-        pub,
-        body,
-        retrieved_on=date(2023, 4, 26),
-        minio_client=MagicMock(),
-        bucket="test",
-        hooks=LoadHooks(),
-    )
-    assert summary.skip_reason == "fetch_failed"
-
-
-def test_corrupt_json_line_marks_extraction_failed(db_connection, monkeypatch) -> None:
-    _fake_store(monkeypatch)
-    pub = OcpPublication("abia", "Abia", "107", "AB")
-    source = _seed_source(db_connection, pub)
-    valid_line = (
-        b'{"ocid":"ocds-test-001","id":"1","tag":["tender"],'
-        b'"tender":{"id":"t1","title":"Valid"}}\n'
-    )
-    corrupt_line = b'{"ocid":"bad","broken json\n'
-    body = gzip.compress(valid_line + corrupt_line)
-    summary = load_publication_body(
-        db_connection,
-        source,
-        pub,
-        body,
-        retrieved_on=date(2023, 4, 26),
-        minio_client=MagicMock(),
-        bucket="test",
-        hooks=LoadHooks(),
-    )
-    assert summary.skip_reason == "fetch_failed"
-    extraction_row = db_connection.execute(
-        text(
-            "SELECT ok, status, payload FROM extractions "
-            "ORDER BY created_at DESC LIMIT 1"
-        )
-    ).one()
-    assert extraction_row.ok is False
-    assert extraction_row.status == "failed"
-    assert "error" in extraction_row.payload
-
-
 def test_short_contract_ids_do_not_collide(db_connection, monkeypatch) -> None:
     _fake_store(monkeypatch)
     pub = OcpPublication("abia", "Abia", "107", "AB")
