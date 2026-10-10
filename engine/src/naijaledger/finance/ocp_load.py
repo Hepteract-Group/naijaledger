@@ -21,7 +21,6 @@ from sqlalchemy.engine import Connection, Engine
 from naijaledger.extractions.models import ExtractionCreate
 from naijaledger.extractions.service import create_extraction
 from naijaledger.fetch.capture import now_utc, persist_fetch_capture
-from naijaledger.finance.ocds import normalize_ocds_release
 from naijaledger.finance.ocds_load import load_normalized_release
 from naijaledger.finance.ocds_models import ProvenanceContext
 from naijaledger.finance.ocp_registry import (
@@ -36,6 +35,7 @@ from naijaledger.finance.ocp_registry import (
     licence_field_is_pddl,
     licence_matches_record,
     load_licence_record,
+    normalize_ocp_release,
     parse_last_retrieved,
     parse_licence_field,
     prepare_release_dict,
@@ -352,7 +352,7 @@ def load_publication_body(
                 try:
                     with connection.begin_nested():
                         prepared = prepare_release_dict(raw)
-                        normalized = normalize_ocds_release(prepared)
+                        normalized = normalize_ocp_release(prepared)
                         stamp_normalized_release(
                             normalized,
                             state_code=publication.state_code,
@@ -388,12 +388,14 @@ def load_publication_body(
                 for award in normalized.awards[: len(result.award_ids)]:
                     if award.value_amount is not None and award.value_amount > 0:
                         summary.awards_positive_amount += 1
-    except ValueError as exc:
+    except (ValueError, gzip.BadGzipFile, OSError, EOFError) as exc:
         logger.warning(
-            "OCP body parse failed publication_id=%s err=%s",
+            "OCP body parse failed publication_id=%s err=%s releases_before_rollback=%s",
             publication.publication_id,
             exc,
+            summary.releases,
         )
+        summary.releases = 0
         create_extraction(
             connection,
             ExtractionCreate(

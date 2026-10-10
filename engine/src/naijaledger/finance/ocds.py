@@ -29,21 +29,6 @@ class OcdsNormalizeError(ValueError):
     pass
 
 
-def namespace_ocds_contract_id(ocid: str, raw_id: str) -> str:
-    """Upsert identity for contracts: ``{ocid}:{publisher_id}``.
-
-    Publisher contract ids are only unique inside a release. All loaders must use
-    this form so archive and live paths converge (spec 0041 §3.1).
-    """
-    raw = raw_id.strip()
-    if not ocid:
-        return raw
-    prefix = f"{ocid}:"
-    if raw.startswith(prefix):
-        return raw
-    return f"{prefix}{raw}"
-
-
 def unwrap_extraction_payload(payload: dict[str, Any]) -> Any:
     if "value" in payload and len(payload) <= 2:
         return payload["value"]
@@ -290,45 +275,33 @@ def _supplier_refs_from_award(
 def _normalize_awards(
     release: dict[str, Any],
     parties: dict[str, NormalizedParty],
-    ocid: str,
     skipped: list[str],
 ) -> list[NormalizedAward]:
-    """One NormalizedAward per OCDS award id (first supplier is primary).
-
-    Upsert key is ``(tender_id, ocds_award_id)`` (spec 0041). Emitting one row per
-    supplier would overwrite under that key and inflate award_ids.
-    """
     awards_out: list[NormalizedAward] = []
     raw_awards = release.get("awards") or []
     if not isinstance(raw_awards, list):
         return awards_out
-    for index, award in enumerate(raw_awards):
+    for award in raw_awards:
         if not isinstance(award, dict):
             continue
         ocds_award_id = award.get("id")
-        if ocds_award_id is None or not str(ocds_award_id).strip():
-            award_id = f"{ocid}:award:{index}"
-        else:
-            award_id = str(ocds_award_id).strip()
+        award_id = str(ocds_award_id) if ocds_award_id is not None else None
         supplier_refs = _supplier_refs_from_award(award, parties)
         if not supplier_refs:
-            skipped.append(f"award {award_id} has no suppliers")
+            skipped.append(f"award {award_id or '?'} has no suppliers")
             continue
         value_amount, currency = _money_fields(award.get("value"))
         awarded_at = _parse_datetime(award.get("date"))
-        meta: dict[str, Any] | None = None
-        if len(supplier_refs) > 1:
-            meta = {"additional_supplier_refs": supplier_refs[1:]}
-        awards_out.append(
-            NormalizedAward(
-                ocds_award_id=award_id,
-                supplier_ref=supplier_refs[0],
-                value_amount=value_amount,
-                currency=currency,
-                awarded_at=awarded_at,
-                meta=meta,
+        for supplier_ref in supplier_refs:
+            awards_out.append(
+                NormalizedAward(
+                    ocds_award_id=award_id,
+                    supplier_ref=supplier_ref,
+                    value_amount=value_amount,
+                    currency=currency,
+                    awarded_at=awarded_at,
+                )
             )
-        )
     return awards_out
 
 
@@ -336,22 +309,17 @@ def _normalize_contracts(
     release: dict[str, Any],
     parties: dict[str, NormalizedParty],
     agency_ref: str | None,
-    ocid: str,
     skipped: list[str],
 ) -> list[NormalizedContract]:
     contracts_out: list[NormalizedContract] = []
     raw_contracts = release.get("contracts") or []
     if not isinstance(raw_contracts, list):
         return contracts_out
-    for index, contract in enumerate(raw_contracts):
+    for contract in raw_contracts:
         if not isinstance(contract, dict):
             continue
         ocds_id = contract.get("id")
-        if ocds_id is None or not str(ocds_id).strip():
-            raw_id = f"contract:{index}"
-        else:
-            raw_id = str(ocds_id).strip()
-        contract_id = namespace_ocds_contract_id(ocid, raw_id)
+        contract_id = str(ocds_id) if ocds_id is not None else None
         award_ref = contract.get("awardID")
         award_ref_s = str(award_ref) if award_ref is not None else None
 
@@ -362,13 +330,13 @@ def _normalize_contracts(
                 parties,
                 suppliers[0],
                 party_type="company",
-                fallback_ref=f"contract-supplier:{raw_id}",
+                fallback_ref=f"contract-supplier:{contract_id or 'x'}",
             )
         if supplier_ref is None:
-            skipped.append(f"contract {raw_id} has no supplier")
+            skipped.append(f"contract {contract_id or '?'} has no supplier")
             continue
         if agency_ref is None:
-            skipped.append(f"contract {raw_id} has no agency")
+            skipped.append(f"contract {contract_id or '?'} has no agency")
             continue
 
         value_amount, currency = _money_fields(contract.get("value"))
@@ -390,7 +358,6 @@ def _normalize_contracts(
                 signed_at=signed_at,
                 period=period,
                 status=status_s,
-                meta={"ocds_contract_id_raw": raw_id},
             )
         )
     return contracts_out
@@ -405,8 +372,8 @@ def normalize_ocds_release(release: dict[str, Any]) -> NormalizedRelease:
     parties = _normalize_parties(release)
     tender = _normalize_tender(release, parties, ocid, skipped)
     agency_ref = tender.agency_ref if tender is not None else _find_agency_ref(parties, release)
-    awards = _normalize_awards(release, parties, ocid, skipped)
-    contracts = _normalize_contracts(release, parties, agency_ref, ocid, skipped)
+    awards = _normalize_awards(release, parties, skipped)
+    contracts = _normalize_contracts(release, parties, agency_ref, skipped)
     return NormalizedRelease(
         ocid=ocid,
         parties=parties,

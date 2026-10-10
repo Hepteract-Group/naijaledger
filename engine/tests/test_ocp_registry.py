@@ -19,7 +19,12 @@ from naijaledger.finance.ocds_models import (
     NormalizedRelease,
     NormalizedTender,
 )
-from naijaledger.finance.ocp_load import LoadHooks, load_all_publications, load_publication_body
+from naijaledger.finance.ocp_load import (
+    LoadHooks,
+    load_all_publications,
+    load_publication_body,
+    run_load_job,
+)
 from naijaledger.finance.ocp_registry import (
     OcpPublication,
     flatten_compiled_release,
@@ -723,11 +728,14 @@ def test_corrupt_json_marks_extraction_failed(db_connection, monkeypatch) -> Non
     assert "error" in extraction_row.payload
 
 
-def test_corrupt_line_no_partial_commits(db_connection, monkeypatch, tmp_path) -> None:
+def test_corrupt_line_no_partial_commits(db_engine, monkeypatch, tmp_path) -> None:
     """Blocker 2 extended: corrupt line rolls back all releases, no partial commit."""
     _fake_store(monkeypatch)
     pub = OcpPublication("abia", "Abia", "107", "AB")
-    _seed_source(db_connection, pub)
+    
+    with db_engine.begin() as setup_conn:
+        _seed_source(setup_conn, pub)
+    
     _write_licence(tmp_path, pub.slug, pub.publication_id)
     pddl = (_FIXTURES / "ocp_page_pddl.html").read_text(encoding="utf-8")
     valid_release = (_FIXTURES / "ocp_flat.jsonl.gz").read_bytes()
@@ -740,27 +748,99 @@ def test_corrupt_line_no_partial_commits(db_connection, monkeypatch, tmp_path) -
             return httpx.Response(200, content=body, request=httpx.Request("GET", url))
         return httpx.Response(200, text=pddl, request=httpx.Request("GET", url))
 
-    before_tenders = db_connection.execute(text("SELECT COUNT(*) FROM tenders")).scalar()
-    before_awards = db_connection.execute(text("SELECT COUNT(*) FROM awards")).scalar()
-    before_contracts = db_connection.execute(text("SELECT COUNT(*) FROM contracts")).scalar()
+    with db_engine.begin() as before_conn:
+        before_tenders = before_conn.execute(text("SELECT COUNT(*) FROM tenders")).scalar()
+        before_awards = before_conn.execute(text("SELECT COUNT(*) FROM awards")).scalar()
+        before_contracts = before_conn.execute(text("SELECT COUNT(*) FROM contracts")).scalar()
 
-    summaries = load_all_publications(
-        db_connection,
+    run_load_job(
+        db_engine,
         minio_client=MagicMock(),
         bucket="test",
         licences_dir=tmp_path,
         hooks=LoadHooks(http_get=http_get, sleep=lambda _: None),
         publications=(pub,),
     )
-    assert summaries[0].skip_reason == "fetch_failed"
 
-    after_tenders = db_connection.execute(text("SELECT COUNT(*) FROM tenders")).scalar()
-    after_awards = db_connection.execute(text("SELECT COUNT(*) FROM awards")).scalar()
-    after_contracts = db_connection.execute(text("SELECT COUNT(*) FROM contracts")).scalar()
+    with db_engine.begin() as after_conn:
+        after_tenders = after_conn.execute(text("SELECT COUNT(*) FROM tenders")).scalar()
+        after_awards = after_conn.execute(text("SELECT COUNT(*) FROM awards")).scalar()
+        after_contracts = after_conn.execute(text("SELECT COUNT(*) FROM contracts")).scalar()
+        failed_count = after_conn.execute(
+            text("SELECT COUNT(*) FROM extractions WHERE status = 'failed'")
+        ).scalar()
 
     assert after_tenders == before_tenders
     assert after_awards == before_awards
     assert after_contracts == before_contracts
+    assert failed_count == 1
+
+
+def test_nocopo_reload_no_duplicates(db_connection, monkeypatch) -> None:
+    """Regression: NOCOPO-style re-load matches old identity keys, no duplicates."""
+    from naijaledger.finance.ocds import normalize_ocds_release
+    from naijaledger.finance.ocds_load import load_normalized_release
+    
+    _fake_store(monkeypatch)
+    
+    # Simulate NOCOPO-style load with old identity semantics
+    release_dict = {
+        "ocid": "ocds-test-nocopo-001",
+        "id": "1",
+        "tag": ["tender"],
+        "date": "2023-01-01T00:00:00Z",
+        "buyer": {"id": "buyer-1", "name": "Agency"},
+        "tender": {
+            "id": "t1",
+            "title": "Test Tender",
+            "status": "active",
+        },
+        "awards": [
+            {
+                "id": "award-1",
+                "suppliers": [{"id": "supp-1", "name": "Supplier 1"}],
+                "value": {"amount": 1000, "currency": "NGN"},
+            }
+        ],
+        "contracts": [
+            {
+                "id": "contract-1",
+                "awardID": "award-1",
+                "suppliers": [{"id": "supp-1", "name": "Supplier 1"}],
+                "value": {"amount": 1000, "currency": "NGN"},
+            }
+        ],
+    }
+    
+    # First load
+    normalized1 = normalize_ocds_release(release_dict)
+    result1 = load_normalized_release(db_connection, normalized1, provenance=None)
+    
+    # Re-load same data
+    normalized2 = normalize_ocds_release(release_dict)
+    result2 = load_normalized_release(db_connection, normalized2, provenance=None)
+    
+    # Should update existing rows, not create duplicates
+    assert result1.tender_id == result2.tender_id
+    assert result1.award_ids == result2.award_ids
+    
+    # Verify no duplicates in database
+    tender_count = db_connection.execute(
+        text("SELECT COUNT(*) FROM tenders WHERE ocid = 'ocds-test-nocopo-001'")
+    ).scalar()
+    assert tender_count == 1
+    
+    award_count = db_connection.execute(
+        text("SELECT COUNT(*) FROM awards WHERE tender_id = :tid"),
+        {"tid": result1.tender_id},
+    ).scalar()
+    assert award_count == 1
+    
+    contract_count = db_connection.execute(
+        text("SELECT COUNT(*) FROM contracts WHERE agency_id = :aid"),
+        {"aid": normalized1.tender.agency_ref if normalized1.tender else None},
+    ).scalar()
+    assert contract_count == 1
 
 
 def test_short_contract_ids_do_not_collide(db_connection, monkeypatch) -> None:
