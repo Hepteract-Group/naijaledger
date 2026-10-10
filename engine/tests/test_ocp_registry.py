@@ -734,7 +734,8 @@ def test_corrupt_line_no_partial_commits(db_engine, monkeypatch, tmp_path) -> No
     pub = OcpPublication("abia", "Abia", "107", "AB")
 
     with db_engine.begin() as setup_conn:
-        _seed_source(setup_conn, pub)
+        source = _seed_source(setup_conn, pub)
+        document_id = source.document_id
 
     _write_licence(tmp_path, pub.slug, pub.publication_id)
     pddl = (_FIXTURES / "ocp_page_pddl.html").read_text(encoding="utf-8")
@@ -767,7 +768,10 @@ def test_corrupt_line_no_partial_commits(db_engine, monkeypatch, tmp_path) -> No
         after_awards = after_conn.execute(text("SELECT COUNT(*) FROM awards")).scalar()
         after_contracts = after_conn.execute(text("SELECT COUNT(*) FROM contracts")).scalar()
         failed_count = after_conn.execute(
-            text("SELECT COUNT(*) FROM extractions WHERE status = 'failed'")
+            text(
+                "SELECT COUNT(*) FROM extractions WHERE status = 'failed' AND document_id = :doc_id"
+            ),
+            {"doc_id": document_id},
         ).scalar()
 
     assert after_tenders == before_tenders
@@ -777,7 +781,7 @@ def test_corrupt_line_no_partial_commits(db_engine, monkeypatch, tmp_path) -> No
 
 
 def test_nocopo_reload_no_duplicates(db_connection, monkeypatch) -> None:
-    """Regression: NOCOPO-style re-load matches old identity keys, no duplicates."""
+    """Regression: NOCOPO-style re-load with two suppliers preserves both."""
     from naijaledger.finance.ocds_load import load_normalized_release
     from naijaledger.finance.ocds_models import (
         NormalizedAward,
@@ -797,10 +801,17 @@ def test_nocopo_reload_no_duplicates(db_connection, monkeypatch) -> None:
         identifier_scheme="NG-MDAs",
         identifier_id="TA",
     )
-    supplier = NormalizedParty(
+    supplier1 = NormalizedParty(
         party_type="company",
         party_ref="supplier:1",
         canonical_name="Supplier 1",
+        identifier_scheme=None,
+        identifier_id=None,
+    )
+    supplier2 = NormalizedParty(
+        party_type="company",
+        party_ref="supplier:2",
+        canonical_name="Supplier 2",
         identifier_scheme=None,
         identifier_id=None,
     )
@@ -815,14 +826,20 @@ def test_nocopo_reload_no_duplicates(db_connection, monkeypatch) -> None:
         method="open",
     )
 
-    award = NormalizedAward(
+    award1 = NormalizedAward(
         ocds_award_id="award-1",
         supplier_ref="supplier:1",
         value_amount=1000,
         currency="NGN",
     )
+    award2 = NormalizedAward(
+        ocds_award_id="award-1",
+        supplier_ref="supplier:2",
+        value_amount=1000,
+        currency="NGN",
+    )
 
-    contract = NormalizedContract(
+    contract1 = NormalizedContract(
         ocds_contract_id="contract-1",
         award_ref="award-1",
         supplier_ref="supplier:1",
@@ -830,25 +847,34 @@ def test_nocopo_reload_no_duplicates(db_connection, monkeypatch) -> None:
         value_amount=1000,
         currency="NGN",
     )
+    contract2 = NormalizedContract(
+        ocds_contract_id="contract-1",
+        award_ref="award-1",
+        supplier_ref="supplier:2",
+        agency_ref="NG-MDAs:TA",
+        value_amount=1000,
+        currency="NGN",
+    )
 
     release = NormalizedRelease(
         ocid="ocds-test-nocopo-001",
-        parties={"NG-MDAs:TA": buyer, "supplier:1": supplier},
+        parties={"NG-MDAs:TA": buyer, "supplier:1": supplier1, "supplier:2": supplier2},
         tender=tender,
-        awards=[award],
-        contracts=[contract],
+        awards=[award1, award2],
+        contracts=[contract1, contract2],
         skipped=[],
     )
 
     # First load
-    result1 = load_normalized_release(db_connection, release, provenance=None)
+    result1 = load_normalized_release(db_connection, release, provenance=None, identity="legacy")
 
     # Re-load same data
-    result2 = load_normalized_release(db_connection, release, provenance=None)
+    result2 = load_normalized_release(db_connection, release, provenance=None, identity="legacy")
 
     # Should update existing rows, not create duplicates
     assert result1.tender_id == result2.tender_id
-    assert result1.award_ids == result2.award_ids
+    assert len(result1.award_ids) == 2
+    assert len(result2.award_ids) == 2
 
     # Verify no duplicates in database
     tender_count = db_connection.execute(
@@ -856,19 +882,27 @@ def test_nocopo_reload_no_duplicates(db_connection, monkeypatch) -> None:
     ).scalar()
     assert tender_count == 1
 
+    # Should have two award rows (one per supplier)
     award_count = db_connection.execute(
         text("SELECT COUNT(*) FROM awards WHERE tender_id = :tid"),
         {"tid": result1.tender_id},
     ).scalar()
-    assert award_count == 1
+    assert award_count == 2
 
-    # Get the actual agency UUID from the result
+    # Should have two contract rows (one per supplier)
     agency_uuid = result1.party_ids.get("NG-MDAs:TA")
     contract_count = db_connection.execute(
         text("SELECT COUNT(*) FROM contracts WHERE agency_id = :aid"),
         {"aid": agency_uuid},
     ).scalar()
-    assert contract_count == 1
+    assert contract_count == 2
+
+    # Verify both suppliers are preserved
+    supplier_ids = db_connection.execute(
+        text("SELECT DISTINCT supplier_id FROM awards WHERE tender_id = :tid"),
+        {"tid": result1.tender_id},
+    ).fetchall()
+    assert len(supplier_ids) == 2
 
 
 def test_short_contract_ids_do_not_collide(db_connection, monkeypatch) -> None:

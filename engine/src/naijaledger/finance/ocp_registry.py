@@ -295,8 +295,12 @@ def normalize_ocp_release(release_dict: dict[str, Any]) -> Any:
 
     # Namespace contract IDs as {ocid}:{raw_id}
     namespaced_contracts = []
-    for contract in normalized.contracts:
-        raw_id = contract.ocds_contract_id or "unknown"
+    for index, contract in enumerate(normalized.contracts):
+        if contract.ocds_contract_id:
+            raw_id = contract.ocds_contract_id
+        else:
+            raw_id = f"contract:{index}"
+        
         if ocid and not raw_id.startswith(f"{ocid}:"):
             namespaced_id = f"{ocid}:{raw_id}"
         else:

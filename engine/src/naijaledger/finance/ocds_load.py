@@ -281,6 +281,7 @@ def _upsert_award(
     tender_id: UUID,
     supplier_id: UUID,
     ocds_award_id: str | None,
+    identity: str = "legacy",
     value_amount: int | None,
     currency: str,
     awarded_at: Any,
@@ -289,27 +290,62 @@ def _upsert_award(
     if ocds_award_id is None:
         return None
 
-    existing = connection.execute(
-        text(
-            """
-            SELECT id, supplier_id, value_amount, currency, awarded_at, meta
-            FROM awards
+    if identity == "legacy":
+        where_clause = """
             WHERE tender_id = :tender_id
               AND meta->>'ocds_award_id' = :ocds_award_id
-            """
-        ),
-        {
+              AND supplier_id = :supplier_id
+        """
+        where_params = {
             "tender_id": tender_id,
             "ocds_award_id": ocds_award_id,
-        },
+            "supplier_id": supplier_id,
+        }
+    else:
+        where_clause = """
+            WHERE tender_id = :tender_id
+              AND meta->>'ocds_award_id' = :ocds_award_id
+        """
+        where_params = {
+            "tender_id": tender_id,
+            "ocds_award_id": ocds_award_id,
+        }
+
+    existing = connection.execute(
+        text(
+            f"""
+            SELECT id, supplier_id, value_amount, currency, awarded_at, meta
+            FROM awards
+            {where_clause}
+            """
+        ),
+        where_params,
     ).first()
     if existing is not None:
         existing_meta = _as_meta_dict(existing.meta)
         protect = _protect_live_from_archive(existing_meta, meta)
         merged_meta = _shallow_merge_meta(existing_meta, meta, protect=protect) or {}
-        connection.execute(
-            text(
-                """
+        
+        if identity == "legacy":
+            update_sql = """
+                UPDATE awards
+                SET value_amount = :value_amount,
+                    currency = :currency,
+                    awarded_at = :awarded_at,
+                    meta = CAST(:meta AS jsonb),
+                    updated_at = now()
+                WHERE id = :id
+            """
+            update_params = {
+                "id": existing.id,
+                "value_amount": _pick_value(existing.value_amount, value_amount, protect=protect),
+                "currency": _pick_value(existing.currency, currency, protect=protect)
+                or existing.currency,
+                "awarded_at": _pick_value(existing.awarded_at, awarded_at, protect=protect),
+                "meta": json.dumps(merged_meta),
+            }
+        else:
+            update_sql = """
                 UPDATE awards
                 SET supplier_id = :supplier_id,
                     value_amount = :value_amount,
@@ -318,9 +354,8 @@ def _upsert_award(
                     meta = CAST(:meta AS jsonb),
                     updated_at = now()
                 WHERE id = :id
-                """
-            ),
-            {
+            """
+            update_params = {
                 "id": existing.id,
                 "supplier_id": supplier_id,
                 "value_amount": _pick_value(existing.value_amount, value_amount, protect=protect),
@@ -328,8 +363,9 @@ def _upsert_award(
                 or existing.currency,
                 "awarded_at": _pick_value(existing.awarded_at, awarded_at, protect=protect),
                 "meta": json.dumps(merged_meta),
-            },
-        )
+            }
+        
+        connection.execute(text(update_sql), update_params)
         return existing.id, False
 
     row = connection.execute(
@@ -362,6 +398,7 @@ def _upsert_contract(
     award_id: UUID | None,
     supplier_id: UUID,
     agency_id: UUID,
+    identity: str = "legacy",
     ocds_contract_id: str | None,
     value_amount: int | None,
     currency: str,
@@ -373,20 +410,37 @@ def _upsert_contract(
     if ocds_contract_id is None:
         return None
 
+    if identity == "legacy":
+        where_clause = """
+            WHERE agency_id = :agency_id
+              AND meta->>'ocds_contract_id' = :ocds_contract_id
+              AND supplier_id = :supplier_id
+        """
+        where_params = {
+            "agency_id": agency_id,
+            "ocds_contract_id": ocds_contract_id,
+            "supplier_id": supplier_id,
+        }
+    else:
+        where_clause = """
+            WHERE agency_id = :agency_id
+              AND meta->>'ocds_contract_id' = :ocds_contract_id
+        """
+        where_params = {
+            "agency_id": agency_id,
+            "ocds_contract_id": ocds_contract_id,
+        }
+
     existing = connection.execute(
         text(
-            """
+            f"""
             SELECT id, award_id, supplier_id, value_amount, currency,
                    signed_at, period, status, meta
             FROM contracts
-            WHERE agency_id = :agency_id
-              AND meta->>'ocds_contract_id' = :ocds_contract_id
+            {where_clause}
             """
         ),
-        {
-            "agency_id": agency_id,
-            "ocds_contract_id": ocds_contract_id,
-        },
+        where_params,
     ).first()
     if existing is not None:
         existing_meta = _as_meta_dict(existing.meta)
@@ -394,9 +448,33 @@ def _upsert_contract(
         merged_meta = _shallow_merge_meta(existing_meta, meta, protect=protect) or {}
         existing_period = existing.period if isinstance(existing.period, dict) else None
         picked_period = _pick_value(existing_period, period, protect=protect)
-        connection.execute(
-            text(
-                """
+        
+        if identity == "legacy":
+            update_sql = """
+                UPDATE contracts
+                SET award_id = :award_id,
+                    value_amount = :value_amount,
+                    currency = :currency,
+                    signed_at = :signed_at,
+                    period = CAST(:period AS jsonb),
+                    status = :status,
+                    meta = CAST(:meta AS jsonb),
+                    updated_at = now()
+                WHERE id = :id
+            """
+            update_params = {
+                "id": existing.id,
+                "award_id": _pick_value(existing.award_id, award_id, protect=protect),
+                "value_amount": _pick_value(existing.value_amount, value_amount, protect=protect),
+                "currency": _pick_value(existing.currency, currency, protect=protect)
+                or existing.currency,
+                "signed_at": _pick_value(existing.signed_at, signed_at, protect=protect),
+                "period": json.dumps(picked_period) if picked_period is not None else None,
+                "status": _pick_value(existing.status, status, protect=protect),
+                "meta": json.dumps(merged_meta),
+            }
+        else:
+            update_sql = """
                 UPDATE contracts
                 SET award_id = :award_id,
                     supplier_id = :supplier_id,
@@ -408,9 +486,8 @@ def _upsert_contract(
                     meta = CAST(:meta AS jsonb),
                     updated_at = now()
                 WHERE id = :id
-                """
-            ),
-            {
+            """
+            update_params = {
                 "id": existing.id,
                 "award_id": _pick_value(existing.award_id, award_id, protect=protect),
                 "supplier_id": supplier_id,
@@ -421,8 +498,9 @@ def _upsert_contract(
                 "period": json.dumps(picked_period) if picked_period is not None else None,
                 "status": _pick_value(existing.status, status, protect=protect),
                 "meta": json.dumps(merged_meta),
-            },
-        )
+            }
+        
+        connection.execute(text(update_sql), update_params)
         return existing.id, False
 
     row = connection.execute(
@@ -458,6 +536,7 @@ def load_normalized_release(
     release: NormalizedRelease,
     *,
     provenance: ProvenanceContext | None = None,
+    identity: str = "legacy",
 ) -> LoadResult:
     party_ids: dict[str, UUID] = {}
     edge_ids: list[UUID] = []
@@ -521,6 +600,7 @@ def load_normalized_release(
                 currency=award.currency,
                 awarded_at=award.awarded_at,
                 meta=meta,
+                identity=identity,
             )
             if upserted is None:
                 result.awards_skipped += 1
@@ -555,6 +635,7 @@ def load_normalized_release(
             period=contract.period,
             status=contract.status,
             meta=meta,
+            identity=identity,
         )
         if upserted is None:
             result.contracts_skipped += 1

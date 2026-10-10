@@ -371,7 +371,7 @@ def load_publication_body(
                             },
                         )
                         result = load_normalized_release(
-                            connection, normalized, provenance=provenance
+                            connection, normalized, provenance=provenance, identity="ocp"
                         )
                 except Exception:
                     logger.exception(
