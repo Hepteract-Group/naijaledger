@@ -5,6 +5,7 @@ import {
   formatArchiveAsOf,
   listStateMetrics,
   maxMetric,
+  maxMetricRow,
   metricIntensity,
   rankForMetric,
   topStates,
@@ -45,6 +46,11 @@ describe("map fixtures", () => {
     }
     expect(metricIntensity(lagos, "contract_volume", max)).toBe(1);
     expect(columnFillColor(1, "contract_volume", true)[0]).toBe(184);
+  });
+
+  it("picks the row that sets the legend ceiling", () => {
+    const rows = listStateMetrics();
+    expect(maxMetricRow(rows, "contract_volume")?.id).toBe("LA");
   });
 
   it("formats archive as-of footnotes", () => {

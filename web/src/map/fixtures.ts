@@ -114,6 +114,14 @@ export function maxMetric(rows: readonly StateMetric[], metric: MapMetric): numb
   return rows.reduce((acc, row) => Math.max(acc, row[metric]), 0);
 }
 
+/** Row that sets the legend ceiling for `metric` (first max on ties). */
+export function maxMetricRow(rows: readonly StateMetric[], metric: MapMetric): StateMetric | null {
+  if (rows.length === 0) {
+    return null;
+  }
+  return rows.reduce((best, row) => (row[metric] > best[metric] ? row : best));
+}
+
 export function metricLabel(metric: MapMetric): string {
   return metric === "contract_volume" ? "Contract volume" : "Anomaly density";
 }
