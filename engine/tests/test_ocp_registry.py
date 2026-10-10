@@ -778,65 +778,78 @@ def test_corrupt_line_no_partial_commits(db_engine, monkeypatch, tmp_path) -> No
 
 def test_nocopo_reload_no_duplicates(db_connection, monkeypatch) -> None:
     """Regression: NOCOPO-style re-load matches old identity keys, no duplicates."""
-    from naijaledger.finance.ocds import normalize_ocds_release
+    from uuid import uuid4
+
     from naijaledger.finance.ocds_load import load_normalized_release
+    from naijaledger.finance.ocds_models import (
+        NormalizedAward,
+        NormalizedContract,
+        NormalizedParty,
+        NormalizedRelease,
+        NormalizedTender,
+    )
 
     _fake_store(monkeypatch)
 
-    # Simulate NOCOPO-style load with old identity semantics
-    release_dict = {
-        "ocid": "ocds-test-nocopo-001",
-        "id": "1",
-        "tag": ["tender"],
-        "date": "2023-01-01T00:00:00Z",
-        "buyer": {"id": "buyer-1", "name": "Test Agency"},
-        "parties": [
-            {
-                "id": "buyer-1",
-                "name": "Test Agency",
-                "roles": ["buyer"],
-                "identifier": {"scheme": "NG-MDAs", "id": "TA"},
-            },
-            {
-                "id": "supp-1",
-                "name": "Supplier 1",
-                "roles": ["supplier"],
-            },
-        ],
-        "tender": {
-            "id": "t1",
-            "title": "Test Tender",
-            "status": "active",
-            "procurementMethod": "open",
-            "value": {"amount": 5000, "currency": "NGN"},
-            "procuringEntity": {"id": "buyer-1", "name": "Test Agency"},
-        },
-        "awards": [
-            {
-                "id": "award-1",
-                "date": "2023-02-01T00:00:00Z",
-                "suppliers": [{"id": "supp-1", "name": "Supplier 1"}],
-                "value": {"amount": 1000, "currency": "NGN"},
-            }
-        ],
-        "contracts": [
-            {
-                "id": "contract-1",
-                "awardID": "award-1",
-                "status": "active",
-                "suppliers": [{"id": "supp-1", "name": "Supplier 1"}],
-                "value": {"amount": 1000, "currency": "NGN"},
-            }
-        ],
-    }
+    # Create parties first
+    buyer_uuid = str(uuid4())
+    supplier_uuid = str(uuid4())
+
+    buyer = NormalizedParty(
+        party_type="agency",
+        party_ref=buyer_uuid,
+        canonical_name="Test Agency",
+        identifier_scheme="NG-MDAs",
+        identifier_id="TA",
+    )
+    supplier = NormalizedParty(
+        party_type="company",
+        party_ref=supplier_uuid,
+        canonical_name="Supplier 1",
+        identifier_scheme=None,
+        identifier_id=None,
+    )
+
+    tender = NormalizedTender(
+        ocds_tender_id="t1",
+        ocid="ocds-test-nocopo-001",
+        title="Test Tender",
+        agency_ref=buyer_uuid,
+        value_amount=5000,
+        currency="NGN",
+        method="open",
+    )
+
+    award = NormalizedAward(
+        ocds_award_id="award-1",
+        supplier_ref=supplier_uuid,
+        value_amount=1000,
+        currency="NGN",
+    )
+
+    contract = NormalizedContract(
+        ocds_contract_id="contract-1",
+        award_ref="award-1",
+        supplier_ref=supplier_uuid,
+        agency_ref=buyer_uuid,
+        value_amount=1000,
+        currency="NGN",
+    )
+
+    release = NormalizedRelease(
+        ocid="ocds-test-nocopo-001",
+        parties={buyer_uuid: buyer, supplier_uuid: supplier},
+        tender=tender,
+        awards=[award],
+        contracts=[contract],
+        skipped=[],
+    )
 
     # First load
-    normalized1 = normalize_ocds_release(release_dict)
-    result1 = load_normalized_release(db_connection, normalized1, provenance=None)
+    result1 = load_normalized_release(db_connection, release, provenance=None)
 
     # Re-load same data
-    normalized2 = normalize_ocds_release(release_dict)
-    result2 = load_normalized_release(db_connection, normalized2, provenance=None)
+    result2 = load_normalized_release(db_connection, release, provenance=None)
 
     # Should update existing rows, not create duplicates
     assert result1.tender_id == result2.tender_id
@@ -856,7 +869,7 @@ def test_nocopo_reload_no_duplicates(db_connection, monkeypatch) -> None:
 
     contract_count = db_connection.execute(
         text("SELECT COUNT(*) FROM contracts WHERE agency_id = :aid"),
-        {"aid": normalized1.tender.agency_ref if normalized1.tender else None},
+        {"aid": buyer_uuid},
     ).scalar()
     assert contract_count == 1
 
