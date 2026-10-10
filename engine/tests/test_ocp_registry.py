@@ -792,11 +792,11 @@ def test_oyo_plateau_proposed_no_download(db_connection, monkeypatch, tmp_path) 
     assert len(rows) == 2
     for row in rows:
         assert row.status == "proposed"
-    
+
     oyo_pub = OcpPublication("oyo", "Oyo", "106", "OY")
     plateau_pub = OcpPublication("plateau", "Plateau", "125", "PL")
     called: list[str] = []
-    
+
     def http_get(url: str, timeout: float = 30.0):
         called.append(url)
         raise AssertionError(f"should not download for proposed source: {url}")
