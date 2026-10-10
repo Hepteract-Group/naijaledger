@@ -778,8 +778,6 @@ def test_corrupt_line_no_partial_commits(db_engine, monkeypatch, tmp_path) -> No
 
 def test_nocopo_reload_no_duplicates(db_connection, monkeypatch) -> None:
     """Regression: NOCOPO-style re-load matches old identity keys, no duplicates."""
-    from uuid import uuid4
-
     from naijaledger.finance.ocds_load import load_normalized_release
     from naijaledger.finance.ocds_models import (
         NormalizedAward,
@@ -791,20 +789,17 @@ def test_nocopo_reload_no_duplicates(db_connection, monkeypatch) -> None:
 
     _fake_store(monkeypatch)
 
-    # Create parties first
-    buyer_uuid = str(uuid4())
-    supplier_uuid = str(uuid4())
-
+    # Create parties with simple string refs (OCDS-style identifiers)
     buyer = NormalizedParty(
         party_type="agency",
-        party_ref=buyer_uuid,
+        party_ref="NG-MDAs:TA",
         canonical_name="Test Agency",
         identifier_scheme="NG-MDAs",
         identifier_id="TA",
     )
     supplier = NormalizedParty(
         party_type="company",
-        party_ref=supplier_uuid,
+        party_ref="supplier:1",
         canonical_name="Supplier 1",
         identifier_scheme=None,
         identifier_id=None,
@@ -814,7 +809,7 @@ def test_nocopo_reload_no_duplicates(db_connection, monkeypatch) -> None:
         ocds_tender_id="t1",
         ocid="ocds-test-nocopo-001",
         title="Test Tender",
-        agency_ref=buyer_uuid,
+        agency_ref="NG-MDAs:TA",
         value_amount=5000,
         currency="NGN",
         method="open",
@@ -822,7 +817,7 @@ def test_nocopo_reload_no_duplicates(db_connection, monkeypatch) -> None:
 
     award = NormalizedAward(
         ocds_award_id="award-1",
-        supplier_ref=supplier_uuid,
+        supplier_ref="supplier:1",
         value_amount=1000,
         currency="NGN",
     )
@@ -830,15 +825,15 @@ def test_nocopo_reload_no_duplicates(db_connection, monkeypatch) -> None:
     contract = NormalizedContract(
         ocds_contract_id="contract-1",
         award_ref="award-1",
-        supplier_ref=supplier_uuid,
-        agency_ref=buyer_uuid,
+        supplier_ref="supplier:1",
+        agency_ref="NG-MDAs:TA",
         value_amount=1000,
         currency="NGN",
     )
 
     release = NormalizedRelease(
         ocid="ocds-test-nocopo-001",
-        parties={buyer_uuid: buyer, supplier_uuid: supplier},
+        parties={"NG-MDAs:TA": buyer, "supplier:1": supplier},
         tender=tender,
         awards=[award],
         contracts=[contract],
@@ -867,9 +862,11 @@ def test_nocopo_reload_no_duplicates(db_connection, monkeypatch) -> None:
     ).scalar()
     assert award_count == 1
 
+    # Get the actual agency UUID from the result
+    agency_uuid = result1.party_ids.get("NG-MDAs:TA")
     contract_count = db_connection.execute(
         text("SELECT COUNT(*) FROM contracts WHERE agency_id = :aid"),
-        {"aid": buyer_uuid},
+        {"aid": agency_uuid},
     ).scalar()
     assert contract_count == 1
 
