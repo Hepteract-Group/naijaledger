@@ -678,9 +678,7 @@ def test_decompressed_cap(db_connection, monkeypatch, tmp_path) -> None:
 def test_single_line_too_large(db_connection, monkeypatch, tmp_path) -> None:
     """Blocker 3: over-long line hits bounded readline and fails without inflating."""
     _fake_store(monkeypatch)
-    monkeypatch.setattr(
-        "naijaledger.finance.ocp_load.MAX_DECOMPRESSED_BYTES", 100
-    )
+    monkeypatch.setattr("naijaledger.finance.ocp_load.MAX_DECOMPRESSED_BYTES", 100)
     pub = OcpPublication("abia", "Abia", "107", "AB")
     source = _seed_source(db_connection, pub)
     body = gzip.compress(b"A" * 200)
@@ -718,10 +716,7 @@ def test_corrupt_json_marks_extraction_failed(db_connection, monkeypatch) -> Non
         hooks=LoadHooks(),
     )
     assert summary.skip_reason == "fetch_failed"
-    query = (
-        "SELECT ok, status, payload FROM extractions "
-        "ORDER BY created_at DESC LIMIT 1"
-    )
+    query = "SELECT ok, status, payload FROM extractions ORDER BY created_at DESC LIMIT 1"
     extraction_row = db_connection.execute(text(query)).one()
     assert extraction_row.ok is False
     assert extraction_row.status == "failed"
@@ -831,10 +826,7 @@ def test_oyo_plateau_proposed_no_download(db_connection, monkeypatch, tmp_path) 
     oyo_url = "https://data.open-contracting.org/en/publication/106"
     plateau_url = "https://data.open-contracting.org/en/publication/125"
     rows = db_connection.execute(
-        text(
-            "SELECT url, status FROM sources "
-            "WHERE url IN (:oyo, :plateau)"
-        ),
+        text("SELECT url, status FROM sources WHERE url IN (:oyo, :plateau)"),
         {"oyo": oyo_url, "plateau": plateau_url},
     ).all()
     assert len(rows) == 2
