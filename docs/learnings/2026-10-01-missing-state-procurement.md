@@ -38,7 +38,11 @@ Osun, Oyo, Plateau. I downloaded all nine `full.jsonl.gz` files and counted real
 | Cross River | [105](https://data.open-contracting.org/en/publication/105) | 16 | **16** | 2016-10 → 2021-06 |
 | Oyo | [106](https://data.open-contracting.org/en/publication/106) | 304 | **0** | — (tender-only releases) |
 
-Total: **1,901 award rows across 8 states**, free, openly licensed, one HTTP GET each.
+Counted in the files: **1,901 award rows across 8 states** (Oyo contributes 0). Not all are
+lawfully loadable under our gate. Seven publications state the Open Data Commons Public Domain
+Dedication and Licence (PDDL) on the page — **1,765 rows** across Abia, Cross River, Ebonyi, Edo,
+Enugu, Gombe, and Osun. Plateau’s page reads `License: -` and Oyo states no open licence; both stay
+out of the loader (`specs/0041-ocp-state-bulk-awards.md`). Each PDDL file is one HTTP GET.
 
 Two schema traps. Edo nests awards one level deeper (`awards[0].awards[0]`), which is why a naive
 reader sees 466 empty awards instead of 215 real ones. Oyo's releases carry tender objects only, so
@@ -136,7 +140,7 @@ stopgap.
 
 | # | Step | Yield | Blocker |
 | --- | --- | --- | --- |
-| 1 | Download the 9 Nigerian state bulk files from the OCP Data Registry and write one OCDS normalizer (with an Edo nested-award special case). | **8 states, ~1,901 award rows** (Oyo yields 0) | Stale: six of the eight stop between 2021 and 2025. Static snapshots, never refreshed. Needs a staleness flag on every row. |
+| 1 | Download the PDDL state bulk files from the OCP Data Registry and write one OCDS normalizer (with an Edo nested-award special case). | **7 states, ~1,765 award rows** (Plateau and Oyo refused for licence; Oyo would yield 0 awards anyway) | Stale: six of the seven stop between 2021 and 2025. Static snapshots. Spec stores `ocp_retrieved_on`; whether public views must show it is open on #203. |
 | 2 | Scrape the three live state sources: Osun award table, Ebonyi award table, Delta list + 433 detail pages. | **3 states, ~1,636 current rows** (2 overlap with step 1, so +1 net state: Delta) | Delta needs 433 detail fetches behind encrypted URL slugs and has no OCDS identifiers; Osun/Ebonyi are plain HTML tables and cheap. |
 | 3 | Ingest the Ogun public JSON API (`/api/awards/data`, `/api/open-document`). | **1 state, 183 rows** | Ends 2022-11. No published licence or terms — get written reuse confirmation before production ingest. |
 | 4 | Email six bureaux with a specific, reproducible bug and ask for a data export: Kaduna (`/api/project_list` 500, contact `kadppa@kdsg.gov.ng`), Abia, Enugu (advertised bulk JSON 404), Cross River (API 500), Oyo (500/403), Gombe (certificate expired 2026-08-31). | up to **6 states**, incl. 2 with no archive at all (Kaduna) | Entirely on their response. Treat as a 1–3 month track, not a sprint. Pair with step 5 where no reply lands. |
@@ -146,13 +150,15 @@ Steps 1–3 are code we control. Steps 4–5 are correspondence and must not blo
 
 ## 5. Next month vs. FOI / partnership
 
-**Realistic in the next month (10 states with award rows):** Abia, Cross River, Ebonyi, Edo, Enugu,
-Gombe, Osun, Plateau from the OCP archive; Delta and Ogun from their own live sources. Ebonyi and Osun
-get both an archive backfill and a current live feed.
+**Realistic in the next month (9 states with award rows, pending #203 licence/public-view answers):**
+Abia, Cross River, Ebonyi, Edo, Enugu, Gombe, Osun from the OCP archive; Delta and Ogun from their own
+live sources. Ebonyi and Osun get both an archive backfill and a current live feed. Plateau needs a
+licence before any archive load.
 
-**Needs a letter, not a crawler (20 states):** the 16 with nothing, plus Kaduna (no archive exists, so
-the API bug must actually be fixed), Oyo (archive has no awards), Rivers (publishes tenders only), and
-Kano (platform real but empty — recheck quarterly rather than writing).
+**Needs a letter, not a crawler (21 states):** the 15 with nothing after the Ondo correction, plus
+Kaduna (no archive exists, so the API bug must actually be fixed), Oyo (archive has no awards and no
+open licence), Plateau (archive exists, no open licence), Rivers (publishes tenders only), and Kano
+(platform real but empty — recheck quarterly rather than writing).
 
 ## Same-day correction
 

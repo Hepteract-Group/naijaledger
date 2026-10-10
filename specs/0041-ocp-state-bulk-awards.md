@@ -3,11 +3,11 @@
 - **Epic / Issue**: E5 / #203
 - **Status**: Draft
 - **Author**: agent
-- **Needs human decision?**: no — the seven files this loader writes are under the Open Data Commons Public Domain Dedication and Licence (PDDL). Two publications have no open licence and are reported, not loaded.
+- **Needs human decision?**: yes — two questions in §7 (licence gate sign-off; whether stale archive amounts may appear in public views without the retrieval date). Loader code waits on those answers. Spec text below is otherwise ready.
 
 ## 1. Problem
 
-Eight states have award rows in the Open Contracting Partnership (OCP) Data Registry and no usable live portal in our registry. One normalizer covers them. Live HTML loaders for Osun (#198) and Ebonyi (#199) stay separate. This spec is the archive.
+Nine Nigerian state publications sit in the Open Contracting Partnership (OCP) Data Registry. Seven of them state the Open Data Commons Public Domain Dedication and Licence (PDDL) on the publication page and have no loaded live source yet. Osun and Ebonyi also have live HTML tables (#198, #199); this spec is the archive backfill for those two and the only load path for the other five PDDL states. One normalizer covers them.
 
 Derives from `docs/architecture/SYSTEM_DESIGN.md` §4.5–4.7 and `specs/0012-ocds-normalizer.md`. Probe notes: `docs/learnings/2026-10-01-missing-state-procurement.md`. Licence and “Last retrieved” lines were read from the publication pages on 2026-10-10.
 
@@ -18,7 +18,7 @@ Derives from `docs/architecture/SYSTEM_DESIGN.md` §4.5–4.7 and `specs/0012-oc
   - Download `full.jsonl.gz`, archive the bytes, flatten the Edo shape, then use the existing Open Contracting Data Standard (OCDS) normalizer (`normalize_ocds_release` / `load_normalized_release`).
   - Stamp `tenders.state_code` from the publication, not from the JSON.
   - Record the registry’s “Last retrieved” date on each loaded tender.
-  - One row per `ocid`. A second load updates that row and does not insert another tender.
+  - One tender per `ocid`, one award per award key, one contract per contract key. A second load does not raise those counts.
   - Fixture tests. No live network in unit tests.
 - **Out of scope**
   - Federal publishers on the same registry, including Nigeria Open Contracting Portal (NOCOPO) publication 64.
@@ -27,27 +27,32 @@ Derives from `docs/architecture/SYSTEM_DESIGN.md` §4.5–4.7 and `specs/0012-oc
   - Ogun (#200). That API has no licence.
   - Emailing state bureaux. Freedom of Information requests.
   - Copying Oyo or Plateau releases into the canonical store.
+  - Surfacing `ocp_retrieved_on` in the public read API or UI. Store it; publication of the date is a follow-up once §7 is answered.
 
 ## 3. Design
 
 ```text
 for each publication in the table below:
-  GET the publication HTML page
-  if the page does not contain "Public Domain Dedication":
+  GET the publication HTML page (timeout 30s)
+  parse the licence field (fail closed if that field is missing)
+  if the licence field is not Open Data Commons Public Domain Dedication and Licence (PDDL):
       record skip_reason=no_open_licence and do not download
       continue
   parse "Last retrieved: Mon D, YYYY"
-  GET full.jsonl.gz
+  GET full.jsonl.gz (timeout 60s; max 50 MiB compressed; stream decompress)
+  if compressed size, decompressed size (>200 MiB), or timeout is exceeded:
+      record skip_reason=fetch_failed and continue
   archive those bytes and write a fetch record before parse
-  for each JSON line:
+  for each JSON line (stream; do not load the whole decompressed file into memory):
       flatten nested compiled sections (no-op on a normal release)
       copy contract suppliers from the matching award when the contract has none
+      ensure every award and contract has a non-null OCDS id (see §3.1)
       set tender.state_code from the publication
-      set tender.meta.ocp_publication_id and tender.meta.ocp_retrieved_on
+      set tender.meta.ocp_publication_id, ocp_retrieved_on, source_kind=ocp_registry
       normalize_ocds_release → load_normalized_release
 ```
 
-`make fetch-sources` only walks `http`, `scrapling`, and `playwright`. Seed these with `fetch_method=api` so that walker skips the gzip. Loading is a dedicated command.
+`make fetch-sources` only walks `http`, `scrapling`, and `playwright`. Seed these with `fetch_method=api` so that walker skips the gzip. Loading is a dedicated command. Leave `expected_cadence` unset so `enqueue_due_fetch_jobs` does not queue a `fetch_source` job the worker would reject (`unsupported fetch_method: api`). If a later change adds `api` to the worker, cadence can be set then.
 
 The download URL is fixed in code: `https://data.open-contracting.org/en/publication/{id}/download?name=full.jsonl.gz`. Callers do not pass a URL.
 
@@ -55,18 +60,54 @@ Politeness:
 
 - Wait at least 1 second between publication requests.
 - Send `User-Agent: NaijaLedger/ocp-registry`.
-- On HTTP 429 or 5xx, wait 5 seconds and retry that request once. If the retry fails, record the state as failed and continue with the next state. Stop the whole job on 401 or 403.
+- On HTTP 429 or 5xx, wait 5 seconds and retry that request once. If the retry fails, record `skip_reason=fetch_failed` and continue with the next state. Stop the whole job on 401 or 403.
 
-### 3.1 Which row wins
+### 3.1 Identity and which value wins
 
-The open question on #203 is closed here.
+#### Tender
 
-`tenders.ocid` is already unique. The archive and a later live table for the same contract are one tender, not two. Osun and Ebonyi HTML loaders must emit the same `ocid` the registry file uses.
+`tenders.ocid` is unique. The archive and a later live table for the same contract are one tender. Osun and Ebonyi HTML loaders must emit the same `ocid` the registry file uses.
 
-Change the shared tender/award/contract upsert used by `load_normalized_release`:
+#### Award
+
+Shared upsert key: `(tender_id, supplier_id, meta->>'ocds_award_id')`.
+
+Every award written by this loader must have a non-null `ocds_award_id`:
+
+- Prefer the release award’s `id` (after Edo flatten: the **inner** id).
+- If that id is missing, set `ocds_award_id` to `{ocid}:award:{index}` where `index` is the zero-based position in the flattened `awards` list.
+
+Never insert an award when `ocds_award_id` is null. Live loaders (#198, #199) must emit the same key for the same contract (use the portal’s OCDS award id when present; otherwise `{ocid}:award:0` for a single-award HTML row).
+
+#### Contract
+
+Shared upsert key: `(agency_id, supplier_id, meta->>'ocds_contract_id')`.
+
+Every contract written by this loader must have a non-null `ocds_contract_id`:
+
+- Prefer the release contract’s `id`.
+- If missing, set `ocds_contract_id` to `{ocid}:contract:{index}`.
+
+#### Null-never-erases and meta merge
+
+Change the shared tender/award/contract upsert used by `load_normalized_release` (callers today: Ekiti HTML portal load and any other path through that function):
 
 - A null incoming amount, title, award date, signed date, or `state_code` does not erase a stored non-null value.
-- `meta` is shallow-merged. Keys on the incoming object replace stored keys. Keys the incoming object does not mention stay. A live loader that never sets `ocp_retrieved_on` must leave that key in place.
+- `meta` is shallow-merged. Keys on the incoming object replace stored keys. Keys the incoming object does not mention stay.
+- A genuine clear of a stored value is out of scope. No silent “set to null” path in this PR.
+
+Existing portal-load tests must still pass with these merge semantics.
+
+#### Precedence when both values are non-null
+
+Live portal beats archive for the same `ocid` / award key / contract key.
+
+- This loader sets `tenders.meta.source_kind = "ocp_registry"` (and the same key on award/contract meta).
+- Live loaders set `source_kind = "live_portal"`.
+- When the stored row already has `source_kind = live_portal`, this archive loader does not replace a non-null amount, title, award date, or signed date with a different non-null value.
+- Same-kind reloads (archive after archive, live after live) update those fields.
+- Null-never-erases still applies in every case.
+- A live loader that never sets `ocp_retrieved_on` must leave that key in place.
 
 ### 3.2 Edo compiled wrappers
 
@@ -84,9 +125,13 @@ Edo contracts have `suppliers: null`. Before normalize, copy `suppliers` from th
 
 A probe of the Edo file on 2026-10-10: 466 releases, 466 inner awards, every one has a supplier name. 215 have `value.amount > 0`. 251 have `value.amount == 0`. Store 0 as 0 kobo. Do not drop those awards. The load summary reports `awards_written` and `awards_positive_amount` separately.
 
-### 3.3 Oyo
+### 3.3 Licence gate
 
-Oyo’s first release has a tender title and no `awards` array. If a later page states PDDL, the loader writes the tender and writes zero awards, and the summary shows `awards_written=0`. Until that licence line exists, do not download the file. The summary row is still required, with `skip_reason=no_open_licence`.
+Do not search the whole HTML document for the phrase. Parse the publication page’s licence field (the labelled “License” / “Licence” value on the OCP publication page). Fail closed if that field cannot be located. Treat the row as loadable only when that field is the Open Data Commons Public Domain Dedication and Licence (PDDL), including the common short form that contains “Public Domain Dedication”. A page that only mentions PDDL in a nav link or related-publications block must produce `skip_reason=no_open_licence`.
+
+### 3.4 Oyo
+
+Oyo’s first release has a tender title and no `awards` array. If a later page’s licence field states PDDL, the loader writes the tender and writes zero awards, and the summary shows `awards_written=0`. Until that licence line exists, do not download the file. The summary row is still required, with `skip_reason=no_open_licence`.
 
 ## 4. Data contracts / schemas
 
@@ -108,6 +153,8 @@ Page URL: `https://data.open-contracting.org/en/publication/{id}`.
 
 Download URL, PDDL rows only: `https://data.open-contracting.org/en/publication/{id}/download?name=full.jsonl.gz`.
 
+Lawfully loadable under this gate today: **1,765 award rows with supplier and amount across 7 states** (the §1 count of 1,901 across 8 includes Plateau’s 136, which this loader refuses).
+
 ### 4.2 Source seed
 
 One row per publication, including Oyo and Plateau (so the refusal is visible in the registry).
@@ -122,10 +169,10 @@ One row per publication, including Oyo and Plateau (so the refusal is visible in
 | fetch_method | `api` |
 | format | `json` |
 | ingest_role | `leaf` |
-| expected_cadence | 30 days |
+| expected_cadence | unset (`null`) — see §3 |
 | approved_by | `human:issue-203` |
 
-`apply_seed_catalog` takes one run-wide `approved_by`. Do not pass `human:issue-203` as that argument. Put it on the catalog entry. A fresh seed must leave the July sources on `human:decision-brief-2026-07-07`. If the per-entry field from spec 0040 is not on this branch yet, add it here.
+`apply_seed_catalog` takes one run-wide `approved_by`. Do not pass `human:issue-203` as that argument. Put it on the catalog entry. A fresh seed must leave the July sources on `human:decision-brief-2026-07-07`. If the per-entry `approved_by` field from `specs/0040-govspend-payments.md` (#179, may still be unmerged) is not on this branch yet, add it here. Same for widening `ProvenanceContext.region` to `dict[str, str | float] | None` if 0040 has not landed.
 
 ### 4.3 Row fields
 
@@ -144,6 +191,7 @@ Use `amount_to_kobo` (`Decimal`, half up). Do not parse the amount with a binary
 | contract `dateSigned`, else contract `date` | `contracts.signed_at` |
 | publication id | `tenders.meta.ocp_publication_id` (string) |
 | Last retrieved, ISO date | `tenders.meta.ocp_retrieved_on` |
+| — | `tenders.meta.source_kind` = `ocp_registry` |
 | — | `tenders.meta.attribution` = `Open Contracting Partnership Data Registry (https://data.open-contracting.org/)` |
 
 Sample that the Edo fixture must use: amount `183835990` NGN → `18383599000` kobo, supplier `SOLWIN ENGINEERING COMPANY LIMITED`, agency `Directorate of Central Administration`, `state_code` `ED`.
@@ -154,7 +202,7 @@ Provenance: `method=json`, `derivation=extracted`, `confidence=1`. Region is a J
 {"ocid": "ocds-fmoaoq-edsg-dca8-00002", "publication_id": "102"}
 ```
 
-`ProvenanceContext.region` is still `dict[str, float] | None` in code. Widen it to `dict[str, str | float] | None` if spec 0040 has not already done that. `provenance_edges.region` is already JSONB.
+`ProvenanceContext.region` is still `dict[str, float] | None` in code unless 0040 has widened it. Widen it to `dict[str, str | float] | None` in the loader PR if needed. `provenance_edges.region` is already JSONB.
 
 ### 4.4 Load summary
 
@@ -164,20 +212,27 @@ Print one line per publication, including the two that were not downloaded:
 state publication_id retrieved_on releases awards_written awards_positive_amount skip_reason
 ```
 
-`skip_reason` is empty on success, `no_open_licence` for Oyo and Plateau, or `fetch_failed` after the retry.
+`skip_reason` is empty on success, `no_open_licence` for Oyo and Plateau, or `fetch_failed` after the retry or a size/timeout cap.
 
 ## 5. Acceptance criteria (testable)
 
-- [ ] A flat release fixture (supplier and amount on `awards[0]`) loads one award. A second load of the same `ocid` does not insert a second tender.
-- [ ] The Edo fixture, shaped as in §3.2, yields supplier `SOLWIN ENGINEERING COMPANY LIMITED` and `18383599000` kobo. Reading `awards[0].suppliers` without flattening yields no supplier, and the test fails if flatten is skipped.
+- [ ] A flat release fixture (supplier and amount on `awards[0]`) loads one award. A second load of the same fixture leaves tender count, award count, and contract count unchanged.
+- [ ] The Edo fixture, shaped as in §3.2, yields supplier `SOLWIN ENGINEERING COMPANY LIMITED` and `18383599000` kobo. Reading `awards[0].suppliers` without flattening yields no supplier, and the test fails if flatten is skipped. A second load of that fixture leaves award and contract counts unchanged.
 - [ ] The Edo contract fixture links to that award id. The contract row exists even though the file’s `suppliers` is null.
 - [ ] An award with `value.amount` `0` is stored as 0 kobo and is still written. The summary counts it in `awards_written` and not in `awards_positive_amount`.
+- [ ] An award with a missing `id` still writes once, with `meta.ocds_award_id = "{ocid}:award:0"`, and a second load does not insert another award.
 - [ ] A tender-only release writes a tender and zero awards.
-- [ ] A publication page fixture without “Public Domain Dedication” produces `skip_reason=no_open_licence` and does not call the downloader.
+- [ ] A publication page fixture whose licence field is empty or absent produces `skip_reason=no_open_licence` and does not call the downloader.
+- [ ] A publication page fixture that mentions “Public Domain Dedication” only outside the licence field produces `skip_reason=no_open_licence` and does not call the downloader.
+- [ ] The load archives the gzip bytes and writes a fetch record before any normalize/load call (assert order with a fake HTTP client and spies).
+- [ ] A download that fails twice (429 or 5xx) produces a summary row with `skip_reason=fetch_failed` and continues to the next state. A 401 or 403 stops the job.
+- [ ] A response larger than 50 MiB compressed, or more than 200 MiB decompressed, produces `skip_reason=fetch_failed`.
 - [ ] The loaded tender has `state_code=ED` for the Edo fixture even though the JSON has no `nlStateCode`.
-- [ ] `tenders.meta` contains `ocp_publication_id`, `ocp_retrieved_on` (`2022-06-03` for publication 102), and `attribution`.
+- [ ] `tenders.meta` contains `ocp_publication_id`, `ocp_retrieved_on` (`2022-06-03` for publication 102), `source_kind=ocp_registry`, and `attribution`.
 - [ ] Updating that tender with a payload whose amount is null and whose `meta` omits `ocp_retrieved_on` leaves both the stored amount and `ocp_retrieved_on` in place.
-- [ ] A fresh seed leaves July sources on `human:decision-brief-2026-07-07` and sets the nine new rows to `human:issue-203`.
+- [ ] A stored tender with `source_kind=live_portal` and a non-null amount is not overwritten by a later archive load with a different non-null amount for the same `ocid`.
+- [ ] A fresh seed leaves July sources on `human:decision-brief-2026-07-07` and sets the nine new rows to `human:issue-203`. The nine rows have `expected_cadence` null. Seeding them and calling `enqueue_due_fetch_jobs` queues no `fetch_source` job for those source ids.
+- [ ] Existing Ekiti / portal-load unit tests still pass after the shared null-never-erases and meta shallow-merge change.
 - [ ] Unit tests use fixtures only.
 
 ## 6. Risks & mitigations
@@ -186,10 +241,16 @@ state publication_id retrieved_on releases awards_written awards_positive_amount
 | --- | --- |
 | A naive reader stores the Edo wrapper and drops the supplier | Fixture that fails unless the inner award is used |
 | Zero-naira rows look like real prices in a total | Summary splits positive amounts; store 0 as published, do not drop the supplier |
-| Osun or Ebonyi live load duplicates the archive | Same `ocid`, one tender; nulls do not wipe stored fields |
-| Oyo or Plateau get copied with no licence | Refuse download unless the page contains “Public Domain Dedication” |
-| Stale years get read as current | `ocp_retrieved_on` stays on the tender across later updates |
+| Osun or Ebonyi live load duplicates the archive | Same `ocid` and same award/contract keys; second-load count criteria |
+| Archive overwrites a fresher live amount | `source_kind`; live beats archive when both non-null |
+| Oyo or Plateau get copied with no licence | Licence-field parse, fail closed; substring outside that field refuses |
+| `api` seeds enqueue failing fetch jobs | `expected_cadence` unset; criterion that enqueue creates none |
+| Stale years get read as current in a public view | Date stored; surfacing is out of scope pending §7 |
+| Shared upsert change breaks Ekiti | Named callers + existing tests must pass |
 
 ## 7. Open questions
 
-None. The #203 question (which source wins when Osun or Ebonyi is in both the archive and the live table) is decided in §3.1.
+1. **Licence gate.** Is parsing the publication page’s licence field for Open Data Commons Public Domain Dedication and Licence (PDDL) enough legal basis to ingest and republish those seven states’ awards, or does each publisher need a recorded determination (URL, phrase, date read) that a human signs once?
+2. **Stale amounts in public views.** Six of the seven loadable files stop between 2021 and 2025. May those archive rows feed public-facing claims at all, and if so must `ocp_retrieved_on` be visible wherever an amount is shown?
+
+Identity and precedence for Osun/Ebonyi (archive vs live) are decided in §3.1. Loader implementation waits on the two questions above.
