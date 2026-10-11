@@ -70,7 +70,7 @@ Not needed for GovSpend. Keep `naijaledger@agentmail.to` for partnership reply a
 
 ## Decision (2026-10-01)
 
-Accepts item 1 above. Founder approved BudgIT GovSpend as the interim federal payments source. Item 2 (the partnership email) stays unsent unless the founder asks for an email trail. Contract: `specs/0040-govspend-payments.md`. Build tracked in #179.
+Accepts item 1 above. Founder approved BudgIT GovSpend as the interim federal payments source. Item 2 (the partnership email) stays unsent unless the founder asks for an email trail. Contract: `specs/0040-govspend-payments.md` (spec pending §8). Build tracked in #179.
 
 ## Follow-ups
 

@@ -31,19 +31,24 @@ Probe of `GET https://app.govspend.ng/api/payments/?page=1` on 2026-10-01 return
 ## 3. Design
 
 ```text
-GET https://app.govspend.ng/api/payments/?page=N
+GET https://app.govspend.ng/api/payments/?page=N (timeout 30s, byte cap 10MB)
   → archive page bytes + fetch_record (before parse)
-  → parse_govspend_page
-  → SAVEPOINT page_N
-  → create_extraction(method=json)
-  → upsert parties + payments (skip rows whose content_hash hasn't changed)
-  → provenance_edges (append-only per extraction)
-  → COMMIT page
-  → on failure: ROLLBACK TO SAVEPOINT, write failed extraction, continue
+  → with engine.begin() as connection:  # one transaction per page
+      → parse_govspend_page
+      → on parse failure: write failed extraction, STOP (no next URL)
+      → create_extraction(method=json)
+      → for each row:
+          → with connection.begin_nested():  # savepoint per row
+              → upsert parties + payments (skip if content_hash unchanged)
+              → provenance_edge (append-only)
+          → on row load error: rollback savepoint, continue next row
+      → COMMIT transaction
   → follow `next` until null, empty page, or max_pages
 ```
 
-**Transaction isolation**: One savepoint per page. On parse or load failure, roll back to the savepoint, write a failed extraction record with the error, and continue to the next page. Commit page by page so partial runs are resumable. Reuse the OCP per-page transaction size cap pattern.
+**Transaction isolation**: One `engine.begin()` transaction per page with a savepoint per row (`begin_nested()`). On a **parse failure** (invalid JSON, missing `results`, etc.), write a failed extraction and **STOP** the job—there is no `next` URL from a failed parse. On a **load error** for a row that parsed successfully (e.g. party insert conflict, invalid date), roll back that row's savepoint and continue to the next row. Commit page by page so partial runs are resumable.
+
+**Response caps and timeout**: 30-second timeout per page request (same as OCP `PAGE_TIMEOUT_S`). 10 MB byte cap per page response (uncompressed). If the response exceeds the cap or the request times out, archive the partial or error response, write a failed fetch record, and stop the job.
 
 `make fetch-sources` walks `http`, `scrapling`, and `playwright` only. This source uses `fetch_method=api` so that walker skips it. Loading is a dedicated command, same pattern as the Ekiti portal load (`specs/0032-ekiti-html-portal-load.md`).
 
@@ -72,11 +77,13 @@ The collection URL is a constant in code, not a caller-supplied URL.
 | expected_cadence | `None` (loaded via CLI, not scheduled) |
 | approved_by | `human:founder-2026-10-01` |
 
-The `approved_by` field already exists on `sources` (added in migration 0001). Set it explicitly to `human:founder-2026-10-01` for this source. For OCDS sources with OCP-prefixed names, `approved_by` remains `None` (proposed status only) until a human reviews them.
+The `approved_by` field already exists on `sources` (added in migration 0001). Set it explicitly to `human:founder-2026-10-01` for this source.
 
-`apply_seed_catalog` takes one run-wide `approved_by` argument (default `SEED_APPROVED_BY = "human:decision-brief-2026-07-07"`). Add an optional per-entry `approved_by` field to seed catalog entries. When the entry sets it, use that value in the `approve_source` call; otherwise keep the run-wide default. A fresh seed must leave the July sources at `human:decision-brief-2026-07-07`.
+`SourceCreate.approved_by` is **not** a DB column—it is a seed-time field used by `apply_seed_catalog`. When a catalog entry sets `approved_by`, that value is used in `approve_source`; otherwise the run-wide default applies (`SEED_APPROVED_BY = "human:decision-brief-2026-07-07"`). A fresh seed must leave the July sources at `human:decision-brief-2026-07-07`.
 
-**Scheduling**: `expected_cadence=None` because `fetch_method=api` means the fetch-sources scheduler cannot run it (the scheduler walks `http`, `scrapling`, and `playwright` only). Run GovSpend loads via the dedicated CLI command (same pattern as Ekiti, spec 0032), or add a `govspend_load` job kind to the scheduler. Acceptance criterion: the source is never enqueued by `make fetch-sources`.
+**Note**: The architect's claim that OCP-prefixed sources stay `approved_by=None` is **false**. Seven OCP state sources are `human:issue-203` (approved in PR #207). Only Oyo and Plateau remain `None` (proposed status). `apply_seed_catalog` has a None trap (line 248): when `entry.approved_by is None` and the name starts with `"OCP Data Registry"`, the source is marked `explicitly_proposed` and demoted to proposed status even if it was already approved.
+
+**Scheduling**: `expected_cadence=None` because `fetch_method=api` means the fetch-sources scheduler cannot run it (the scheduler walks `http`, `scrapling`, and `playwright` only). Run GovSpend loads via the dedicated CLI command (same pattern as Ekiti, spec 0032). Acceptance criterion: the source is never enqueued by `enqueue_due_fetch_jobs` (`jobs/service.py:137`).
 
 ### 4.2 Page envelope (probed 2026-10-01)
 
@@ -111,7 +118,9 @@ Skip the row (count it, do not fail the page) when `payment_no` is blank, `organ
 
 **Identity and upsert semantics**: Payments use their `source_ref` key (`govspend:{payment_no}`) as the primary identifier. They do **not** go through `load_normalized_release` or the OCDS identity system (issue #208 backfill and merge duplicates does not apply to payments). Upsert on `source_ref`: if a payment with that key exists, update `amount`, `paid_at`, `purpose`, party links, and `meta` in place.
 
-**Provenance append-only**: `provenance_edges` rows are append-only per extraction. When re-loading a page, create a new extraction and new provenance edges for that extraction, even if the payment already exists. This preserves the audit trail of every fetch that observed the payment. To avoid redundant work, compute a `content_hash` (sha256 of canonical payment fields: `payment_no`, `date`, `amount`, `description`, `organization_name`, `beneficiary_name`, `payer_code`) and skip the upsert when the stored payment's `content_hash` matches the incoming row's hash. Still write the provenance edge to record that this extraction saw the same data.
+**Provenance append-only**: `provenance_edges` rows are append-only per extraction. When re-loading a page, create a new extraction and new provenance edges for that extraction, even if the payment already exists. This preserves the audit trail of every fetch that observed the payment. To avoid redundant work, compute a `content_hash` and store it in `payments.meta.content_hash`. Skip the upsert when the stored hash matches the incoming row's hash. Still write the provenance edge to record that this extraction saw the same data.
+
+**content_hash canonicalisation**: sha256 hex digest of a UTF-8 JSON object with fields in this exact order: `payment_no`, `date`, `amount`, `description`, `organization_name`, `beneficiary_name`, `payer_code`. Serialize `Decimal` amounts as strings (e.g. `"22996722.0"`). Nulls serialize as JSON `null`. Example: `{"payment_no": "1001450327-1", "date": "2026-06-19", "amount": "22996722.0", "description": "...", "organization_name": "PUBLIC COMPLAINTS COMMISSION", "beneficiary_name": "MANASIK TRAVEL AGENCY LTD", "payer_code": "0145001001"}`. The `payments` table has no `content_hash` column; store it in `meta.content_hash`.
 
 Provenance: `method=json`, `derivation=extracted`, `confidence=1` (required by `ck_extractions_derivation_confidence` when derivation is `extracted`), `subject_type=payment`. `provenance_edges.region` is the JSON object `{"payment_no": "<payment_no>"}`, not a bare string. The document is the archived page.
 
@@ -119,15 +128,18 @@ Provenance: `method=json`, `derivation=extracted`, `confidence=1` (required by `
 
 ### 4.4 Licence gate
 
-Before the first load, a human must create `docs/licences/govspend.md` with:
+Before the first load, a human must create `docs/licences/govspend.md` in the **same format** parsed by `parse_licence_record` (`finance/ocp_registry.py`):
 
-- **Licence URL** (or "none published" if no public licence)
-- **Terms summary** (or "none published")
-- **Date reviewed** (YYYY-MM-DD)
-- **Signed by** (human:founder or human:legal, not an agent)
-- **Attribution requirement** (met by `meta.attribution` on every row)
+```markdown
+**Publication URL**: <url or "none published">
+**Licence phrase as read**: <phrase or "none published">
+**Date read**: YYYY-MM-DD
+**Signed by**: human:founder
+```
 
-The loader MUST check for this file at startup. If missing, fail immediately with error code `no_licence_record` and a message directing the operator to create the file. This is a fail-closed gate: no file = no load.
+The loader MUST call `parse_licence_record` (or name a separate parser if the format differs). If the file is missing or unparseable, fail immediately with error code `no_licence_record` and a message directing the operator to create the file. This is a fail-closed gate: no file = no load.
+
+**Signed by format**: Must be exactly `human:founder` or `human:legal`, matching the format used in OCP licence records. Not an agent signature.
 
 **PDDL or Open Database License detection**: Not implemented in this spec. The loader does not parse or verify licence terms automatically. It only checks that a human has documented the licence decision. The founder decides whether GovSpend's terms permit use. The Technical Counsel on the 2026-10-01 thread said BudgIT released the data publicly; formal licence confirmation is the founder's call.
 
@@ -153,7 +165,7 @@ load_govspend_payments(connection, rows, *, provenance, page_url) -> LoadSummary
 - [ ] A fresh seed leaves July sources at `approved_by=human:decision-brief-2026-07-07` and sets the GovSpend row to `human:founder-2026-10-01`.
 - [ ] CLI default `max_pages` is 2. Unit tests do not call the network.
 - [ ] Loader does not request any `/download` path.
-- [ ] The GovSpend source is never enqueued by `make fetch-sources` (test: seed the source, run the scheduler, assert the source is not in the queue).
+- [ ] The GovSpend source is never enqueued by `enqueue_due_fetch_jobs` (test: seed the source, call `enqueue_due_fetch_jobs`, assert the source is not in the returned `inserted` count or the jobs queue).
 - [ ] If `docs/licences/govspend.md` is missing, the loader fails immediately with error code `no_licence_record` before attempting any network requests.
 
 ## 6. Risks & mitigations
@@ -168,14 +180,30 @@ load_govspend_payments(connection, rows, *, provenance, page_url) -> LoadSummary
 
 ## 7. Open questions
 
-None blocking. Full backfill (about 4,680 pages) uses the same loader with a higher `max_pages` after the sample looks right. Do not run that backfill as part of the first implementation PR.
+None beyond §8. Full backfill (about 4,680 pages) uses the same loader with a higher `max_pages` after the sample looks right. Do not run that backfill as part of the first implementation PR.
 
 ## 8. Founder decisions needed
 
-Two architectural decisions require explicit founder approval before implementation:
+Six decisions require explicit founder approval before implementation. Each has a stated default if there is no answer:
 
-1. **Licence gate (§4.4)**: The loader requires `docs/licences/govspend.md` to exist before it runs (fail-closed with `no_licence_record` error if missing). The founder must confirm this is the right approach, and must create that file to document BudgIT GovSpend's licence terms (or "none published"), attribution requirements, and sign off that use is permitted. The Technical Counsel on the 2026-10-01 thread said BudgIT released the data publicly; formal confirmation is the founder's call.
+1. **Licence gate (§4.4)**: The loader requires `docs/licences/govspend.md` to exist before it runs (fail-closed with `no_licence_record` error if missing). The founder must create that file to document BudgIT GovSpend's licence terms (or "none published") and sign off that use is permitted. The Technical Counsel on the 2026-10-01 thread said BudgIT released the data publicly; formal licence confirmation is the founder's call.
+   - **Default if no answer**: Proceed with the fail-closed gate. Implementation blocks until the file exists.
 
-2. **In-place upsert with history loss (§4.3, §6 risk 7)**: Payments are updated in place when their `source_ref` key matches. If GovSpend silently corrects an amount after publication, the old value is lost (only the new value remains in the `payments` table). Provenance edges are append-only, so we know *when* the row was observed, but we cannot diff *what changed*. A full audit trail would require a `payments_history` table or event-sourcing migration. The founder must accept this history-loss trade-off for v1, or request the implementation add a history table before the first load.
+2. **In-place upsert with history loss (§4.3, §6 risk 7)**: Payments are updated in place when their `source_ref` key matches. If GovSpend silently corrects an amount after publication, the old value is lost (only the new value remains in the `payments` table). Provenance edges are append-only, so we know *when* the row was observed, but we cannot diff *what changed*. A full audit trail would require a `payments_history` table or event-sourcing migration.
+   - **Default if no answer**: Accept history loss for v1. No history table in the first implementation.
+
+3. **Full backfill go/no-go**: After the 2-page sample loads successfully, run the full ~4,680-page backfill to load all federal payments. This will take hours and write ~468,000 rows. The founder must sign off on the backfill, or defer it until the sample data has been reviewed.
+   - **Default if no answer**: Do not run the backfill automatically. Wait for explicit sign-off.
+
+4. **Backfill sign-off authority**: Who authorizes the full backfill? The founder, or can a technical lead approve it after reviewing the sample?
+   - **Default if no answer**: Founder only.
+
+5. **Email to BudgIT**: The 2026-10-01 decision said not to send the partnership email unless the founder asks for an email trail. Confirm this remains the decision, or send the email before the first load.
+   - **Default if no answer**: Continue not emailing BudgIT. Email only if the founder explicitly asks.
+
+6. **Accept v1 shortcuts**:
+   - All beneficiaries are typed `party_type=company`, even if a person was paid directly. No person/company split.
+   - No fuzzy match of payer names onto Budget Office agency names. `budget_payment_mismatch` may false-hit or miss.
+   - **Default if no answer**: Accept both shortcuts for v1. Matching and party-type refinement are follow-up work.
 
 Label this PR `needs-human` until these decisions are confirmed.
