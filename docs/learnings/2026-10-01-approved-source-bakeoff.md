@@ -4,7 +4,7 @@ Spike for #186. Probed the seed URL for each of the 11 July-approved sources as 
 
 **Valid as of 2026-10-01; re-probe before acting.**
 
-Main now has 18 approved sources: these 11 plus 7 Open Contracting Partnership (OCP) Data Registry bulk sources (#203 / spec 0041) that were added later and have their own licence and Public Domain Dedication and License (PDDL) compliance gates. The OCP sources were not probed here. Oyo and Plateau OCP sources remain proposed (not approved).
+Main now has 18 approved sources: these 11 plus 7 Open Contracting Partnership (OCP) Data Registry bulk sources (#203 / spec 0041) that were added later and have their own licence and Open Data Commons Public Domain Dedication and License (PDDL) compliance gates. The OCP sources were not probed here. Oyo and Plateau OCP sources remain proposed (not approved).
 
 ## Ranks
 
@@ -12,7 +12,7 @@ Main now has 18 approved sources: these 11 plus 7 Open Contracting Partnership (
 
 | Source | Result on 2026-10-01 | Existing loader | Rank | Follow-up |
 | --- | --- | --- | --- | --- |
-| Nigeria Open Contracting Portal (NOCOPO) — Open Data | Certificate for `*.bpp.gov.ng` has expired. Not fetched. On 2026-10-11, the host failed to resolve via the system resolver. | None. #173 is blocked until the host resolves and serves a valid certificate. | down | None |
+| Nigeria Open Contracting Portal (NOCOPO) — Open Data | Certificate for `*.bpp.gov.ng` expired 2026-09-13 (Sectigo DV). Not fetched with verification. Re-checked 2026-10-11: public DNS resolves to 18.169.6.94; the host serves HTTP 200 only when certificate checks are skipped (-k), which this project does not do.¹ | None. #173 is blocked until the certificate is renewed. | down | None |
 | Budget Office of the Federation — Budget Documents | HTTP 200. Index links year folders. The 2026 folder still exposes `/download` links. | Appropriation PDF path, `specs/0037-appropriation-budget-lines.md` | load now | No new spec |
 | Nigeria Extractive Industries Transparency Initiative (NEITI) — Documents library | HTTP 200 only when the system trust store is used. Python's default certificate bundle failed the chain. Child PDFs are mixed speeches, letters, and audits. | None | fetch-only | No normalizer until an allowlist exists |
 | Lagos State Public Procurement Agency — Registered Awards | HTTP 200. Monthly award-register PDF links. December 2025 file starts with `%PDF-1.7`. | Link discovery only | load now | #192 |
@@ -38,7 +38,7 @@ HTTP GET with redirects, 35 second timeout, `User-Agent: NaijaLedger/bakeoff`. N
 
 ## 2026-10-11 TLS re-check
 
-NOCOPO and Gombe TLS status re-verified on 2026-10-11 at 09:41:38 UTC before #173 work.
+NOCOPO and Gombe TLS status re-verified on 2026-10-11 at 09:41:38 UTC (10:41 BST) before #173 work.
 
 ### Method
 
@@ -46,13 +46,13 @@ NOCOPO and Gombe TLS status re-verified on 2026-10-11 at 09:41:38 UTC before #17
 - **System resolver**: `10.0.0.2` (from `/etc/resolv.conf`)
 - **Network location**: Cursor Cloud Agent VM
 - **Attempts**: 1 per host per resolver
-- **DNS cross-check**: `dig` queries to Cloudflare (1.1.1.1) and Google (8.8.8.8) public resolvers
+- **DNS cross-check**: `dig` 9.18.39 queries to Cloudflare (1.1.1.1) and Google (8.8.8.8) public resolvers
 
 ### Results
 
 #### NOCOPO (`nocopo.bpp.gov.ng`)
 
-System resolver (curl): Failed to resolve host after 10 seconds.
+System resolver (curl): Failed to resolve host after 10 seconds (local environment issue; see footnote 1).
 
 ```
 curl: (6) Could not resolve host: nocopo.bpp.gov.ng
@@ -70,7 +70,21 @@ Google resolver (dig @8.8.8.8):
 18.169.6.94
 ```
 
-**Conclusion**: Public DNS resolvers return an A record (18.169.6.94), but the system resolver cannot resolve the host. #173 remains blocked until the host resolves via standard DNS and serves a valid certificate.
+Pinned-IP test (curl --resolve nocopo.bpp.gov.ng:443:18.169.6.94):
+
+```
+curl: (60) SSL certificate problem: certificate has expired
+```
+
+Pinned-IP test with -k flag (skipping certificate verification):
+
+```
+HTTP/2 200
+content-length: 39968
+content-type: text/html; charset=utf-8
+```
+
+**Conclusion**: Public DNS resolvers return an A record (18.169.6.94). The host serves HTTP 200 at /Open-Data when certificate verification is skipped, but the certificate for `*.bpp.gov.ng` expired 2026-09-13 23:59:59 GMT (Sectigo DV R36). #173 remains blocked until the certificate is renewed.
 
 #### Gombe (`project.dueprocess.gm.gov.ng`)
 
