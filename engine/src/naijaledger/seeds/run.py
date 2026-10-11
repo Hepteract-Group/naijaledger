@@ -244,6 +244,10 @@ def apply_seed_catalog(
     for entry in catalog:
         existing = get_source_by_url_and_format(connection, entry.url, entry.format)
         auto_approve = entry.ingest_role in SEED_AUTO_APPROVE_ROLES
+        entry_approved_by = entry.approved_by or approved_by
+        explicitly_proposed = entry.approved_by is None and entry.name.startswith(
+            "OCP Data Registry"
+        )
         if existing is not None:
             summary["skipped"] += 1
             if existing.ingest_role != entry.ingest_role:
@@ -255,9 +259,13 @@ def apply_seed_catalog(
                 summary["corrected"] += 1
                 existing = get_source_by_url_and_format(connection, entry.url, entry.format)
                 assert existing is not None
-            if auto_approve:
+            if explicitly_proposed:
+                if existing.status == "approved":
+                    demote_to_proposed(connection, existing.id)
+                    summary["corrected"] += 1
+            elif auto_approve:
                 if existing.status == "proposed":
-                    approve_source(connection, existing.id, approved_by=approved_by)
+                    approve_source(connection, existing.id, approved_by=entry_approved_by)
                     summary["approved"] += 1
             elif existing.status == "approved":
                 demote_to_proposed(connection, existing.id)
@@ -266,8 +274,8 @@ def apply_seed_catalog(
 
         created = create_source(connection, entry)
         summary["created"] += 1
-        if auto_approve and created.status == "proposed":
-            approve_source(connection, created.id, approved_by=approved_by)
+        if auto_approve and not explicitly_proposed and created.status == "proposed":
+            approve_source(connection, created.id, approved_by=entry_approved_by)
             summary["approved"] += 1
 
     return summary

@@ -23,8 +23,28 @@ export type StateMetric = {
   anomaly_density: number;
   tender_count?: number;
   open_flag_count?: number;
+  ocp_archive_tender_count?: number;
+  ocp_retrieved_on_min?: string | null;
+  ocp_retrieved_on_max?: string | null;
   source?: "live" | "demo";
 };
+
+/** Footnote when map totals include OCP archive tenders (spec 0042). */
+export function formatArchiveAsOf(row: StateMetric): string | null {
+  const count = row.ocp_archive_tender_count ?? 0;
+  if (count <= 0) {
+    return null;
+  }
+  const min = row.ocp_retrieved_on_min;
+  const max = row.ocp_retrieved_on_max;
+  if (min && max && min !== max) {
+    return `archive as of ${min}–${max}`;
+  }
+  if (min || max) {
+    return `archive as of ${min ?? max}`;
+  }
+  return "includes OCP archive (retrieval date unknown)";
+}
 
 /** Deterministic illustrative volumes/densities — coords from nigeria_states.json SSO. */
 const DEMO_VOLUME: Record<string, { contract_volume: number; anomaly_density: number }> = {
@@ -92,6 +112,14 @@ export function elevationForMetric(row: StateMetric, metric: MapMetric, ceiling:
 
 export function maxMetric(rows: readonly StateMetric[], metric: MapMetric): number {
   return rows.reduce((acc, row) => Math.max(acc, row[metric]), 0);
+}
+
+/** Row that sets the legend ceiling for `metric` (first max on ties). */
+export function maxMetricRow(rows: readonly StateMetric[], metric: MapMetric): StateMetric | null {
+  if (rows.length === 0) {
+    return null;
+  }
+  return rows.reduce((best, row) => (row[metric] > best[metric] ? row : best));
 }
 
 export function metricLabel(metric: MapMetric): string {

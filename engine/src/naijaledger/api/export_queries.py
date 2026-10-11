@@ -33,14 +33,33 @@ _PARTY_PUBLIC_COLUMNS = """
 _TENDER_COLUMNS = """
     id, ocid, agency_id, title, method, value_amount, currency,
     bidding_opens_at, bidding_closes_at, state_code, lga, fiscal_year,
-    created_at, updated_at
+    created_at, updated_at,
+    CASE
+      WHEN meta->>'source_kind' = 'ocp_registry' THEN meta->>'ocp_retrieved_on'
+      ELSE NULL
+    END AS ocp_retrieved_on
 """
 _AWARD_COLUMNS = """
-    id, tender_id, supplier_id, value_amount, currency, awarded_at, created_at, updated_at
+    a.id, a.tender_id, a.supplier_id, a.value_amount, a.currency, a.awarded_at,
+    a.created_at, a.updated_at,
+    CASE
+      WHEN a.meta->>'source_kind' = 'ocp_registry' THEN t.meta->>'ocp_retrieved_on'
+      ELSE NULL
+    END AS ocp_retrieved_on
 """
 _CONTRACT_COLUMNS = """
-    id, award_id, supplier_id, agency_id, value_amount, currency, signed_at, status,
-    created_at, updated_at
+    c.id, c.award_id, c.supplier_id, c.agency_id, c.value_amount, c.currency, c.signed_at,
+    c.status, c.created_at, c.updated_at,
+    CASE
+      WHEN c.meta->>'source_kind' = 'ocp_registry' THEN t.meta->>'ocp_retrieved_on'
+      ELSE NULL
+    END AS ocp_retrieved_on
+"""
+_AWARD_FROM = "awards a JOIN tenders t ON t.id = a.tender_id"
+_CONTRACT_FROM = """
+    contracts c
+    LEFT JOIN awards a ON a.id = c.award_id
+    LEFT JOIN tenders t ON t.id = a.tender_id
 """
 _SOURCE_PUBLIC_COLUMNS = """
     id, name, jurisdiction, region, category, url, fetch_method, format,
@@ -127,18 +146,29 @@ def export_tenders(
     return _page(connection, sql=sql, params=params, limit=limit, map_row=_row_to_tender)
 
 
+def _keyset_clause_qualified(
+    cursor: CursorPayload | None, *, alias: str
+) -> tuple[str, dict[str, Any]]:
+    if cursor is None:
+        return "TRUE", {}
+    return f"({alias}.created_at, {alias}.id) > (:cursor_ts, :cursor_id)", {
+        "cursor_ts": cursor.t,
+        "cursor_id": cursor.i,
+    }
+
+
 def export_awards(
     connection: Connection,
     *,
     cursor: CursorPayload | None,
     limit: int,
 ) -> tuple[list[PublicAward], datetime | None, UUID | None]:
-    where, params = _keyset_clause(cursor)
+    where, params = _keyset_clause_qualified(cursor, alias="a")
     sql = f"""
         SELECT {_AWARD_COLUMNS}
-        FROM awards
+        FROM {_AWARD_FROM}
         WHERE {where}
-        ORDER BY created_at ASC, id ASC
+        ORDER BY a.created_at ASC, a.id ASC
         LIMIT :limit
     """
     return _page(connection, sql=sql, params=params, limit=limit, map_row=_row_to_award)
@@ -150,12 +180,12 @@ def export_contracts(
     cursor: CursorPayload | None,
     limit: int,
 ) -> tuple[list[PublicContract], datetime | None, UUID | None]:
-    where, params = _keyset_clause(cursor)
+    where, params = _keyset_clause_qualified(cursor, alias="c")
     sql = f"""
         SELECT {_CONTRACT_COLUMNS}
-        FROM contracts
+        FROM {_CONTRACT_FROM}
         WHERE {where}
-        ORDER BY created_at ASC, id ASC
+        ORDER BY c.created_at ASC, c.id ASC
         LIMIT :limit
     """
     return _page(connection, sql=sql, params=params, limit=limit, map_row=_row_to_contract)

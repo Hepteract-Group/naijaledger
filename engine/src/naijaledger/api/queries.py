@@ -34,16 +34,36 @@ _PARTY_PUBLIC_COLUMNS = """
 _TENDER_COLUMNS = """
     id, ocid, agency_id, title, method, value_amount, currency,
     bidding_opens_at, bidding_closes_at, state_code, lga, fiscal_year,
-    created_at, updated_at
+    created_at, updated_at,
+    CASE
+      WHEN meta->>'source_kind' = 'ocp_registry' THEN meta->>'ocp_retrieved_on'
+      ELSE NULL
+    END AS ocp_retrieved_on
 """
 
 _AWARD_COLUMNS = """
-    id, tender_id, supplier_id, value_amount, currency, awarded_at, created_at, updated_at
+    a.id, a.tender_id, a.supplier_id, a.value_amount, a.currency, a.awarded_at,
+    a.created_at, a.updated_at,
+    CASE
+      WHEN a.meta->>'source_kind' = 'ocp_registry' THEN t.meta->>'ocp_retrieved_on'
+      ELSE NULL
+    END AS ocp_retrieved_on
 """
 
 _CONTRACT_COLUMNS = """
-    id, award_id, supplier_id, agency_id, value_amount, currency, signed_at, status,
-    created_at, updated_at
+    c.id, c.award_id, c.supplier_id, c.agency_id, c.value_amount, c.currency, c.signed_at,
+    c.status, c.created_at, c.updated_at,
+    CASE
+      WHEN c.meta->>'source_kind' = 'ocp_registry' THEN t.meta->>'ocp_retrieved_on'
+      ELSE NULL
+    END AS ocp_retrieved_on
+"""
+
+_AWARD_FROM = "awards a JOIN tenders t ON t.id = a.tender_id"
+_CONTRACT_FROM = """
+    contracts c
+    LEFT JOIN awards a ON a.id = c.award_id
+    LEFT JOIN tenders t ON t.id = a.tender_id
 """
 
 _SOURCE_PUBLIC_COLUMNS = """
@@ -163,6 +183,7 @@ def _row_to_tender(row: Row[Any]) -> PublicTender:
         state_code=m.get("state_code"),
         lga=m.get("lga"),
         fiscal_year=m.get("fiscal_year"),
+        ocp_retrieved_on=m.get("ocp_retrieved_on"),
         created_at=m["created_at"],
         updated_at=m["updated_at"],
     )
@@ -177,6 +198,7 @@ def _row_to_award(row: Row[Any]) -> PublicAward:
         value_amount=m["value_amount"],
         currency=m["currency"],
         awarded_at=m["awarded_at"],
+        ocp_retrieved_on=m.get("ocp_retrieved_on"),
         created_at=m["created_at"],
         updated_at=m["updated_at"],
     )
@@ -193,6 +215,7 @@ def _row_to_contract(row: Row[Any]) -> PublicContract:
         currency=m["currency"],
         signed_at=m["signed_at"],
         status=m["status"],
+        ocp_retrieved_on=m.get("ocp_retrieved_on"),
         created_at=m["created_at"],
         updated_at=m["updated_at"],
     )
@@ -388,7 +411,18 @@ def list_public_map_states(
             f"""
             SELECT state_code,
                    COALESCE(SUM(value_amount), 0) AS contract_volume,
-                   COUNT(*) AS tender_count
+                   COUNT(*) AS tender_count,
+                   COUNT(*) FILTER (
+                     WHERE meta->>'source_kind' = 'ocp_registry'
+                   ) AS ocp_archive_tender_count,
+                   MIN(meta->>'ocp_retrieved_on') FILTER (
+                     WHERE meta->>'source_kind' = 'ocp_registry'
+                       AND meta->>'ocp_retrieved_on' IS NOT NULL
+                   ) AS ocp_retrieved_on_min,
+                   MAX(meta->>'ocp_retrieved_on') FILTER (
+                     WHERE meta->>'source_kind' = 'ocp_registry'
+                       AND meta->>'ocp_retrieved_on' IS NOT NULL
+                   ) AS ocp_retrieved_on_max
             FROM tenders
             WHERE state_code IS NOT NULL{year_clause}
             GROUP BY state_code
@@ -396,8 +430,14 @@ def list_public_map_states(
         ),
         params,
     ).all()
-    by_code: dict[str, tuple[int, int]] = {
-        str(row.state_code): (int(row.contract_volume), int(row.tender_count))
+    by_code: dict[str, tuple[int, int, int, str | None, str | None]] = {
+        str(row.state_code): (
+            int(row.contract_volume),
+            int(row.tender_count),
+            int(row.ocp_archive_tender_count),
+            row.ocp_retrieved_on_min,
+            row.ocp_retrieved_on_max,
+        )
         for row in tender_rows
     }
 
@@ -425,7 +465,7 @@ def list_public_map_states(
     states: list[PublicMapState] = []
     for code in list_known_state_codes():
         name, lat, lng = STATE_CENTROIDS[code]
-        volume, tender_count = by_code.get(code, (0, 0))
+        volume, tender_count, ocp_count, ocp_min, ocp_max = by_code.get(code, (0, 0, 0, None, None))
         open_flags = flags_by_code.get(code, 0)
         density = (open_flags / tender_count) if tender_count > 0 else 0.0
         states.append(
@@ -438,6 +478,9 @@ def list_public_map_states(
                 tender_count=tender_count,
                 open_flag_count=open_flags,
                 anomaly_density=round(density, 4),
+                ocp_archive_tender_count=ocp_count,
+                ocp_retrieved_on_min=ocp_min,
+                ocp_retrieved_on_max=ocp_max,
             )
         )
     return states
@@ -457,7 +500,7 @@ def get_public_tender(connection: Connection, tender_id: UUID) -> PublicTender:
 def get_public_award(connection: Connection, award_id: UUID) -> PublicAward:
     try:
         row = connection.execute(
-            text(f"SELECT {_AWARD_COLUMNS} FROM awards WHERE id = :id"),
+            text(f"SELECT {_AWARD_COLUMNS} FROM {_AWARD_FROM} WHERE a.id = :id"),
             {"id": award_id},
         ).one()
     except NoResultFound as exc:
@@ -468,7 +511,7 @@ def get_public_award(connection: Connection, award_id: UUID) -> PublicAward:
 def get_public_contract(connection: Connection, contract_id: UUID) -> PublicContract:
     try:
         row = connection.execute(
-            text(f"SELECT {_CONTRACT_COLUMNS} FROM contracts WHERE id = :id"),
+            text(f"SELECT {_CONTRACT_COLUMNS} FROM {_CONTRACT_FROM} WHERE c.id = :id"),
             {"id": contract_id},
         ).one()
     except NoResultFound as exc:

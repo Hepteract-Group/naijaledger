@@ -216,6 +216,12 @@
   letter-spacing: -0.03em;
 }
 
+.map-fact__archive {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  color: var(--ink-muted, #5a6b60);
+}
+
 .map-fact__label {
   margin: var(--space-2) 0 0;
   font-size: 0.88rem;
@@ -302,6 +308,13 @@
   font-weight: 600;
   color: var(--accent);
   font-size: 0.92rem;
+}
+
+.map-rank__archive {
+  display: block;
+  font-weight: 500;
+  font-size: 0.72rem;
+  color: var(--ink-muted, #5a6b60);
 }
 
 .map-side__actions {

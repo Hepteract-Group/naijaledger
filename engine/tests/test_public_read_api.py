@@ -256,6 +256,117 @@ def test_tenders_awards_contracts(
     assert api_client.get(f"/v1/tenders/{uuid4()}").status_code == 404
     assert api_client.get(f"/v1/awards/{uuid4()}").status_code == 404
     assert api_client.get(f"/v1/contracts/{uuid4()}").status_code == 404
+    assert tenders.json()["items"][0]["ocp_retrieved_on"] is None
+    assert award.json()["ocp_retrieved_on"] is None
+    assert contract.json()["ocp_retrieved_on"] is None
+
+
+def test_ocp_retrieved_on_on_public_amounts(
+    api_client: TestClient,
+    db_connection: Connection,
+) -> None:
+    """Spec 0042 / #206: archive amounts carry ocp_retrieved_on; full meta stays private."""
+    agency = create_party(
+        db_connection,
+        PartyCreate(party_type="agency", canonical_name="OCP Agency"),
+    )
+    supplier = create_party(
+        db_connection,
+        PartyCreate(party_type="company", canonical_name="OCP Supplier"),
+    )
+    tender_id = db_connection.execute(
+        text(
+            """
+            INSERT INTO tenders (
+                ocid, agency_id, title, method, value_amount, state_code, meta
+            ) VALUES (
+                'ocds-ocp-1', :agency_id, 'OCP road', 'open', 500000, 'ED',
+                CAST(:meta AS jsonb)
+            )
+            RETURNING id
+            """
+        ),
+        {
+            "agency_id": agency.id,
+            "meta": (
+                '{"source_kind":"ocp_registry","ocp_retrieved_on":"2022-06-03",'
+                '"attribution":"secret"}'
+            ),
+        },
+    ).scalar_one()
+    live_id = db_connection.execute(
+        text(
+            """
+            INSERT INTO tenders (
+                ocid, agency_id, title, method, value_amount, state_code, meta
+            ) VALUES (
+                'ocds-live-1', :agency_id, 'Live road', 'open', 100, 'ED',
+                CAST(:meta AS jsonb)
+            )
+            RETURNING id
+            """
+        ),
+        {
+            "agency_id": agency.id,
+            "meta": '{"source_kind":"live_portal","ocp_retrieved_on":"2022-06-03"}',
+        },
+    ).scalar_one()
+    award_id = db_connection.execute(
+        text(
+            """
+            INSERT INTO awards (tender_id, supplier_id, value_amount, meta)
+            VALUES (:tender_id, :supplier_id, 450000, CAST(:meta AS jsonb))
+            RETURNING id
+            """
+        ),
+        {
+            "tender_id": tender_id,
+            "supplier_id": supplier.id,
+            "meta": '{"source_kind":"ocp_registry"}',
+        },
+    ).scalar_one()
+    contract_id = db_connection.execute(
+        text(
+            """
+            INSERT INTO contracts (
+                award_id, supplier_id, agency_id, value_amount, status, meta
+            ) VALUES (
+                :award_id, :supplier_id, :agency_id, 450000, 'active',
+                CAST(:meta AS jsonb)
+            )
+            RETURNING id
+            """
+        ),
+        {
+            "award_id": award_id,
+            "supplier_id": supplier.id,
+            "agency_id": agency.id,
+            "meta": '{"source_kind":"ocp_registry"}',
+        },
+    ).scalar_one()
+
+    ocp = api_client.get(f"/v1/tenders/{tender_id}")
+    assert ocp.status_code == 200
+    body = ocp.json()
+    assert body["ocp_retrieved_on"] == "2022-06-03"
+    assert body["value_amount"] == 500000
+    assert "meta" not in body
+    assert "attribution" not in body
+
+    live = api_client.get(f"/v1/tenders/{live_id}")
+    assert live.json()["ocp_retrieved_on"] is None
+
+    award = api_client.get(f"/v1/awards/{award_id}")
+    assert award.json()["ocp_retrieved_on"] == "2022-06-03"
+
+    contract = api_client.get(f"/v1/contracts/{contract_id}")
+    assert contract.json()["ocp_retrieved_on"] == "2022-06-03"
+
+    mapped = api_client.get("/v1/map/states")
+    by_id = {item["id"]: item for item in mapped.json()["items"]}
+    assert by_id["ED"]["ocp_archive_tender_count"] == 1
+    assert by_id["ED"]["ocp_retrieved_on_min"] == "2022-06-03"
+    assert by_id["ED"]["ocp_retrieved_on_max"] == "2022-06-03"
 
 
 def test_tender_geo_year_filters_and_facets(
@@ -352,6 +463,8 @@ def test_map_states_aggregates(
     assert by_id["LA"]["tender_count"] == 1
     assert by_id["LA"]["open_flag_count"] == 1
     assert by_id["LA"]["anomaly_density"] == 1.0
+    assert by_id["LA"]["ocp_archive_tender_count"] == 0
+    assert by_id["LA"]["ocp_retrieved_on_min"] is None
     assert by_id["EK"]["contract_volume"] == 0
 
     filtered = api_client.get("/v1/map/states", params={"year": 2025})

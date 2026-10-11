@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   columnFillColor,
   elevationForMetric,
+  formatArchiveAsOf,
   listStateMetrics,
   maxMetric,
+  maxMetricRow,
   metricIntensity,
   rankForMetric,
   topStates,
@@ -44,5 +46,49 @@ describe("map fixtures", () => {
     }
     expect(metricIntensity(lagos, "contract_volume", max)).toBe(1);
     expect(columnFillColor(1, "contract_volume", true)[0]).toBe(184);
+  });
+
+  it("picks the row that sets the legend ceiling", () => {
+    const rows = listStateMetrics();
+    expect(maxMetricRow(rows, "contract_volume")?.id).toBe("LA");
+  });
+
+  it("formats archive as-of footnotes", () => {
+    expect(
+      formatArchiveAsOf({
+        id: "AB",
+        name: "Abia",
+        lat: 0,
+        lng: 0,
+        contract_volume: 1,
+        anomaly_density: 0,
+      }),
+    ).toBeNull();
+    expect(
+      formatArchiveAsOf({
+        id: "AB",
+        name: "Abia",
+        lat: 0,
+        lng: 0,
+        contract_volume: 1,
+        anomaly_density: 0,
+        ocp_archive_tender_count: 2,
+        ocp_retrieved_on_min: "2022-06-03",
+        ocp_retrieved_on_max: "2022-06-03",
+      }),
+    ).toBe("archive as of 2022-06-03");
+    expect(
+      formatArchiveAsOf({
+        id: "AB",
+        name: "Abia",
+        lat: 0,
+        lng: 0,
+        contract_volume: 1,
+        anomaly_density: 0,
+        ocp_archive_tender_count: 2,
+        ocp_retrieved_on_min: "2021-01-01",
+        ocp_retrieved_on_max: "2023-04-26",
+      }),
+    ).toBe("archive as of 2021-01-01–2023-04-26");
   });
 });
