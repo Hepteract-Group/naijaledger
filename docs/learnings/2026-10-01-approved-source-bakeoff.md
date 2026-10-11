@@ -12,7 +12,7 @@ Main now has 18 approved sources: these 11 plus 7 Open Contracting Partnership (
 
 | Source | Result on 2026-10-01 | Existing loader | Rank | Follow-up |
 | --- | --- | --- | --- | --- |
-| Nigeria Open Contracting Portal (NOCOPO) — Open Data | Certificate for `*.bpp.gov.ng` expired 2026-09-13 (Sectigo DV). Not fetched with verification. Re-checked 2026-10-11: public DNS resolves to 18.169.6.94; the host serves HTTP 200 only when certificate checks are skipped (-k), which this project does not do.¹ | None. #173 is blocked until the certificate is renewed. | down | None |
+| Nigeria Open Contracting Portal (NOCOPO) — Open Data | Certificate for `*.bpp.gov.ng` expired 2026-09-13 (Sectigo DV). Not fetched with verification. Re-checked 2026-10-11: public DNS resolves to 18.169.6.94; the host serves HTTP 200 only when certificate checks are skipped (-k), which this project does not do.¹ | None. #173 NOCOPO Open-Data per-row JSON child fetch + normalize is blocked until the certificate is renewed. | down | None |
 | Budget Office of the Federation — Budget Documents | HTTP 200. Index links year folders. The 2026 folder still exposes `/download` links. | Appropriation PDF path, `specs/0037-appropriation-budget-lines.md` | load now | No new spec |
 | Nigeria Extractive Industries Transparency Initiative (NEITI) — Documents library | HTTP 200 only when the system trust store is used. Python's default certificate bundle failed the chain. Child PDFs are mixed speeches, letters, and audits. | None | fetch-only | No normalizer until an allowlist exists |
 | Lagos State Public Procurement Agency — Registered Awards | HTTP 200. Monthly award-register PDF links. December 2025 file starts with `%PDF-1.7`. | Link discovery only | load now | #192 |
@@ -23,6 +23,8 @@ Main now has 18 approved sources: these 11 plus 7 Open Contracting Partnership (
 | Jigawa State Open Contracting Portal | HTTP 200. Report files under `/storage/contracts/reports/` include `.xlsx` and `.pdf`. One spreadsheet returned a ZIP header (`PK`). July audit saw PDFs only. | Link discovery only | load now | #193 |
 | Anambra State Public Procurement Portal | HTTP 200. Awards table with about 240 distinct OCDS ids (July count was higher, and many ids were repeated in the HTML). | None | load now | #189 |
 | Benue State Procurement Portal | HTTP 200. 10 award rows: project, location, year, ministry, contractor, status. The amount column from the July audit is gone. Example: solar backup equipment / Makurdi / 2026 / Benue State Universal Basic Education Board / RYLIN TECH NIGERIA LIMITED / Awarded. | None | load now | #191 |
+
+¹ On 2026-10-11 one agent VM's system resolver (10.0.0.2) timed out resolving nocopo.bpp.gov.ng. That's a local environment issue, not a problem with the source: Cloudflare and Google resolve it, and another environment's resolver resolves it too.
 
 ## What this does not cover
 
